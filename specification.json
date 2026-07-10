@@ -1,0 +1,97 @@
+{
+  "project": "Singapore High-Resolution Generative Diffusion Weather Model",
+  "version": "0.1.0",
+  "goal": "Proof-of-concept probabilistic weather forecasting at 1-2km resolution over Singapore for flash flood early warning",
+  "domain": {
+    "lat_min": 1.0,
+    "lat_max": 1.6,
+    "lon_min": 103.5,
+    "lon_max": 104.1,
+    "description": "Singapore island + ~30km buffer",
+    "area_km2": 744
+  },
+  "tracks": {
+    "track1_corrdiff_inference": {
+      "description": "Zero-shot CorrDiff NIM API inference on Singapore ERA5 data",
+      "input": {
+        "source": "ERA5 reanalysis",
+        "resolution_km": 25,
+        "temporal_resolution": "1h",
+        "variables": ["u10", "v10", "t2m", "msl", "tcwv", "q", "t", "z"],
+        "pressure_levels": [1000, 850, 500, 250],
+        "period": "2022-01-01 to 2023-12-31"
+      },
+      "output": {
+        "resolution_km": 2,
+        "variables": ["tp", "u10", "v10", "t2m"],
+        "format": "zarr",
+        "path": "data/processed/corrdiff_output/"
+      },
+      "api": {
+        "endpoint": "https://ai.api.nvidia.com/v1/earth-2/corrdiff",
+        "auth_env_var": "NVIDIA_API_KEY",
+        "docs": "https://docs.nvidia.com/nim/earth-2/corrdiff/latest/"
+      },
+      "compute": "NVIDIA NIM cloud API"
+    },
+    "track2_radar_nowcaster": {
+      "description": "DDPM diffusion model trained on NEA radar to nowcast 30-90min precipitation",
+      "input": {
+        "source": "NEA X-band radar (weather.gov.sg)",
+        "resolution_km": 1,
+        "temporal_resolution": "5min",
+        "context_frames": 6,
+        "context_window_minutes": 30
+      },
+      "output": {
+        "lead_times_minutes": [30, 60, 90],
+        "ensemble_size": 8,
+        "resolution_km": 1,
+        "format": "zarr"
+      },
+      "model": {
+        "architecture": "DDPM score-based diffusion with conditioned UNet",
+        "unet_channels": [64, 128, 256, 512],
+        "diffusion_steps": 1000,
+        "inference_steps": 50,
+        "parameters_approx": "100M",
+        "precision": "fp16",
+        "batch_size_train": 4,
+        "checkpoint_interval_steps": 1000
+      },
+      "compute": "Local RTX 4060 Laptop GPU (8GB VRAM)"
+    }
+  },
+  "data_sources": {
+    "ERA5": {
+      "provider": "ECMWF Copernicus CDS",
+      "api_library": "cdsapi",
+      "auth": "~/.cdsapirc or CDS_API_KEY env var",
+      "format": "NetCDF → zarr",
+      "size_estimate_gb": 10
+    },
+    "NEA_radar": {
+      "provider": "National Environment Agency Singapore",
+      "source_url": "https://www.weather.gov.sg/",
+      "format": "PNG → numpy array → zarr",
+      "update_frequency": "5min",
+      "size_estimate_gb_per_month": 2
+    },
+    "data_gov_sg": {
+      "provider": "Singapore Government",
+      "base_url": "https://api.data.gov.sg/v1",
+      "datasets": ["realtime-weather-readings", "2-hour-weather-forecast"],
+      "auth": "none"
+    }
+  },
+  "checkpointing": {
+    "strategy": "every stage produces a persistent artifact; all scripts are idempotent (skip completed work on re-run)",
+    "stage_flags": "checkpoints/stage{N}_complete.flag",
+    "training_checkpoints": "checkpoints/nowcaster/ckpt_step_{N}.pt every 1000 steps",
+    "resume_training": "train.py --resume checkpoints/nowcaster/latest.pt"
+  },
+  "success_metrics": {
+    "corrdiff_track": "visually plausible 2km precipitation field vs NEA radar ground truth",
+    "nowcaster_track": "FSS > persistence baseline at 20dBZ threshold for 30-min lead time"
+  }
+}

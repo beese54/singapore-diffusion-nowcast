@@ -1,0 +1,20 @@
+{
+  "lead_time_min": 30,
+  "threshold_mm_hr": 2.0,
+  "n_samples": 10,
+  "model_fss_mean": 1.0,
+  "persistence_fss_mean": 1.0,
+  "fss_skill": 0.0,
+  "crps_mean": NaN,
+  "mae_mean": NaN,
+  "model_beats_persistence": false,
+  "flood_eval": {
+    "n_events_geocoded": 3,
+    "n_events_scored": 3,
+    "lead_time_min": 30,
+    "threshold_mm_hr": 2.0,
+    "pod_model": 0.0,
+    "pod_persistence": 0.0,
+    "note": "Events are FLOOD_RISK warnings (rain approaches, flood lags rain). Low POD expected until FLASH_FLOOD events accumulate."
+  }
+}

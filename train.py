@@ -1,0 +1,310 @@
+"""
+train.py — Train the radar diffusion nowcaster.
+
+Features
+--------
+- Resumes automatically from latest checkpoint (--resume or auto-detected)
+- Saves checkpoint every 1000 steps AND on Ctrl+C (SIGINT)
+- Mixed precision (fp16) for RTX 4060 8GB
+- Gradient checkpointing to stay within VRAM budget
+- TensorBoard logging to runs/
+
+Usage
+-----
+    python train.py                                  # fresh training
+    python train.py --resume                         # auto-resume from latest checkpoint
+    python train.py --resume checkpoints/nowcaster/ckpt_step_5000.pt
+    python train.py --smoke training.max_steps=100 training.batch_size=2  # smoke test
+
+Use --smoke for short test runs: it isolates checkpoints to checkpoints/nowcaster/smoke/
+(so --resume auto never finds them) and does NOT write stage4_complete.flag.
+"""
+
+import os
+import signal
+import sys
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+from torch.amp import GradScaler, autocast
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+
+from src.model.unet import ConditionedUNet, count_parameters
+from src.model.diffusion import GaussianDiffusion
+from src.data.radar_dataset import RadarDataset, compute_stats
+
+# ── Hyperparameters (override via CLI: python train.py training.lr=1e-4) ─────
+import argparse
+
+DEFAULTS = {
+    "max_steps": 300_000,
+    "batch_size": 4,
+    "lr": 2e-4,
+    "warmup_steps": 2_000,
+    "checkpoint_interval": 1_000,
+    "log_interval": 100,
+    "val_interval": 5_000,
+    "context_frames": 6,
+    "target_offset": 6,       # 30 min ahead
+    "base_ch": 64,
+    "ch_mults": (1, 2, 4, 8),
+    "diffusion_steps": 1000,
+    "inference_steps": 50,
+    "num_workers": 2,
+}
+
+CKPT_DIR = ROOT / "checkpoints" / "nowcaster"
+CKPT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--resume", nargs="?", const="auto", default=None,
+                        help="Resume from checkpoint. No value = auto-find latest.")
+    parser.add_argument("--smoke", action="store_true",
+                        help="Smoke-test run: isolate checkpoints to a throwaway subdir "
+                             "and skip writing stage4_complete.flag.")
+    for key, val in DEFAULTS.items():
+        parser.add_argument(f"--{key.replace('_', '-')}", default=val, type=type(val)
+                            if not isinstance(val, tuple) else str)
+    # Support Hydra-style overrides: python train.py training.lr=1e-4
+    args, overrides = parser.parse_known_args()
+    for kv in overrides:
+        if "=" in kv:
+            k, v = kv.split("=", 1)
+            # Strip the optional "training." prefix (a literal prefix, not a
+            # character set — lstrip() would mangle keys like num_workers).
+            if k.startswith("training."):
+                k = k[len("training."):]
+            k = k.replace("-", "_")
+            if k in DEFAULTS:
+                try:
+                    setattr(args, k, type(DEFAULTS[k])(v))
+                except (ValueError, TypeError):
+                    pass
+    return args
+
+
+def find_latest_checkpoint(ckpt_dir: Path = CKPT_DIR) -> Path | None:
+    ckpts = sorted(ckpt_dir.glob("ckpt_step_*.pt"),
+                   key=lambda p: int(p.stem.split("_")[-1]))
+    return ckpts[-1] if ckpts else None
+
+
+def save_checkpoint(state: dict, step: int, ckpt_dir: Path = CKPT_DIR,
+                    is_interrupt: bool = False) -> Path:
+    path = ckpt_dir / f"ckpt_step_{step}.pt"
+    torch.save(state, path)
+    # Always update latest.pt symlink / copy
+    latest = ckpt_dir / "latest.pt"
+    torch.save(state, latest)
+    tag = " (on interrupt)" if is_interrupt else ""
+    print(f"[ckpt] Saved{tag} -> {path}")
+    return path
+
+
+def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler) -> int:
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    model.load_state_dict(state["model"])
+    optimizer.load_state_dict(state["optimizer"])
+    scaler.load_state_dict(state["scaler"])
+    step = state["step"]
+    print(f"[ckpt] Resumed from {path} (step {step})")
+    return step
+
+
+def cosine_lr(step: int, base_lr: float, warmup_steps: int, max_steps: int) -> float:
+    import math
+    if step < warmup_steps:
+        return base_lr * step / max(warmup_steps, 1)
+    progress = (step - warmup_steps) / max(max_steps - warmup_steps, 1)
+    return base_lr * 0.5 * (1 + math.cos(math.pi * progress))
+
+
+def main():
+    args = parse_args()
+
+    # Smoke runs write to an isolated subdir so --resume auto can never pick up
+    # toy checkpoints, and they never mark the stage complete.
+    ckpt_dir = CKPT_DIR / "smoke" if args.smoke else CKPT_DIR
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    if args.smoke:
+        print(f"[smoke] Test run: checkpoints -> {ckpt_dir} (stage flag will NOT be written)")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
+    if device.type == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory // 1024**3} GB")
+
+    # ── Dataset ──────────────────────────────────────────────────────────────
+    zarr_path = ROOT / "data" / "processed" / "radar.zarr"
+    if not zarr_path.exists():
+        print("ERROR: data/processed/radar.zarr not found.")
+        print("Run scripts/scrape_radar.py and scripts/preprocess_radar.py first.")
+        sys.exit(1)
+
+    # Compute stats if missing
+    stats_path = ROOT / "data" / "processed" / "radar_stats.json"
+    if not stats_path.exists():
+        print("Computing dataset statistics...")
+        compute_stats(zarr_path, stats_path)
+
+    train_ds = RadarDataset("train", context_frames=args.context_frames,
+                            target_offset=args.target_offset)
+    val_ds = RadarDataset("val", context_frames=args.context_frames,
+                          target_offset=args.target_offset)
+
+    print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
+
+    train_loader = DataLoader(
+        train_ds, batch_size=args.batch_size, shuffle=True,
+        num_workers=args.num_workers, pin_memory=True, drop_last=True,
+        persistent_workers=args.num_workers > 0,
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=args.batch_size, shuffle=False,
+        num_workers=0, pin_memory=True,
+    )
+
+    # ── Model ─────────────────────────────────────────────────────────────────
+    unet = ConditionedUNet(
+        context_frames=args.context_frames,
+        base_ch=args.base_ch,
+        use_checkpoint=True,   # always use gradient checkpointing for 8GB GPU
+    )
+    diffusion = GaussianDiffusion(unet, timesteps=args.diffusion_steps,
+                                  inference_steps=args.inference_steps)
+    diffusion = diffusion.to(device)
+
+    n_params = count_parameters(unet)
+    print(f"Model parameters: {n_params:,} ({n_params/1e6:.1f}M)")
+
+    # ── Optimizer + scaler ────────────────────────────────────────────────────
+    optimizer = torch.optim.AdamW(diffusion.parameters(), lr=args.lr,
+                                  weight_decay=1e-4, betas=(0.9, 0.999))
+    scaler = GradScaler("cuda")
+
+    # ── Resume ────────────────────────────────────────────────────────────────
+    start_step = 0
+    if args.resume is not None:
+        ckpt_path = (find_latest_checkpoint(ckpt_dir) if args.resume == "auto"
+                     else Path(args.resume))
+        if ckpt_path and ckpt_path.exists():
+            start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler)
+        else:
+            print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
+
+    # ── SIGINT handler: save checkpoint on Ctrl+C ─────────────────────────────
+    interrupted = {"flag": False}
+
+    def _sigint_handler(sig, frame):
+        if not interrupted["flag"]:
+            print("\n[interrupt] Saving checkpoint before exit...")
+            interrupted["flag"] = True
+
+    signal.signal(signal.SIGINT, _sigint_handler)
+
+    # ── TensorBoard ────────────────────────────────────────────────────────────
+    writer = SummaryWriter(log_dir=str(ROOT / "runs"))
+
+    # ── Training loop ─────────────────────────────────────────────────────────
+    step = start_step
+    train_iter = iter(train_loader)
+
+    print(f"Starting training from step {step} / {args.max_steps}")
+
+    while step < args.max_steps:
+        # Check for interrupt signal
+        if interrupted["flag"]:
+            save_checkpoint(
+                {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
+                 "scaler": scaler.state_dict(), "step": step},
+                step, ckpt_dir, is_interrupt=True,
+            )
+            print("[interrupt] Checkpoint saved. Exiting safely.")
+            break
+
+        # Get next batch (restart iterator when exhausted)
+        try:
+            batch = next(train_iter)
+        except StopIteration:
+            train_iter = iter(train_loader)
+            batch = next(train_iter)
+
+        context = batch["context"].to(device, non_blocking=True)
+        target = batch["target"].to(device, non_blocking=True)
+
+        # Update learning rate
+        lr = cosine_lr(step, args.lr, args.warmup_steps, args.max_steps)
+        for pg in optimizer.param_groups:
+            pg["lr"] = lr
+
+        # Forward + backward with mixed precision
+        optimizer.zero_grad(set_to_none=True)
+        with autocast("cuda", dtype=torch.float16):
+            loss = diffusion.p_losses(target, context)
+
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        nn.utils.clip_grad_norm_(diffusion.parameters(), 1.0)
+        scaler.step(optimizer)
+        scaler.update()
+
+        step += 1
+
+        # Logging
+        if step % args.log_interval == 0:
+            writer.add_scalar("train/loss", loss.item(), step)
+            writer.add_scalar("train/lr", lr, step)
+            print(f"  step {step:>7d} | loss {loss.item():.4f} | lr {lr:.2e}")
+
+        # Validation
+        if step % args.val_interval == 0:
+            diffusion.eval()
+            val_losses = []
+            with torch.no_grad():
+                for vbatch in val_loader:
+                    vctx = vbatch["context"].to(device)
+                    vtgt = vbatch["target"].to(device)
+                    with autocast("cuda", dtype=torch.float16):
+                        vloss = diffusion.p_losses(vtgt, vctx)
+                    val_losses.append(vloss.item())
+            val_loss = sum(val_losses) / len(val_losses)
+            writer.add_scalar("val/loss", val_loss, step)
+            print(f"  [val] step {step} | val_loss {val_loss:.4f}")
+            diffusion.train()
+
+        # Checkpoint
+        if step % args.checkpoint_interval == 0:
+            save_checkpoint(
+                {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
+                 "scaler": scaler.state_dict(), "step": step},
+                step, ckpt_dir,
+            )
+
+    # Final checkpoint on clean exit
+    if not interrupted["flag"] and step == args.max_steps:
+        save_checkpoint(
+            {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
+             "scaler": scaler.state_dict(), "step": step},
+            step, ckpt_dir,
+        )
+        # Write stage flag only for genuine full runs, never for smoke tests
+        if not args.smoke:
+            flag = ROOT / "checkpoints" / "stage4_complete.flag"
+            flag.touch()
+            print(f"[done] Training complete. Stage 4 flag -> {flag}")
+        else:
+            print("[smoke] Test run complete. Stage flag intentionally not written.")
+
+    writer.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,58 @@
+# ── Core ML ──────────────────────────────────────────────────────────────────
+torch>=2.2.0
+torchvision>=0.17.0
+
+# ── NVIDIA Earth-2 / PhysicsNeMo ─────────────────────────────────────────────
+nvidia-physicsnemo>=0.1.0
+earth2studio>=0.4.0
+
+# ── Data / IO ────────────────────────────────────────────────────────────────
+cdsapi>=0.7.0          # ERA5 download via Copernicus CDS
+zarr>=2.16.0           # chunked array storage
+xarray>=2024.1.0       # labelled N-D arrays
+netCDF4>=1.6.0         # NetCDF I/O backend
+h5py>=3.10.0           # HDF5 backend for xarray
+cfgrib>=0.9.10         # GRIB2 reading (optional, for GFS data)
+eccodes>=1.6.0         # GRIB library (eccodes system package may also be needed)
+
+# ── Numerics / Science ────────────────────────────────────────────────────────
+numpy>=1.26.0
+scipy>=1.12.0
+pandas>=2.2.0
+scikit-learn>=1.4.0
+
+# ── Geospatial ────────────────────────────────────────────────────────────────
+cartopy>=0.22.0        # map projections for plotting
+pyproj>=3.6.0          # coordinate transforms
+shapely>=2.0.0         # geometry operations
+geopandas>=0.14.0      # spatial dataframes
+
+# ── Image / Radar processing ──────────────────────────────────────────────────
+Pillow>=10.2.0         # PNG image I/O
+opencv-python-headless>=4.9.0  # image processing for radar colour parsing
+
+# ── HTTP / scraping ────────────────────────────────────────────────────────────
+requests>=2.31.0
+httpx>=0.27.0          # async HTTP for NIM API calls
+aiohttp>=3.9.0         # async radar scraping
+aiofiles>=23.2.0
+telethon>=1.36.0       # Telegram client for flood label collection (Stage 5 ground truth)
+
+# ── Config / CLI ──────────────────────────────────────────────────────────────
+hydra-core>=1.3.0      # config management (matches PhysicsNeMo)
+omegaconf>=2.3.0
+python-dotenv>=1.0.0   # load .env files
+tqdm>=4.66.0           # progress bars
+rich>=13.7.0           # pretty terminal output
+
+# ── Logging / Experiment tracking ────────────────────────────────────────────
+tensorboard>=2.16.0
+
+# ── Notebooks ─────────────────────────────────────────────────────────────────
+jupyter>=1.0.0
+ipykernel>=6.29.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# ── Evaluation metrics ────────────────────────────────────────────────────────
+properscoring>=0.1     # CRPS score

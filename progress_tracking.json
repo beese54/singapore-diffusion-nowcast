@@ -1,0 +1,109 @@
+{
+  "project": "Singapore Generative Diffusion Weather Model",
+  "last_updated": "2026-07-10",
+  "stages": [
+    {
+      "id": 0,
+      "name": "Environment Setup",
+      "status": "Complete",
+      "completed_date": "2026-06-02",
+      "checkpoint_artifact": "checkpoints/stage0_complete.flag",
+      "notes": "PyTorch 2.5.1+cu121, RTX 4060 8GB, earth2studio 0.15.0, physicsnemo, .cdsapirc configured",
+      "tasks": [
+        {"id": "0.1", "description": "Create conda environment via init.sh", "status": "Complete"},
+        {"id": "0.2", "description": "Populate .env with NGC_API_KEY and NVIDIA_API_KEY", "status": "Complete"},
+        {"id": "0.3", "description": "Configure ~/.cdsapirc for CDS ERA5 access", "status": "Complete"},
+        {"id": "0.4", "description": "Verify GPU accessible: torch.cuda.is_available()", "status": "Complete"},
+        {"id": "0.5", "description": "Verify earth2studio and physicsnemo import", "status": "Complete"}
+      ]
+    },
+    {
+      "id": 1,
+      "name": "ERA5 Data Download",
+      "status": "Complete",
+      "completed_date": "2026-06-04",
+      "checkpoint_artifact": "checkpoints/stage1_complete.flag",
+      "resume_command": "python scripts/download_era5.py",
+      "notes": "singapore_2022.zarr (8760h) + singapore_2023.zarr (8760h), all surface + pressure vars, levels [250,500,850,1000] hPa",
+      "tasks": [
+        {"id": "1.1", "description": "Download ERA5 surface vars over SG bounding box, 2022-2023", "status": "Complete"},
+        {"id": "1.2", "description": "Download ERA5 pressure-level vars (q,t,z @ 1000/850/500/250 hPa)", "status": "Complete"},
+        {"id": "1.3", "description": "Validate completeness with validate_era5.py", "status": "Complete"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "PrecipitationAFNO Baseline Inference",
+      "status": "Complete",
+      "completed_date": "2026-06-05",
+      "checkpoint_artifact": "checkpoints/stage2_complete.flag",
+      "resume_command": "python scripts/run_precipitation_afno.py",
+      "notes": "CorrDiff NIM blocked (self-hosted only, Taiwan domain, no Singapore WRF). Pivoted to PrecipitationAFNO via earth2studio WB2ERA5. Output is 0.25 deg (coarse baseline). 10 hindcast timestamps across 3 rain events saved to data/stage2/. Patched earth2studio package.py Windows backslash bug.",
+      "tasks": [
+        {"id": "2.1", "description": "Write run_precipitation_afno.py using WB2ERA5 + PrecipitationAFNO", "status": "Complete"},
+        {"id": "2.2", "description": "Run hindcast for 3 Singapore rain events (2020-12, 2021-01, 2022-04)", "status": "Complete"},
+        {"id": "2.3", "description": "Update notebook 01 to use stage2 NetCDF outputs", "status": "Complete"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Radar Archive Pipeline",
+      "status": "In-Progress",
+      "checkpoint_artifact": "checkpoints/stage3_complete.flag",
+      "resume_command": "python scripts/preprocess_radar.py",
+      "notes": "Windows Task Scheduler auto-collecting PNGs every 5min since 2026-05-22. Audit 2026-07-10: 11,705 PNGs, radar.zarr has 11,610 frames current through 2026-07-10 00:05 UTC — 49/90 days (~54%). All 4 SG-Weather scheduled tasks ran today with LastResult 0. Coverage: 35 of 47 complete days >=240 frames; low days (travel/shutdown): Jun 21 (222), Jun 28 (182), Jun 30 (234), Jul 7 (228), Jul 9 (196). Mean frames/day: Jun 272.6, Jul 265.3. PNG->zarr ingest automated via '\\SG-Weather\\SG-Weather Radar Preprocess' daily 08:00 SGT. Target: 90 days = ~Aug 20, 2026.",
+      "tasks": [
+        {"id": "3.1", "description": "Build incremental radar scraper for NEA weather.gov.sg", "status": "Complete"},
+        {"id": "3.2", "description": "Implement colour-to-mm/hr conversion and zarr storage", "status": "Complete"},
+        {"id": "3.3", "description": "Validate dataset coverage with validate_dataset.py", "status": "Complete"},
+        {"id": "3.5", "description": "Automate PNG->zarr ingest via daily scheduled task (SG-Weather Radar Preprocess)", "status": "Complete"},
+        {"id": "3.4", "description": "Reach 90-day archive threshold (~late August 2026)", "status": "In-Progress"}
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Diffusion Nowcaster Training",
+      "status": "Blocked",
+      "checkpoint_artifact": "checkpoints/nowcaster/latest.pt",
+      "resume_command": "python train.py --resume checkpoints/nowcaster/latest.pt",
+      "notes": "Blocked until Stage 3 reaches 90-day archive (~late August 2026). UNet + DDPM + RadarDataset + train.py already implemented. Smoke-test 2026-06-16: 100 steps, batch 2, grad-checkpointing on RTX 4060 (7GB) — NO OOM, 25.8M params, loss 1.12->0.52. One fp16 nan at step 20 (GradScaler skipped+recovered, benign during warmup). NOTE: train.py writes stage4_complete.flag whenever step==max_steps, so the smoke run falsely created the flag + toy checkpoints; cleaned up. Needs a guard before real runs. Env gap: tensorboard (in requirements.txt) was missing from the system Python3.12 runtime; pip-installed.",
+      "tasks": [
+        {"id": "4.1", "description": "UNet backbone (src/model/unet.py)", "status": "Complete"},
+        {"id": "4.2", "description": "DDPM diffusion loop (src/model/diffusion.py)", "status": "Complete"},
+        {"id": "4.3", "description": "RadarDataset (src/data/radar_dataset.py)", "status": "Complete"},
+        {"id": "4.4", "description": "train.py with --resume and SIGINT checkpoint", "status": "Complete"},
+        {"id": "4.5", "description": "Smoke-test: 100 steps without OOM", "status": "Complete", "notes": "Re-run 2026-06-18: loss 0.76 at step 100, no OOM, no NaN (cleaner than June 16 run). 25.8M params, 7GB VRAM."},
+        {"id": "4.6", "description": "Full training run to convergence", "status": "Pending"}
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Evaluation & Flash Flood Map",
+      "status": "In-Progress",
+      "checkpoint_artifact": "results/evaluation_report.json",
+      "resume_command": "python scripts/evaluate.py",
+      "notes": "Ground-truth pipeline live: collect_flood_labels.py (Telegram, daily 09:00 SGT scheduled task, conda env) -> flood_labels.parquet; build_flood_eval_dataset.py (added 2026-06-16) temporally cross-references labels to radar.zarr -> flood_eval_dataset.parquet. Both clocks are UTC (no offset). Audit 2026-07-10: 34 labels through 2026-07-08 (23 RAIN_WARNING, 11 FLOOD_RISK, 0 FLASH_FLOOD yet). STALE ARTIFACT: flood_eval_dataset.parquet still has only 12 rows through 2026-06-12 — build_flood_eval_dataset.py is NOT on a scheduled task and hasn't been re-run since 2026-06-17; 22 newer labels un-cross-referenced. evaluation_report.json (2026-06-18) is a smoke-run placeholder (FSS 1.0 model AND persistence, CRPS/MAE NaN) — not a real result. NOT yet wired into evaluate.py (would change Stage 5 semantics; awaiting approval).",
+      "tasks": [
+        {"id": "5.1", "description": "Run FSS evaluation script", "status": "Pending"},
+        {"id": "5.2", "description": "Produce nowcast evaluation notebook", "status": "Pending"},
+        {"id": "5.3", "description": "Produce flash flood risk overlay notebook", "status": "Pending"},
+        {"id": "5.4", "description": "Telegram flood-label collector + radar cross-reference (build_flood_eval_dataset.py)", "status": "Complete"},
+        {"id": "5.6", "description": "Geocode flood-label locations to radar cells (geocode_flood_labels.py, OneMap+cache); spatial cols added to flood_eval_dataset", "status": "Complete"},
+        {"id": "5.5", "description": "Wire flood_eval_dataset into evaluate.py for event-based Stage 5 scoring", "status": "Pending"}
+      ]
+    },
+    {
+      "id": 6,
+      "name": "LaunchPad CorrDiff Fine-tuning",
+      "status": "Blocked",
+      "checkpoint_artifact": "checkpoints/corrdiff_singapore/",
+      "resume_command": "scripts/launchpad/submit_job.sh",
+      "notes": "Parallel track. Apply at developer.nvidia.com/launchpad. Would fine-tune CorrDiff on SG ERA5+radar paired data — would produce first equatorial CorrDiff model.",
+      "tasks": [
+        {"id": "6.1", "description": "Apply for NVIDIA LaunchPad access", "status": "Pending", "notes": "Application package ready in scripts/launchpad/: project_brief.md, submit_job.sh, finetune_corrdiff_sg.py. User must submit at developer.nvidia.com/launchpad."},
+        {"id": "6.2", "description": "Package fine-tuning script for LaunchPad submission", "status": "Complete", "completed_date": "2026-06-18"},
+        {"id": "6.3", "description": "Run fine-tuning job on Singapore ERA5+radar data", "status": "Pending"}
+      ]
+    }
+  ]
+}

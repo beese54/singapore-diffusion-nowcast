@@ -1,0 +1,51 @@
+# Environment
+.env
+*.env.local
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Conda
+conda-env/
+
+# Data (large files — track metadata only)
+data/raw/
+data/processed/
+*.zarr/
+*.nc
+*.grib
+*.grib2
+
+# Model checkpoints (large)
+checkpoints/
+runs/
+wandb/
+
+# Generated artifacts and runtime logs
+outputs/
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# API keys — NEVER commit
+.env
+secrets.yaml
