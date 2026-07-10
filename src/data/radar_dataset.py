@@ -82,6 +82,7 @@ class RadarDataset(Dataset):
 
         ds = xr.open_zarr(zarr_path, consolidated=True)
         self.rain = ds["rain_rate"].values.astype(np.float32)  # (T, H, W)
+        times = ds["time"].values  # datetime64, sorted (enforced at ingest)
         ds.close()
 
         T = self.rain.shape[0]
@@ -102,6 +103,25 @@ class RadarDataset(Dataset):
 
         # Build index list; optionally oversample heavy-rain events
         self.indices = [i for i in valid_range if i <= max_idx]
+
+        # Gap-aware filtering: __getitem__ assumes positional adjacency means
+        # 5-min steps, but the archive has holes (missed scrapes). A sample at
+        # t uses frames [t - context_frames, t + target_offset]; keep it only
+        # if every step in that span is exactly 5 minutes, otherwise the
+        # context/lead-time semantics are silently wrong.
+        step_ok = np.diff(times) == np.timedelta64(5, "m")
+        ok_cumsum = np.concatenate(([0], np.cumsum(step_ok)))
+
+        def _contiguous(t: int) -> bool:
+            a, b = t - context_frames, t + target_offset
+            return ok_cumsum[b] - ok_cumsum[a] == b - a
+
+        n_before = len(self.indices)
+        self.indices = [i for i in self.indices if _contiguous(i)]
+        n_dropped = n_before - len(self.indices)
+        if n_dropped:
+            print(f"RadarDataset[{split}]: dropped {n_dropped}/{n_before} samples "
+                  f"spanning archive gaps ({len(self.indices)} remain)")
 
         if heavy_rain_oversample > 1 and split == "train":
             heavy = [i for i in self.indices
