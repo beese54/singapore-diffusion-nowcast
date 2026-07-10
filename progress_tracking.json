@@ -73,6 +73,7 @@
         {"id": "4.3", "description": "RadarDataset (src/data/radar_dataset.py)", "status": "Complete"},
         {"id": "4.4", "description": "train.py with --resume and SIGINT checkpoint", "status": "Complete"},
         {"id": "4.5", "description": "Smoke-test: 100 steps without OOM", "status": "Complete", "notes": "Re-run 2026-06-18: loss 0.76 at step 100, no OOM, no NaN (cleaner than June 16 run). 25.8M params, 7GB VRAM."},
+        {"id": "4.7", "description": "Gap-aware sample filtering in RadarDataset (exclude windows spanning archive gaps)", "status": "Complete", "completed_date": "2026-07-10", "notes": "13% of train samples were spanning gaps (silently wrong context/lead semantics); now dropped at init with reported counts. Independent contiguity check passes on all splits."},
         {"id": "4.6", "description": "Full training run to convergence", "status": "Pending"}
       ]
     },
@@ -89,6 +90,7 @@
         {"id": "5.3", "description": "Produce flash flood risk overlay notebook", "status": "Pending"},
         {"id": "5.4", "description": "Telegram flood-label collector + radar cross-reference (build_flood_eval_dataset.py)", "status": "Complete"},
         {"id": "5.6", "description": "Geocode flood-label locations to radar cells (geocode_flood_labels.py, OneMap+cache); spatial cols added to flood_eval_dataset", "status": "Complete"},
+        {"id": "5.7", "description": "Flash-flood watcher (check_flash_flood.py): toast + durable flag when first FLASH_FLOOD label registers; 4th action in daily chain", "status": "Complete", "completed_date": "2026-07-10", "notes": "Drill-tested: toast fires, flag written, message_id dedup prevents re-alerts. 0 FLASH_FLOOD in 34 labels so far — waiting on a real event."},
         {"id": "5.5", "description": "Wire flood_eval_dataset into evaluate.py for event-based Stage 5 scoring", "status": "Pending"}
       ]
     },
