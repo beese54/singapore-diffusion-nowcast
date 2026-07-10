@@ -20,7 +20,7 @@ import os
 import re
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -91,22 +91,42 @@ def _extract_locations(text: str, msg_type: str) -> list[str]:
     return []
 
 
+SGT = timezone(timedelta(hours=8))
+
+
 def _extract_event_time(text: str, fallback: datetime) -> datetime:
+    """Resolve the "HH:MM hours" tag in a PUB message to a UTC datetime.
+
+    The tagged times are SGT wall-clock (NEA issues them in local time),
+    while the Telegram message date (fallback) is UTC. Rain warnings may
+    reference a window start slightly in the future, so the tag is resolved
+    to whichever SGT day (previous/same/next) lies closest to the message
+    timestamp rather than assumed to be in the past.
+    """
+    t = None
     m = re.search(r"(\d{1,2}:\d{2})\s*hours", text, re.IGNORECASE)
     if m:
         try:
             t = datetime.strptime(m.group(1), "%H:%M")
-            return fallback.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
         except ValueError:
-            pass
-    m = re.search(r"\b(\d{4})\s*hours\b", text, re.IGNORECASE)
-    if m:
-        try:
-            t = datetime.strptime(m.group(1), "%H%M")
-            return fallback.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
-        except ValueError:
-            pass
-    return fallback
+            t = None
+    if t is None:
+        m = re.search(r"\b(\d{4})\s*hours\b", text, re.IGNORECASE)
+        if m:
+            try:
+                t = datetime.strptime(m.group(1), "%H%M")
+            except ValueError:
+                t = None
+    if t is None:
+        return fallback
+
+    local = fallback.astimezone(SGT)
+    base = local.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+    event_local = min(
+        (base - timedelta(days=1), base, base + timedelta(days=1)),
+        key=lambda c: abs(c - local),
+    )
+    return event_local.astimezone(timezone.utc)
 
 
 def parse_message(msg: dict) -> dict:
