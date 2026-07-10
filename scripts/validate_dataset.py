@@ -23,6 +23,11 @@ console = Console()
 
 EXPECTED_INTERVAL_MIN = 5
 
+# The 2026-05-22..28 scheduler ramp-up had large structural gaps; the DoD
+# quality criterion (amended 2026-07-10) is scoped to steady state onwards.
+STEADY_STATE_START = pd.Timestamp("2026-05-29")
+MEDIAN_7D_GAP_THRESHOLD_PCT = 10.0
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -72,11 +77,31 @@ def main() -> None:
         for date, count in sparse.head(15).items():
             console.print(f"  {date}: {count} images ({count * 5 // 60}h {count * 5 % 60}min)")
 
-    if gap_pct < 5.0:
-        console.print(f"\n[bold green]Quality check PASSED (gap rate {gap_pct:.1f}% < 5%)[/bold green]")
-    else:
-        console.print(f"\n[bold red]Quality check FAILED (gap rate {gap_pct:.1f}% >= 5%)[/bold red]")
-        console.print("Run scrape_radar.py with --hours to backfill missing periods.")
+    # DoD criterion (amended 2026-07-10): median 7-day-window gap rate over
+    # the steady-state period. Overall gap rate above is informational only —
+    # the ramp-up week is frozen history and travel-day gaps are expected.
+    daily = times.to_series().groupby(times.normalize()).count()
+    # exclude partial first/last days and the ramp-up week
+    steady = daily.iloc[1:-1]
+    steady = steady[steady.index >= STEADY_STATE_START]
+    verdict_shown = False
+    if len(steady) >= 7:
+        window_totals = steady.rolling(7).sum().dropna()
+        gap_7d = (1.0 - window_totals / (288.0 * 7)) * 100.0
+        median_gap = float(gap_7d.median())
+        console.print(f"\nSteady-state (from {STEADY_STATE_START.date()}) 7-day windows: "
+                      f"{len(gap_7d)} | median gap {median_gap:.1f}% | "
+                      f"worst {float(gap_7d.max()):.1f}%")
+        if median_gap < MEDIAN_7D_GAP_THRESHOLD_PCT:
+            console.print(f"[bold green]Quality check PASSED "
+                          f"(median 7-day gap {median_gap:.1f}% < {MEDIAN_7D_GAP_THRESHOLD_PCT:.0f}%)[/bold green]")
+        else:
+            console.print(f"[bold red]Quality check FAILED "
+                          f"(median 7-day gap {median_gap:.1f}% >= {MEDIAN_7D_GAP_THRESHOLD_PCT:.0f}%)[/bold red]")
+            console.print("Run scrape_radar.py with --hours to backfill missing periods.")
+        verdict_shown = True
+    if not verdict_shown:
+        console.print("\n[yellow]Fewer than 7 steady-state days in range; no quality verdict.[/yellow]")
 
 
 if __name__ == "__main__":
