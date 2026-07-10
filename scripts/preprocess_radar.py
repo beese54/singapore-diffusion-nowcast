@@ -165,6 +165,60 @@ def write_batch_to_zarr(times: list[datetime], rain_stack: np.ndarray) -> None:
         ds.to_zarr(ZARR_PATH, mode="w", consolidated=True, encoding=encoding)
 
 
+def ensure_sorted_archive() -> bool:
+    """Guarantee the zarr time axis is strictly increasing (no duplicates).
+
+    Appends can backfill older frames after newer ones (e.g. PNGs that sync
+    in late), which silently breaks every consumer that indexes by position
+    (RadarDataset context/target windows, frame lookups). If disorder or
+    duplicate timestamps are found, the archive is rewritten sorted via a
+    temp store + atomic rename. Returns True if a rewrite happened.
+    """
+    ds = xr.open_zarr(ZARR_PATH, consolidated=True)
+    times = pd.DatetimeIndex(ds.time.values)
+    n_dups = int(times.duplicated().sum())
+    if times.is_monotonic_increasing and n_dups == 0:
+        ds.close()
+        return False
+
+    console.print(f"[yellow]Time axis disorder detected "
+                  f"(monotonic={times.is_monotonic_increasing}, duplicates={n_dups}). "
+                  f"Rewriting archive sorted...[/yellow]")
+    ds = ds.load()
+    ds_sorted = ds.sortby("time")
+    if n_dups:
+        _, first_occurrence = np.unique(ds_sorted.time.values, return_index=True)
+        ds_sorted = ds_sorted.isel(time=first_occurrence)
+    ds.close()
+
+    tmp_path = ZARR_PATH.with_name(ZARR_PATH.name + ".tmp")
+    bak_path = ZARR_PATH.with_name(ZARR_PATH.name + ".bak")
+    for stale in (tmp_path, bak_path):
+        if stale.exists():
+            import shutil
+            shutil.rmtree(stale)
+
+    ds_sorted = ds_sorted.chunk({"time": 288, "lat": -1, "lon": -1})
+    encoding = {"time": {"units": "minutes since 1970-01-01", "dtype": "float64"}}
+    ds_sorted.to_zarr(tmp_path, mode="w", consolidated=True, encoding=encoding)
+
+    ZARR_PATH.rename(bak_path)
+    tmp_path.rename(ZARR_PATH)
+
+    # Verify the rewrite before discarding the original
+    check = xr.open_zarr(ZARR_PATH, consolidated=True)
+    check_times = pd.DatetimeIndex(check.time.values)
+    ok = check_times.is_monotonic_increasing and not check_times.duplicated().any()
+    n_frames = len(check_times)
+    check.close()
+    if not ok:
+        raise RuntimeError(f"Sorted rewrite failed verification; original kept at {bak_path}")
+    import shutil
+    shutil.rmtree(bak_path)
+    console.print(f"[green]Archive re-sorted: {n_frames} frames, strictly increasing.[/green]")
+    return True
+
+
 def print_status() -> None:
     if not ZARR_PATH.exists():
         console.print("[red]radar.zarr does not exist yet.[/red]")
@@ -187,10 +241,20 @@ def print_status() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Preprocess NEA radar PNGs into zarr dataset")
     parser.add_argument("--status", action="store_true")
+    parser.add_argument("--repair", action="store_true",
+                        help="Only check/repair time-axis ordering of the existing archive")
     args = parser.parse_args()
 
     if args.status:
         print_status()
+        return
+
+    if args.repair:
+        if not ZARR_PATH.exists():
+            console.print("[red]radar.zarr does not exist yet.[/red]")
+            return
+        if not ensure_sorted_archive():
+            console.print("[green]Archive already sorted; nothing to repair.[/green]")
         return
 
     png_files = sorted(RADAR_DIR.glob("*.png"))
@@ -251,6 +315,9 @@ def main() -> None:
         batch_times = [batch_times[i] for i in order]
         rain_stack = np.stack([batch_frames[i] for i in order], axis=0)
         write_batch_to_zarr(batch_times, rain_stack)
+        # Per-batch sorting is not enough: a batch may backfill frames older
+        # than the archive tail, so enforce global order after every append.
+        ensure_sorted_archive()
         console.print("[green]Write complete.[/green]")
 
     console.print(f"[bold]Done:[/bold] {saved} processed, {skipped} skipped, {errors} errors")
