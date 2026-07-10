@@ -1,0 +1,93 @@
+{
+  "Jalan Boon Lay (from International Road to Enterprise Road) [09:49 hours]": {
+    "lat": 1.333997,
+    "lon": 103.708832,
+    "lat_idx": 84,
+    "lon_idx": 76,
+    "method": "onemap",
+    "simplified": "jalan boon lay",
+    "matched_name": "JALAN BOON LAY"
+  },
+  "Service Rd off Upper Paya Lebar Road (near Lim Teck Boo Road)": {
+    "lat": 1.343141,
+    "lon": 103.882836,
+    "lat_idx": 81,
+    "lon_idx": 140,
+    "method": "onemap",
+    "simplified": "upper paya lebar road",
+    "matched_name": "UPPER PAYA LEBAR ROAD"
+  },
+  "Thomson Rd (Balestier Rd to Novena Rise) [11:21 hours]": {
+    "lat": 1.315058,
+    "lon": 103.844562,
+    "lat_idx": 90,
+    "lon_idx": 126,
+    "method": "onemap",
+    "simplified": "thomson road",
+    "matched_name": "THE SINGAPORE THOMSON ROAD BAPTIST CHURCH"
+  },
+  "14 Tractor Road [21:31 hours]": {
+    "lat": 1.324953,
+    "lon": 103.707728,
+    "lat_idx": 87,
+    "lon_idx": 76,
+    "method": "onemap",
+    "simplified": "14 tractor road",
+    "matched_name": "14 TRACTOR ROAD SINGAPORE 627973"
+  },
+  "Jalan Boon Lay (from International Road to Enterprise Road) [07:04 hours]": {
+    "lat": 1.333997,
+    "lon": 103.708832,
+    "lat_idx": 84,
+    "lon_idx": 76,
+    "method": "onemap",
+    "simplified": "jalan boon lay",
+    "matched_name": "JALAN BOON LAY"
+  },
+  "Jalan Boon Lay (from International Road to Enterprise Road) [08:37 hours]": {
+    "lat": 1.333997,
+    "lon": 103.708832,
+    "lat_idx": 84,
+    "lon_idx": 76,
+    "method": "onemap",
+    "simplified": "jalan boon lay",
+    "matched_name": "JALAN BOON LAY"
+  },
+  "Jalan Boon Lay (from International Road to Enterprise Road) [21:23 hours]": {
+    "lat": 1.333997,
+    "lon": 103.708832,
+    "lat_idx": 84,
+    "lon_idx": 76,
+    "method": "onemap",
+    "simplified": "jalan boon lay",
+    "matched_name": "JALAN BOON LAY"
+  },
+  "KPE (towards ECP) slip road to Buangkok East Drive [21:34 hours]": {
+    "lat": 1.3775120708697,
+    "lon": 103.908997547176,
+    "lat_idx": 70,
+    "lon_idx": 149,
+    "method": "manual",
+    "simplified": "kpe slip road to buangkok east drive",
+    "matched_name": "BUANGKOK EAST DRIVE",
+    "note": "hand-fixed 2026-07-10: slip road exits KPE at Buangkok East Drive; geocoded the junction road via OneMap"
+  },
+  "Neo Tiew Rd (near Neo Tiew Harvest Link). [13:00 hours]": {
+    "lat": 1.42177,
+    "lon": 103.71648,
+    "lat_idx": 56,
+    "lon_idx": 79,
+    "method": "onemap",
+    "simplified": "neo tiew road.",
+    "matched_name": "111 NEO TIEW ROAD SINGAPORE 719019"
+  },
+  "Pesawat Drive [07:30 hours]": {
+    "lat": 1.320105,
+    "lon": 103.718339,
+    "lat_idx": 88,
+    "lon_idx": 80,
+    "method": "onemap",
+    "simplified": "pesawat drive",
+    "matched_name": "PESAWAT DRIVE"
+  }
+}

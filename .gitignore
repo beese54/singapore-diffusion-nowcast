@@ -17,7 +17,9 @@ conda-env/
 
 # Data (large files — track metadata only)
 data/raw/
-data/processed/
+data/processed/*
+# hand-curated, must be versioned (dir contents pattern above allows negation)
+!data/processed/geocode_cache.json
 *.zarr/
 *.nc
 *.grib
