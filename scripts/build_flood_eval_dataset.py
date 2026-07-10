@@ -41,11 +41,18 @@ DEFAULT_TOLERANCE_MIN = 15
 FLOOD_EVENT_TYPES = {"FLASH_FLOOD", "FLOOD_RISK"}
 
 
-def load_radar_times() -> pd.DatetimeIndex:
+def load_radar_times() -> tuple[pd.DatetimeIndex, np.ndarray]:
+    """Sorted radar times plus the mapping from sorted position -> zarr index.
+
+    The zarr time axis is not guaranteed to be stored sorted (appends can
+    backfill), so any position found by searching the sorted view must be
+    translated back to the original index before isel().
+    """
     ds = xr.open_zarr(ZARR_PATH, consolidated=True)
-    times = pd.DatetimeIndex(ds.time.values).sort_values()
+    raw = pd.DatetimeIndex(ds.time.values)
     ds.close()
-    return times
+    order = np.argsort(raw.values, kind="stable")
+    return raw[order], order
 
 
 def radar_frame_metrics(frame_index: int, cell: tuple[int, int] | None,
@@ -93,7 +100,7 @@ def build(tolerance_min: int, cell_radius: int) -> pd.DataFrame:
     ev = pd.to_datetime(labels["event_datetime"], utc=True).dt.tz_convert(None)
     labels = labels.assign(_event_utc=ev).sort_values("_event_utc").reset_index(drop=True)
 
-    radar_times = load_radar_times()
+    radar_times, zarr_order = load_radar_times()
     radar_vals = radar_times.values  # numpy datetime64, sorted
     tol = pd.Timedelta(minutes=tolerance_min)
     geo = load_geocode()
@@ -118,8 +125,9 @@ def build(tolerance_min: int, cell_radius: int) -> pd.DataFrame:
         has_cell = bool(g and g.get("lat") is not None)
         cell = (g["lat_idx"], g["lon_idx"]) if has_cell else None
 
+        zarr_idx = int(zarr_order[best_idx]) if best_idx is not None else -1
         if matched:
-            m = radar_frame_metrics(best_idx, cell, cell_radius)
+            m = radar_frame_metrics(zarr_idx, cell, cell_radius)
             matched_time = radar_times[best_idx]
             delta_min = best_delta / pd.Timedelta(minutes=1)
         else:
@@ -138,7 +146,7 @@ def build(tolerance_min: int, cell_radius: int) -> pd.DataFrame:
             "delta_min": round(delta_min, 1) if matched else np.nan,
             "radar_max_rain_mmhr": round(m["max"], 2) if matched else np.nan,
             "radar_mean_rain_mmhr": round(m["mean"], 4) if matched else np.nan,
-            "radar_frame_index": best_idx if matched else -1,
+            "radar_frame_index": zarr_idx if matched else -1,
             # Spatial (from geocode_flood_labels.py); NaN/-1 when not geocoded.
             "location_str": loc_str,
             "geocoded": has_cell,
