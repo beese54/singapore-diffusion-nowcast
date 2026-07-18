@@ -34,11 +34,12 @@ def compute_stats(zarr_path: Path = ZARR_PATH, save_path: Path = STATS_PATH) -> 
     rain = ds["rain_rate"].values  # (T, H, W)
     ds.close()
 
+    # nan-aware: the archive contains blank (all-NaN) frames from failed scrapes
     log_rain = np.log1p(rain)
     stats = {
-        "log_mean": float(log_rain.mean()),
-        "log_std": float(log_rain.std()),
-        "log_max": float(log_rain.max()),
+        "log_mean": float(np.nanmean(log_rain)),
+        "log_std": float(np.nanstd(log_rain)),
+        "log_max": float(np.nanmax(log_rain)),
         "n_samples": int(rain.shape[0]),
     }
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -116,12 +117,27 @@ class RadarDataset(Dataset):
             a, b = t - context_frames, t + target_offset
             return ok_cumsum[b] - ok_cumsum[a] == b - a
 
+        # Blank-frame filtering: failed scrapes leave all-NaN frames at valid
+        # timestamps, so they pass the contiguity check above but would feed
+        # NaN into training. A frame with any NaN is unusable; keep a sample
+        # only if every frame in its full span [t - context_frames,
+        # t + target_offset] is NaN-free (symmetric with _contiguous).
+        frame_bad = np.isnan(self.rain).any(axis=(1, 2))
+        bad_cumsum = np.concatenate(([0], np.cumsum(frame_bad)))
+
+        def _clean(t: int) -> bool:
+            a, b = t - context_frames, t + target_offset
+            return bad_cumsum[b + 1] - bad_cumsum[a] == 0
+
         n_before = len(self.indices)
-        self.indices = [i for i in self.indices if _contiguous(i)]
-        n_dropped = n_before - len(self.indices)
-        if n_dropped:
-            print(f"RadarDataset[{split}]: dropped {n_dropped}/{n_before} samples "
-                  f"spanning archive gaps ({len(self.indices)} remain)")
+        contiguous = [i for i in self.indices if _contiguous(i)]
+        n_gap = n_before - len(contiguous)
+        self.indices = [i for i in contiguous if _clean(i)]
+        n_nan = len(contiguous) - len(self.indices)
+        if n_gap or n_nan:
+            print(f"RadarDataset[{split}]: dropped {n_gap}/{n_before} samples "
+                  f"spanning archive gaps and {n_nan} containing blank (NaN) "
+                  f"frames ({len(self.indices)} remain)")
 
         if heavy_rain_oversample > 1 and split == "train":
             heavy = [i for i in self.indices
