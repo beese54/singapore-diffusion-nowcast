@@ -67,7 +67,9 @@ def fetch_rain_area(dt: datetime, session: requests.Session, debug: bool = False
         resp = session.get(url, timeout=15)
         if debug:
             console.print(f"[dim]Radar URL: {url} -> {resp.status_code} {len(resp.content)}b[/dim]")
-        if resp.status_code == 200 and len(resp.content) > 280:
+        # Validate by PNG signature, not size: no-rain basemap frames can be
+        # as small as ~275 bytes, while error pages are HTML of any length.
+        if resp.status_code == 200 and resp.content[:8] == b"\x89PNG\r\n\x1a\n":
             return resp.content
     except requests.RequestException:
         pass

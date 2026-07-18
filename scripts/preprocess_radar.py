@@ -219,6 +219,65 @@ def ensure_sorted_archive() -> bool:
     return True
 
 
+def heal_blank_frames() -> int:
+    """Re-ingest all-NaN frames whose source PNG still exists on disk.
+
+    Interrupted or racing appends can commit timestamps to the time axis
+    without writing their rain_rate rows; zarr then silently serves
+    fill_value=NaN for them, and the skip-by-existing-timestamp logic never
+    retries. The PNGs are still on disk, so the data is recoverable: find
+    all-NaN rows, re-run process_png, and write the rows in place (the time
+    axis is untouched). Runs after every append, so both past corruption and
+    any future interrupted append self-heal on the next run.
+    Returns the number of frames healed.
+    """
+    if not ZARR_PATH.exists():
+        return 0
+    ds = xr.open_zarr(ZARR_PATH, consolidated=True)
+    times = pd.DatetimeIndex(ds.time.values)
+    nan_mask = np.isnan(ds["rain_rate"].values).all(axis=(1, 2))
+    ds.close()
+    nan_pos = np.nonzero(nan_mask)[0]
+    if len(nan_pos) == 0:
+        return 0
+
+    console.print(f"[yellow]{len(nan_pos)} all-NaN frames found; healing from PNGs...[/yellow]")
+    healed_frames: dict[int, np.ndarray] = {}
+    no_png = failed = 0
+    for pos in nan_pos:
+        png_path = RADAR_DIR / (times[pos].strftime("%Y%m%d_%H%M") + ".png")
+        if not png_path.exists():
+            no_png += 1
+            continue
+        frame = process_png(png_path)
+        if frame is None:
+            failed += 1
+            continue
+        healed_frames[int(pos)] = frame
+
+    if healed_frames:
+        # Group contiguous positions into runs → one region write per run
+        root = zarr.open_group(str(ZARR_PATH), mode="r+")
+        rr = root["rain_rate"]
+        positions = sorted(healed_frames)
+        run_start = prev = positions[0]
+        runs = []
+        for p in positions[1:]:
+            if p == prev + 1:
+                prev = p
+            else:
+                runs.append((run_start, prev))
+                run_start = prev = p
+        runs.append((run_start, prev))
+        for a, b in runs:
+            rr[a:b + 1] = np.stack([healed_frames[p] for p in range(a, b + 1)], axis=0)
+
+    console.print(f"[green]Healed {len(healed_frames)} frames"
+                  f"{f'; {no_png} have no PNG' if no_png else ''}"
+                  f"{f'; {failed} failed to convert' if failed else ''}.[/green]")
+    return len(healed_frames)
+
+
 def print_status() -> None:
     if not ZARR_PATH.exists():
         console.print("[red]radar.zarr does not exist yet.[/red]")
@@ -243,6 +302,8 @@ def main() -> None:
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--repair", action="store_true",
                         help="Only check/repair time-axis ordering of the existing archive")
+    parser.add_argument("--heal", action="store_true",
+                        help="Only re-ingest all-NaN frames from their PNGs (no new ingest)")
     args = parser.parse_args()
 
     if args.status:
@@ -255,6 +316,11 @@ def main() -> None:
             return
         if not ensure_sorted_archive():
             console.print("[green]Archive already sorted; nothing to repair.[/green]")
+        return
+
+    if args.heal:
+        if heal_blank_frames() == 0:
+            console.print("[green]No all-NaN frames; nothing to heal.[/green]")
         return
 
     png_files = sorted(RADAR_DIR.glob("*.png"))
@@ -319,6 +385,10 @@ def main() -> None:
         # than the archive tail, so enforce global order after every append.
         ensure_sorted_archive()
         console.print("[green]Write complete.[/green]")
+
+    # Always heal, even on runs with no new PNGs: a previous interrupted
+    # append may have left NaN rows behind.
+    heal_blank_frames()
 
     console.print(f"[bold]Done:[/bold] {saved} processed, {skipped} skipped, {errors} errors")
 
