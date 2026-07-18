@@ -1,5 +1,53 @@
 # Task Checklist
 
+## Blank-frame root cause + 24h-off collection guarantee (2026-07-18, session 2)
+
+> Approved scope: the two Stage 3 follow-ups + ensure collection survives laptop-off up to 1 day.
+> DIAGNOSIS OVERTURNED THE JUL-18-MORNING THEORY: blanks are NOT NEA outages and NOT tiny PNGs.
+> Evidence: (E1) 66 NaN frames have full-size rainy PNGs, all 862 have PNGs on disk; (E2) 10,900
+> tiny PNGs are normal no-rain basemap frames, 9,975 of them valid in zarr; (E3) NaN runs align
+> with zarr chunk boundaries and shutdown/travel windows. Mechanism: interrupted/racing appends
+> commit timestamps to the time axis without writing their rain_rate rows -> zarr serves
+> fill_value=NaN; skip-logic then treats them as done forever. (E4) wake race confirmed: PNG
+> downloaded 08:50:55, preprocess globbed at 08:50:12. NEA retention probed: >=120h (all 200s).
+
+- [x] `heal_blank_frames()` in preprocess_radar.py: in-place row recovery from PNGs, grouped
+      region writes; auto-runs every preprocess; `--heal` flag. Verified in conda env too
+      (zarr 3.1.6 open r+ ok)
+- [x] Heal run: all 862 recovered, 0 no-PNG, 0 failed. 4.8 repro re-run: 0 all-NaN frames
+      archive-wide, 0 NaN samples in any split; train 8677 -> 9344 samples (+667 recovered)
+- [x] Scheduled tasks rewired: Scraper --hours 120 + preprocess chained as action 2, PT2H;
+      standalone Preprocess task deleted. scrape_radar.py: PNG-magic validation replaces
+      '>280 bytes' (275b no-rain frames were silently rejected)
+- [x] Bonus: retention edge probed (~Jul 11-12 = 6-7 days; Jul 8 404) -> one-time
+      `--hours 168` backfill launched to recover Jul 12-13 frames lost to the old 25h window
+- [x] One-time 168h backfill: 274 frames recovered, 1740 skipped, 3 errors (retention edge,
+      early Jul 11). Jul 12/13 now 288/288 on disk
+- [x] E2E verified: triggered rewired Scraper task -> chain ran scrape+preprocess, LastResult 0;
+      zarr 13,556 -> 14,009 frames, current through 2026-07-18 02:05 UTC, strictly increasing,
+      0 NaN; zarr day counts Jul 11/12/13/17 = 286/288/288/287
+- [x] Tracker + memory sync (laptop-off constraint now "up to 1 day" — memory updated); commits
+- [x] REPORTED to user + tracked as tasks 3.7/3.8 (Pending, awaiting approval): (a) NEA images
+      are 217x120 px (uniform since May 22) but crop constants assume 480x480 -> grid
+      georeferencing + geocoded cells need calibration; (b) conversion drops RGBA alpha ->
+      basemap colours map to phantom drizzle (<=~4 mm/hr floor archive-wide); fix = alpha
+      masking + full re-ingest (lossless, all PNGs on disk)
+
+### Review
+- Diagnosis discipline paid off: the morning's "NEA outage" theory (already written into the
+  tracker) was falsified by forensics before any code was built on it. Blank frames were
+  write-path corruption; the data was never lost, only unread.
+- Recovery totals: 862 zarr frames healed in place + 274 PNGs re-fetched from NEA; archive
+  14,009 frames, 0 NaN, all low travel-days (Jun 21/28/30, Jul 7/9/12/13) partially or fully
+  restored where retention allowed.
+- Collection now survives laptop-off up to ~5 days (user needs 1): 120h daily backfill window
+  vs ~6-7 day NEA retention, StartWhenAvailable wake catch-up, sequential scrape->preprocess
+  chain (no wake race), self-healing ingest, PNG-magic response validation.
+- Follow-ups live in tracker tasks 3.7 (georeference calibration) and 3.8 (alpha-aware
+  conversion) — both awaiting user approval since they change data semantics project-wide.
+
+---
+
 ## Task 4.8 — NaN-aware sample filtering in RadarDataset (2026-07-18)
 
 > Approved scope: update tracker for the blank-frame audit, add task 4.8, implement the filter.
