@@ -1,5 +1,38 @@
 # Task Checklist
 
+## Task 4.8 — NaN-aware sample filtering in RadarDataset (2026-07-18)
+
+> Approved scope: update tracker for the blank-frame audit, add task 4.8, implement the filter.
+> Defect: radar.zarr holds all-NaN frames at *valid* timestamps (174 in the last 7 days alone;
+> multi-hour runs Jul 11/13/17). The 4.7 gap filter only checks time-step contiguity, so windows
+> containing blank frames pass into training and would poison the loss. `compute_stats` would
+> also return NaN today (plain mean/std; current stats file predates the blank frames).
+
+- [x] Phase 0 — repro `tasks/repro/nan_samples_repro.py`: archive is perfectly bimodal —
+      862 all-NaN frames, 0 partial-NaN → validity rule = any-NaN. Pre-fix poisoned samples:
+      train 659/9344, val 130/1020, test 107/1045 (896 total passing the 4.7 gap filter)
+- [x] Phase 3 — fix in `src/data/radar_dataset.py`: `frame_bad` mask + `bad_cumsum` window
+      check over full span [t-ctx, t+offset] (symmetric with `_contiguous`); `compute_stats`
+      → nanmean/nanstd/nanmax. radar_stats.json (Jun 5, pre-blanks) deliberately untouched
+- [x] Phase 4 — repro post-fix: 0 NaN samples in all splits; drops train 667 / val 130 /
+      test 109 (extras vs Phase 0 = conservative full-span rule catching unread mid-window blanks)
+- [x] Phase 5 — regression sweep passed: default train init (oversample=3, len 11641),
+      __getitem__ finite (6,190,220)/(1,190,220), denormalise round-trip ok, compute_stats
+      finite to scratch path; diff touches only Phase-3-justified lines
+- [x] Tracker: task 4.8 Complete, Stage 3 QC escalation noted (862 blanks, coverage
+      overstatement, open root-cause item), Stage 5 collector verified, last_updated 2026-07-18
+- [x] Commits: (1) fix(data) NaN-aware filter, (2) chore tracker sync
+
+### Review
+- Mechanism: blank scrapes → all-NaN frames at valid timestamps → pass 4.7 contiguity check
+  → log1p(NaN) flows into loss. Fix removes poisoned windows from the index list (O(1)/sample
+  via prefix sums); proven by exhaustive post-fix scan of every surviving sample, not masking.
+- Open follow-ups (tracked in Stage 3 notes): diagnose multi-hour blank-scrape runs
+  (NEA outage vs scraper saving placeholder); consider ingest-side skip + --repair so blanks
+  become time gaps at the source. No formal tests/ suite yet — repro script is the durable check.
+
+---
+
 ## ▶ RESUME HERE  (saved 2026-06-17)
 
 **Project state:** Stages 0–2 done. Stage 3 (radar archive) is the gate — **26/90 days**, target ~Aug 20 2026. Stages 4 (training) & 6 (LaunchPad) blocked on it. Stage 5 (eval) plumbing largely built.
