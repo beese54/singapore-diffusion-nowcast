@@ -244,7 +244,31 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true", help="Gazetteer + cache only; no OneMap")
     ap.add_argument("--refresh", action="store_true", help="Re-resolve even cached strings")
     ap.add_argument("--status", action="store_true", help="Report cache; no network")
+    ap.add_argument("--reindex", action="store_true",
+                    help="Recompute lat_idx/lon_idx from cached lat/lon against the current "
+                         "radar grid. Use after a grid change; preserves hand-edited "
+                         "coordinates (unlike --refresh, which re-resolves them).")
     args = ap.parse_args()
+
+    if args.reindex:
+        if not ZARR_PATH.exists():
+            print(f"ERROR: {ZARR_PATH.relative_to(ROOT)} not found.")
+            sys.exit(1)
+        to_idx = build_grid_mapper()
+        cache = load_cache()
+        moved = 0
+        for loc, v in cache.items():
+            if v.get("lat") is None:
+                continue
+            lat_idx, lon_idx = to_idx(v["lat"], v["lon"])
+            if (lat_idx, lon_idx) != (v.get("lat_idx"), v.get("lon_idx")):
+                v["lat_idx"], v["lon_idx"] = lat_idx, lon_idx
+                moved += 1
+        save_cache(cache)
+        print(f"Re-indexed {moved} entries against the current radar grid "
+              f"(coordinates and methods untouched).\n")
+        print_summary(cache)
+        return
 
     if args.status:
         cache = load_cache()

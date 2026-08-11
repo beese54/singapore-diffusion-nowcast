@@ -38,54 +38,138 @@ console = Console()
 
 ZARR_PATH = OUTPUT_DIR / "radar.zarr"
 
-# NEA rain area colour scale (approximate RGB → mm/hr mapping)
-# Based on standard WMO colour conventions used by NEA
-# Values from NEA radar legend: light blue=trace, green=light, yellow=moderate, red=heavy
-COLOUR_SCALE = [
-    # (R, G, B) → mm/hr (upper bound of bin)
-    ((0, 0, 0), 0.0),         # black = no rain / background
-    ((255, 255, 255), 0.0),   # white = no data
-    ((173, 216, 230), 0.5),   # light blue = trace (<0.5)
-    ((0, 255, 255), 1.0),     # cyan = very light (0.5–1)
-    ((0, 200, 0), 2.0),       # green = light (1–2)
-    ((0, 255, 0), 5.0),       # bright green = light-moderate (2–5)
-    ((255, 255, 0), 10.0),    # yellow = moderate (5–10)
-    ((255, 165, 0), 20.0),    # orange = moderate-heavy (10–20)
-    ((255, 0, 0), 40.0),      # red = heavy (20–40)
-    ((200, 0, 200), 80.0),    # magenta = very heavy (40–80)
-    ((128, 0, 128), 100.0),   # purple = extreme (>80)
+# ---------------------------------------------------------------------------
+# NEA rain-area colour scale
+# ---------------------------------------------------------------------------
+# The NEA rain-area product ("dpsri ... dBR") renders rainfall as a *banded*
+# overlay using exactly 33 discrete colours. Pixels are either fully opaque
+# (alpha=255, rain) or fully transparent (alpha=0, no rain) — never blended.
+#
+# ORDERING (high confidence): the light→heavy sequence below was derived from
+# the archive itself, by three independent methods that agree exactly:
+#   1. Distance-transform depth — each band's mean depth inside a rain cell
+#      increases monotonically (1.43 → 12.36 px) for the outer bands.
+#   2. Spatial adjacency — a greedy walk over the band-adjacency graph
+#      recovers this exact chain; adjacency counts fall away monotonically
+#      toward the heavy end (287k → 473), the signature of a banded scale.
+#   3. RGB ramp continuity — the sequence is a continuous path in colour space.
+#
+# ABSOLUTE VALUES (approximate): NEA publishes no per-colour mm/hr table, only
+# band descriptions (light 0.5–2, moderate 2–10, heavy 10–30, intense >30).
+# The product is dBR (decibels of rain rate, 10·log10 R), so equal-width dBR
+# bands are log-uniform in mm/hr — values below are log-uniform from 0.5 to
+# 100 mm/hr, i.e. 0.719 dBR per band. The resulting families land where NEA
+# describes them: teal+early green = light, green/yellow = moderate,
+# orange = heavy, red/magenta = intense.
+#
+# Suitable for training (monotonic and self-consistent). NOT calibrated for
+# absolute flood thresholds — that needs regression against data.gov.sg rain
+# gauges, which can be done later without another re-ingest.
+NEA_COLOUR_RAMP: list[tuple[tuple[int, int, int], float]] = [
+    ((  0, 255, 255),   0.50),   #  0   -3.01 dBR
+    ((  0, 239, 239),   0.59),   #  1   -2.29 dBR
+    ((  0, 209, 213),   0.70),   #  2   -1.57 dBR
+    ((  0, 186, 191),   0.82),   #  3   -0.85 dBR
+    ((  0, 151, 154),   0.97),   #  4   -0.13 dBR
+    ((  0, 131, 125),   1.14),   #  5    0.59 dBR
+    ((  0, 128,  69),   1.35),   #  6    1.30 dBR
+    ((  0, 137,  56),   1.59),   #  7    2.02 dBR
+    ((  0, 162,  53),   1.88),   #  8    2.74 dBR
+    ((  0, 183,  41),   2.22),   #  9    3.46 dBR
+    ((  0, 202,  17),   2.62),   # 10    4.18 dBR
+    ((  0, 218,  13),   3.09),   # 11    4.90 dBR
+    ((  0, 245,   7),   3.65),   # 12    5.62 dBR
+    ((  0, 255,   0),   4.30),   # 13    6.34 dBR
+    (( 67, 255,  65),   5.08),   # 14    7.06 dBR
+    (( 72, 255,  70),   5.99),   # 15    7.78 dBR
+    ((255, 255,  59),   7.07),   # 16    8.49 dBR
+    ((255, 255,   0),   8.34),   # 17    9.21 dBR
+    ((255, 240,   0),   9.85),   # 18    9.93 dBR
+    ((255, 220,   0),  11.62),   # 19   10.65 dBR
+    ((255, 198,   0),  13.71),   # 20   11.37 dBR
+    ((255, 178,   0),  16.18),   # 21   12.09 dBR
+    ((255, 165,   0),  19.10),   # 22   12.81 dBR
+    ((255, 138,   0),  22.53),   # 23   13.53 dBR
+    ((255, 114,   0),  26.59),   # 24   14.25 dBR
+    ((255,  73,   0),  31.38),   # 25   14.97 dBR
+    ((255,  31,   0),  37.03),   # 26   15.69 dBR
+    ((229,   0,   0),  43.70),   # 27   16.40 dBR
+    ((193,   0,   0),  51.57),   # 28   17.12 dBR
+    ((182,   0, 106),  60.85),   # 29   17.84 dBR
+    ((210,   0, 165),  71.81),   # 30   18.56 dBR
+    ((212,   0, 170),  84.74),   # 31   19.28 dBR
+    ((255,   0, 255), 100.00),   # 32   20.00 dBR
 ]
 
-# Build a fast lookup table (nearest-colour in RGB space)
-_COLOUR_ARRAY = np.array([c for c, _ in COLOUR_SCALE], dtype=np.float32)
-_RATE_ARRAY = np.array([r for _, r in COLOUR_SCALE], dtype=np.float32)
+# Exact-match lookup keyed by packed RGB. Sorted so searchsorted() can be used;
+# a colour that is not in the table is NEVER snapped to a neighbour — it is
+# counted in UNKNOWN_COLOURS and mapped to 0.0 so it shows up in validation
+# instead of silently becoming plausible-looking rain.
+_PACKED = np.array([(r << 16) | (g << 8) | b for (r, g, b), _ in NEA_COLOUR_RAMP],
+                   dtype=np.int64)
+_ORDER = np.argsort(_PACKED)
+_LUT_KEYS = _PACKED[_ORDER]
+_LUT_VALS = np.array([v for _, v in NEA_COLOUR_RAMP], dtype=np.float32)[_ORDER]
 
-# Singapore bounding box pixel coordinates in the 480×480 NEA composite image
-# These are approximate and may need calibration against known coordinates
-# NEA 70km range composite: centre ~1.35°N, 103.82°E; each pixel ~0.29km
-# Full image covers roughly: 0.9°N–1.8°N, 103.3°E–104.3°E
-SG_PIXEL_ROW_MIN = 80   # ~1.0°N
-SG_PIXEL_ROW_MAX = 270  # ~1.6°N
-SG_PIXEL_COL_MIN = 130  # ~103.5°E
-SG_PIXEL_COL_MAX = 350  # ~104.1°E
+# Accumulates {packed_rgb: count} for opaque pixels not in the ramp (diagnostic).
+UNKNOWN_COLOURS: dict[int, int] = {}
 
-# Derived lat/lon grid for the cropped SG domain
-SG_LATS = np.linspace(1.6, 1.0, SG_PIXEL_ROW_MAX - SG_PIXEL_ROW_MIN)
-SG_LONS = np.linspace(103.5, 104.1, SG_PIXEL_COL_MAX - SG_PIXEL_COL_MIN)
-SG_GRID_SHAPE = (len(SG_LATS), len(SG_LONS))
+# ---------------------------------------------------------------------------
+# Georeferencing
+# ---------------------------------------------------------------------------
+# NEA rain-area PNGs are 217×120 and cover a fixed box. Bounds are from the
+# weather.gov.sg page source (map_latitude_top / _bottom, map_longitude_left /
+# _right) and match the values used by cheeaun/checkweather-sg against these
+# same images. Internal cross-check: 0.002602°/px in lat vs 0.002604°/px in
+# lon — square pixels, ~0.29 km, which is what the NEA product documents.
+# The whole domain is kept: no crop and no resampling. Rain advecting in from
+# outside the coastline is exactly what a nowcaster needs.
+RADAR_LAT_TOP = 1.4572
+RADAR_LAT_BOTTOM = 1.1450
+RADAR_LON_LEFT = 103.565
+RADAR_LON_RIGHT = 104.130
+RADAR_SHAPE = (120, 217)  # (rows/lat, cols/lon) — native PNG size
+
+# Pixel *centres*, so a coordinate lookup lands on the cell that contains it.
+_DLAT = (RADAR_LAT_TOP - RADAR_LAT_BOTTOM) / RADAR_SHAPE[0]
+_DLON = (RADAR_LON_RIGHT - RADAR_LON_LEFT) / RADAR_SHAPE[1]
+RADAR_LATS = RADAR_LAT_TOP - _DLAT * (np.arange(RADAR_SHAPE[0]) + 0.5)   # descending
+RADAR_LONS = RADAR_LON_LEFT + _DLON * (np.arange(RADAR_SHAPE[1]) + 0.5)  # ascending
 
 
-def rgb_to_rain_rate(img_array: np.ndarray) -> np.ndarray:
-    """Convert an RGB image array to mm/hr rain rate using nearest-colour lookup."""
-    h, w, _ = img_array.shape
-    flat_rgb = img_array[:, :, :3].reshape(-1, 3).astype(np.float32)
+def rgba_to_rain_rate(img_array: np.ndarray) -> np.ndarray:
+    """Convert an RGBA NEA radar frame to mm/hr via exact colour matching.
 
-    # Vectorised nearest-colour: squared Euclidean distance in RGB space
-    diffs = flat_rgb[:, np.newaxis, :] - _COLOUR_ARRAY[np.newaxis, :, :]
-    dist2 = (diffs ** 2).sum(axis=2)
-    nearest_idx = dist2.argmin(axis=1)
-    rain_flat = _RATE_ARRAY[nearest_idx]
-    return rain_flat.reshape(h, w)
+    Transparent pixels (alpha=0) are no-rain by definition and map to 0.0.
+    Opaque pixels are looked up exactly in the 33-colour ramp; anything else
+    is recorded in UNKNOWN_COLOURS and left at 0.0.
+    """
+    h, w = img_array.shape[:2]
+    rgb = img_array[:, :, :3].astype(np.int64)
+    packed = (rgb[:, :, 0] << 16) | (rgb[:, :, 1] << 8) | rgb[:, :, 2]
+
+    if img_array.shape[2] == 4:
+        opaque = img_array[:, :, 3] > 0
+    else:  # defensive: a non-alpha frame means every pixel is a colour claim
+        opaque = np.ones((h, w), dtype=bool)
+
+    rain = np.zeros((h, w), dtype=np.float32)
+    if not opaque.any():
+        return rain
+
+    keys = packed[opaque]
+    idx = np.searchsorted(_LUT_KEYS, keys)
+    idx_clipped = np.clip(idx, 0, len(_LUT_KEYS) - 1)
+    hit = _LUT_KEYS[idx_clipped] == keys
+
+    vals = np.where(hit, _LUT_VALS[idx_clipped], np.float32(0.0))
+    rain[opaque] = vals
+
+    if not hit.all():
+        for k, n in zip(*np.unique(keys[~hit], return_counts=True)):
+            UNKNOWN_COLOURS[int(k)] = UNKNOWN_COLOURS.get(int(k), 0) + int(n)
+
+    return rain
 
 
 def parse_timestamp(filename: str) -> datetime | None:
@@ -109,39 +193,32 @@ def load_existing_timestamps() -> set:
 
 
 def process_png(png_path: Path) -> np.ndarray | None:
-    """Load a PNG, crop to Singapore domain, convert to mm/hr. Returns (H, W) array."""
+    """Load a PNG and convert it to a native-resolution mm/hr field.
+
+    No crop and no resampling: the frame is stored exactly as NEA renders it.
+    Resampling a *banded* field is lossy in a way that manufactures rain —
+    bilinear interpolation between a 4.30 mm/hr cell and a dry cell invents
+    intermediate rates that exist nowhere in the source. Frames whose size is
+    not the documented 217×120 are rejected rather than reshaped, so a change
+    in the NEA product surfaces as an error instead of silent misalignment.
+    """
     try:
-        img = Image.open(png_path).convert("RGB")
-        arr = np.array(img)
-    except Exception as e:
+        arr = np.array(Image.open(png_path))
+    except Exception:
         return None
 
     if arr.ndim != 3 or arr.shape[2] < 3:
         return None
+    if arr.shape[:2] != RADAR_SHAPE:
+        return None
 
-    rain_rate = rgb_to_rain_rate(arr)
-
-    # Crop to Singapore domain (guard against images smaller than expected)
-    r0 = min(SG_PIXEL_ROW_MIN, arr.shape[0] - 1)
-    r1 = min(SG_PIXEL_ROW_MAX, arr.shape[0])
-    c0 = min(SG_PIXEL_COL_MIN, arr.shape[1] - 1)
-    c1 = min(SG_PIXEL_COL_MAX, arr.shape[1])
-
-    crop = rain_rate[r0:r1, c0:c1]
-
-    # Resize to target SG grid shape if needed
-    if crop.shape != SG_GRID_SHAPE:
-        from PIL import Image as PILImage
-        crop_img = PILImage.fromarray(crop).resize(
-            (SG_GRID_SHAPE[1], SG_GRID_SHAPE[0]), PILImage.BILINEAR
-        )
-        crop = np.array(crop_img)
-
-    return crop.astype(np.float32)
+    return rgba_to_rain_rate(arr)
 
 
-def write_batch_to_zarr(times: list[datetime], rain_stack: np.ndarray) -> None:
+def write_batch_to_zarr(times: list[datetime], rain_stack: np.ndarray,
+                        target: Path | None = None) -> None:
     """Write a batch of frames to zarr in a single atomic operation."""
+    target = target or ZARR_PATH
     ds = xr.Dataset(
         {"rain_rate": xr.DataArray(
             rain_stack,
@@ -150,22 +227,22 @@ def write_batch_to_zarr(times: list[datetime], rain_stack: np.ndarray) -> None:
         )},
         coords={
             "time": np.array(times, dtype="datetime64[ns]"),
-            "lat": SG_LATS,
-            "lon": SG_LONS,
+            "lat": RADAR_LATS,
+            "lon": RADAR_LONS,
         },
     )
     ds = ds.chunk({"time": 288, "lat": -1, "lon": -1})  # one day per chunk
 
     encoding = {"time": {"units": "minutes since 1970-01-01", "dtype": "float64"}}
-    if ZARR_PATH.exists():
+    if target.exists():
         # encoding must not be re-specified for existing variables when appending
         # safe_chunks=False: single-threaded sequential write, no parallel corruption risk
-        ds.to_zarr(ZARR_PATH, mode="a", append_dim="time", consolidated=True, safe_chunks=False)
+        ds.to_zarr(target, mode="a", append_dim="time", consolidated=True, safe_chunks=False)
     else:
-        ds.to_zarr(ZARR_PATH, mode="w", consolidated=True, encoding=encoding)
+        ds.to_zarr(target, mode="w", consolidated=True, encoding=encoding)
 
 
-def ensure_sorted_archive() -> bool:
+def ensure_sorted_archive(zarr_path: Path | None = None) -> bool:
     """Guarantee the zarr time axis is strictly increasing (no duplicates).
 
     Appends can backfill older frames after newer ones (e.g. PNGs that sync
@@ -174,7 +251,8 @@ def ensure_sorted_archive() -> bool:
     duplicate timestamps are found, the archive is rewritten sorted via a
     temp store + atomic rename. Returns True if a rewrite happened.
     """
-    ds = xr.open_zarr(ZARR_PATH, consolidated=True)
+    store = zarr_path or ZARR_PATH
+    ds = xr.open_zarr(store, consolidated=True)
     times = pd.DatetimeIndex(ds.time.values)
     n_dups = int(times.duplicated().sum())
     if times.is_monotonic_increasing and n_dups == 0:
@@ -191,8 +269,8 @@ def ensure_sorted_archive() -> bool:
         ds_sorted = ds_sorted.isel(time=first_occurrence)
     ds.close()
 
-    tmp_path = ZARR_PATH.with_name(ZARR_PATH.name + ".tmp")
-    bak_path = ZARR_PATH.with_name(ZARR_PATH.name + ".bak")
+    tmp_path = store.with_name(store.name + ".tmp")
+    bak_path = store.with_name(store.name + ".bak")
     for stale in (tmp_path, bak_path):
         if stale.exists():
             import shutil
@@ -202,11 +280,11 @@ def ensure_sorted_archive() -> bool:
     encoding = {"time": {"units": "minutes since 1970-01-01", "dtype": "float64"}}
     ds_sorted.to_zarr(tmp_path, mode="w", consolidated=True, encoding=encoding)
 
-    ZARR_PATH.rename(bak_path)
-    tmp_path.rename(ZARR_PATH)
+    store.rename(bak_path)
+    tmp_path.rename(store)
 
     # Verify the rewrite before discarding the original
-    check = xr.open_zarr(ZARR_PATH, consolidated=True)
+    check = xr.open_zarr(store, consolidated=True)
     check_times = pd.DatetimeIndex(check.time.values)
     ok = check_times.is_monotonic_increasing and not check_times.duplicated().any()
     n_frames = len(check_times)
@@ -278,6 +356,81 @@ def heal_blank_frames() -> int:
     return len(healed_frames)
 
 
+def rebuild_archive(target: Path, batch_size: int = 2016) -> int:
+    """Build a fresh archive from every PNG on disk, into a NEW store.
+
+    Used to re-ingest after a change to the colour mapping or georeferencing.
+    Writes to `target` and never touches the live archive, so the existing
+    store stays readable and the swap stays a rename (see tasks/migration_plan.md).
+    Returns the number of frames written.
+    """
+    if target.exists():
+        console.print(f"[red]{target} already exists — remove it or pick another path.[/red]")
+        return 0
+
+    png_files = sorted(RADAR_DIR.glob("*.png"))
+    if not png_files:
+        console.print("[yellow]No PNG files found.[/yellow]")
+        return 0
+
+    UNKNOWN_COLOURS.clear()
+    console.print(f"Rebuilding {len(png_files)} PNGs -> {target.name} "
+                  f"(grid {RADAR_SHAPE[0]}x{RADAR_SHAPE[1]}, no crop, no resample)")
+
+    written = errors = 0
+    batch_times: list[datetime] = []
+    batch_frames: list[np.ndarray] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Converting", total=len(png_files))
+
+        for png_path in png_files:
+            dt = parse_timestamp(png_path.stem)
+            if dt is None:
+                progress.advance(task)
+                continue
+            frame = process_png(png_path)
+            if frame is None:
+                errors += 1
+            else:
+                batch_times.append(dt)
+                batch_frames.append(frame)
+            if len(batch_times) >= batch_size:
+                order = sorted(range(len(batch_times)), key=lambda i: batch_times[i])
+                write_batch_to_zarr([batch_times[i] for i in order],
+                                    np.stack([batch_frames[i] for i in order], axis=0),
+                                    target=target)
+                written += len(batch_times)
+                batch_times, batch_frames = [], []
+            progress.advance(task)
+
+    if batch_times:
+        order = sorted(range(len(batch_times)), key=lambda i: batch_times[i])
+        write_batch_to_zarr([batch_times[i] for i in order],
+                            np.stack([batch_frames[i] for i in order], axis=0),
+                            target=target)
+        written += len(batch_times)
+
+    console.print(f"[green]Wrote {written} frames[/green]"
+                  f"{f'; {errors} PNGs rejected' if errors else ''}.")
+    if UNKNOWN_COLOURS:
+        total_px = sum(UNKNOWN_COLOURS.values())
+        console.print(f"[red]WARNING: {total_px} opaque pixels in "
+                      f"{len(UNKNOWN_COLOURS)} colours are not in the NEA ramp:[/red]")
+        for k, n in sorted(UNKNOWN_COLOURS.items(), key=lambda kv: -kv[1])[:10]:
+            console.print(f"    ({k >> 16 & 255}, {k >> 8 & 255}, {k & 255})  {n} px")
+    else:
+        console.print("[green]All opaque pixels matched the 33-colour NEA ramp exactly.[/green]")
+    return written
+
+
 def print_status() -> None:
     if not ZARR_PATH.exists():
         console.print("[red]radar.zarr does not exist yet.[/red]")
@@ -304,7 +457,18 @@ def main() -> None:
                         help="Only check/repair time-axis ordering of the existing archive")
     parser.add_argument("--heal", action="store_true",
                         help="Only re-ingest all-NaN frames from their PNGs (no new ingest)")
+    parser.add_argument("--rebuild", metavar="PATH",
+                        help="Re-ingest every PNG into a NEW store at PATH (does not "
+                             "touch the live archive); used after a colour/grid change")
     args = parser.parse_args()
+
+    if args.rebuild:
+        target = Path(args.rebuild)
+        if not target.is_absolute():
+            target = OUTPUT_DIR / target
+        if rebuild_archive(target):
+            ensure_sorted_archive(target)
+        return
 
     if args.status:
         print_status()
