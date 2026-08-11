@@ -53,8 +53,10 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 - [x] `data/processed/radar.zarr` is non-empty and current within 24 h of the newest raw PNGs (ingest automated via daily scheduled task)
 - [x] `python scripts/validate_dataset.py` reports median 7-day-window gap rate < 10% over the steady-state period (2026-05-29 onwards; 4.9% as of 2026-07-10 — re-verify at 90 days)
 - [x] zarr time axis is strictly increasing with no duplicate timestamps (`preprocess_radar.py --repair` passes; enforced after every append since 2026-07-10)
-- [ ] Colour → mm/hr mapping is validated: a plain blue (light rain) pixel maps to 0–2 mm/hr; deep red (heavy rain) maps to >32 mm/hr
-- [ ] Re-running `python scripts/preprocess_radar.py` skips all existing zarr chunks
+- [x] Colour → mm/hr mapping is validated: cyan (lightest) → 0.50 mm/hr, magenta (heaviest) → 100 mm/hr, monotonic across all 33 NEA bands; **0 opaque pixels archive-wide fall outside the 33-colour ramp** (2026-08-11)
+- [x] **Georeferencing is validated against a physical signal:** with the corrected bounds (lat 1.1450–1.4572, lon 103.565–104.130), 100% of geocoded flood events show rain within ~1.5 km at the reported time, median peak 51.6 mm/hr — vs 19% / 0.00 mm/hr under the pre-2026-08-11 grid
+- [x] **Ingest is lossless:** no crop and no resampling; PNG opaque-pixel count equals zarr nonzero-cell count exactly, and every stored value is one of the 33 LUT levels (2026-08-11)
+- [x] Re-running `python scripts/preprocess_radar.py` skips all existing zarr chunks (verified 2026-08-11: 21,005 skipped, 0 processed, 0 errors)
 - [ ] `checkpoints/stage3_complete.flag` exists
 
 ---

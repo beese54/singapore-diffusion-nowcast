@@ -2,8 +2,8 @@
   "Jalan Boon Lay (from International Road to Enterprise Road) [09:49 hours]": {
     "lat": 1.333997,
     "lon": 103.708832,
-    "lat_idx": 84,
-    "lon_idx": 76,
+    "lat_idx": 47,
+    "lon_idx": 55,
     "method": "onemap",
     "simplified": "jalan boon lay",
     "matched_name": "JALAN BOON LAY"
@@ -11,8 +11,8 @@
   "Service Rd off Upper Paya Lebar Road (near Lim Teck Boo Road)": {
     "lat": 1.343141,
     "lon": 103.882836,
-    "lat_idx": 81,
-    "lon_idx": 140,
+    "lat_idx": 43,
+    "lon_idx": 122,
     "method": "onemap",
     "simplified": "upper paya lebar road",
     "matched_name": "UPPER PAYA LEBAR ROAD"
@@ -20,8 +20,8 @@
   "Thomson Rd (Balestier Rd to Novena Rise) [11:21 hours]": {
     "lat": 1.315058,
     "lon": 103.844562,
-    "lat_idx": 90,
-    "lon_idx": 126,
+    "lat_idx": 54,
+    "lon_idx": 107,
     "method": "onemap",
     "simplified": "thomson road",
     "matched_name": "THE SINGAPORE THOMSON ROAD BAPTIST CHURCH"
@@ -29,8 +29,8 @@
   "14 Tractor Road [21:31 hours]": {
     "lat": 1.324953,
     "lon": 103.707728,
-    "lat_idx": 87,
-    "lon_idx": 76,
+    "lat_idx": 50,
+    "lon_idx": 54,
     "method": "onemap",
     "simplified": "14 tractor road",
     "matched_name": "14 TRACTOR ROAD SINGAPORE 627973"
@@ -38,8 +38,8 @@
   "Jalan Boon Lay (from International Road to Enterprise Road) [07:04 hours]": {
     "lat": 1.333997,
     "lon": 103.708832,
-    "lat_idx": 84,
-    "lon_idx": 76,
+    "lat_idx": 47,
+    "lon_idx": 55,
     "method": "onemap",
     "simplified": "jalan boon lay",
     "matched_name": "JALAN BOON LAY"
@@ -47,8 +47,8 @@
   "Jalan Boon Lay (from International Road to Enterprise Road) [08:37 hours]": {
     "lat": 1.333997,
     "lon": 103.708832,
-    "lat_idx": 84,
-    "lon_idx": 76,
+    "lat_idx": 47,
+    "lon_idx": 55,
     "method": "onemap",
     "simplified": "jalan boon lay",
     "matched_name": "JALAN BOON LAY"
@@ -56,8 +56,8 @@
   "Jalan Boon Lay (from International Road to Enterprise Road) [21:23 hours]": {
     "lat": 1.333997,
     "lon": 103.708832,
-    "lat_idx": 84,
-    "lon_idx": 76,
+    "lat_idx": 47,
+    "lon_idx": 55,
     "method": "onemap",
     "simplified": "jalan boon lay",
     "matched_name": "JALAN BOON LAY"
@@ -65,8 +65,8 @@
   "KPE (towards ECP) slip road to Buangkok East Drive [21:34 hours]": {
     "lat": 1.3775120708697,
     "lon": 103.908997547176,
-    "lat_idx": 70,
-    "lon_idx": 149,
+    "lat_idx": 30,
+    "lon_idx": 132,
     "method": "manual",
     "simplified": "kpe slip road to buangkok east drive",
     "matched_name": "BUANGKOK EAST DRIVE",
@@ -75,8 +75,8 @@
   "Neo Tiew Rd (near Neo Tiew Harvest Link). [13:00 hours]": {
     "lat": 1.42177,
     "lon": 103.71648,
-    "lat_idx": 56,
-    "lon_idx": 79,
+    "lat_idx": 13,
+    "lon_idx": 58,
     "method": "onemap",
     "simplified": "neo tiew road.",
     "matched_name": "111 NEO TIEW ROAD SINGAPORE 719019"
@@ -84,10 +84,106 @@
   "Pesawat Drive [07:30 hours]": {
     "lat": 1.320105,
     "lon": 103.718339,
-    "lat_idx": 88,
-    "lon_idx": 80,
+    "lat_idx": 52,
+    "lon_idx": 58,
     "method": "onemap",
     "simplified": "pesawat drive",
     "matched_name": "PESAWAT DRIVE"
+  },
+  "Enterprise Rd (Wan Lee Rd to Jln Boon Lay) [11:48 hours]": {
+    "lat": 1.3342,
+    "lon": 103.7073,
+    "lat_idx": 47,
+    "lon_idx": 54,
+    "method": "gazetteer",
+    "simplified": "enterprise road",
+    "matched_name": "enterprise road"
+  },
+  "Jalan Boon Lay (from International Road to Enterprise Road) [11:12 hours]": {
+    "lat": 1.333997,
+    "lon": 103.708832,
+    "lat_idx": 47,
+    "lon_idx": 55,
+    "method": "onemap",
+    "simplified": "jalan boon lay",
+    "matched_name": "JALAN BOON LAY"
+  },
+  "Junction of Chin Bee Rd and International Rd [11:51 hours]": {
+    "lat": null,
+    "lon": null,
+    "method": "unresolved",
+    "simplified": "junction of chin bee road and international road",
+    "matched_name": null,
+    "note": "OneMap returned no in-SG match; edit this entry by hand"
+  },
+  "Junction of Gul Avenue and Gul Circle [11:36 hours]": {
+    "lat": null,
+    "lon": null,
+    "method": "unresolved",
+    "simplified": "junction of gul avenue and gul circle",
+    "matched_name": null,
+    "note": "OneMap returned no in-SG match; edit this entry by hand"
+  },
+  "Junction of Jln Tukang and Chin Bee Rd [11:44 hours]": {
+    "lat": null,
+    "lon": null,
+    "method": "unresolved",
+    "simplified": "junction of jalan tukang and chin bee road",
+    "matched_name": null,
+    "note": "OneMap returned no in-SG match; edit this entry by hand"
+  },
+  "Pesawat Drive [11:23 hours]": {
+    "lat": 1.320105,
+    "lon": 103.718339,
+    "lat_idx": 52,
+    "lon_idx": 58,
+    "method": "onemap",
+    "simplified": "pesawat drive",
+    "matched_name": "PESAWAT DRIVE"
+  },
+  "Tractor Road [11:16 hours]": {
+    "lat": 1.324905,
+    "lon": 103.706032,
+    "lat_idx": 50,
+    "lon_idx": 54,
+    "method": "onemap",
+    "simplified": "tractor road",
+    "matched_name": "TRACTOR ROAD"
+  },
+  "Cambridge Rd;": {
+    "lat": 1.314057,
+    "lon": 103.847304,
+    "lat_idx": 55,
+    "lon_idx": 108,
+    "method": "onemap",
+    "simplified": "cambridge road;",
+    "matched_name": "31C CAMBRIDGE ROAD SINGAPORE 219714"
+  },
+  "Lorong Gambir (from Lorong Penchalak to Gambir Walk)": {
+    "lat": 1.345476,
+    "lon": 103.875567,
+    "lat_idx": 42,
+    "lon_idx": 119,
+    "method": "onemap",
+    "simplified": "lorong gambir",
+    "matched_name": "LORONG GAMBIR"
+  },
+  "Puay Hee Ave (near Siak Kew Ave);": {
+    "lat": 1.330172,
+    "lon": 103.870171,
+    "lat_idx": 48,
+    "lon_idx": 117,
+    "method": "onemap",
+    "simplified": "puay hee avenue;",
+    "matched_name": "11B PUAY HEE AVENUE SINGAPORE 347480"
+  },
+  "Sims Avenue (from Lor 35 Geylang to Lor 39 Geylang) [08:58 hours]": {
+    "lat": 1.315846,
+    "lon": 103.886685,
+    "lat_idx": 54,
+    "lon_idx": 123,
+    "method": "onemap",
+    "simplified": "sims avenue",
+    "matched_name": "SIMS AVENUE"
   }
 }

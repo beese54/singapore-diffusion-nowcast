@@ -1,5 +1,60 @@
 # Task Checklist
 
+## Georeference + colour-mapping correction, full re-ingest (2026-08-11) — tasks 3.7 / 3.8
+
+> Approved scope: tasks 3.7 and 3.8. Diagnosis found 3.7 understated, 3.8's premise wrong,
+> and a third defect. Ran under Pattern L (Data Migration): expand → migrate → contract, with
+> validation queries declared before execution. Full ledger in `tasks/migration_plan.md`.
+
+**What was actually wrong** (all four verified by reproduction, not inspection):
+1. Crop constants written for a 480×480 composite; images are 217×120, so the guard clamped
+   to the **bottom-right corner** and bilinear-upsampled it. lat/lon coords were fiction.
+2. Bilinear resampling of a **banded** field manufactured rain (9 → 7,302 distinct values;
+   nonzero 68.5% → 95.8%). **This, not alpha, was the "phantom drizzle ≤4 mm/hr floor."**
+3. Nearest-RGB matching against 11 anchors vs NEA's **33 real colours** → 8/33 non-monotonic.
+4. Alpha drop: harmless in practice (binary alpha, transparent RGB = black = 0 mm/hr).
+   **Task 3.8's stated cause was wrong** — these PNGs contain no basemap at all.
+
+- [x] Colour ramp ordering derived from the archive by three independent, agreeing methods
+      (distance-transform depth, spatial-adjacency graph walk, RGB continuity); values
+      log-uniform 0.5–100 mm/hr = 0.719 dBR/band, justified by the product being dBR
+- [x] `preprocess_radar.py`: exact-match 33-colour LUT (unknown colours counted, never
+      snapped), explicit alpha mask, crop + resize deleted, native 120×217 grid from verified
+      bounds, `--rebuild PATH`; `ensure_sorted_archive()` parameterised by store
+- [x] `geocode_flood_labels.py --reindex`: recomputes cell indices from cached lat/lon
+      **without** re-resolving (protects the 4 hand-curated entries, incl. KPE from 2c4957d)
+- [x] Dry run: `radar_v2.zarr` built from 21,005 PNGs in 13 s; **9/9 validation checks passed**
+- [x] Cutover gated on explicit approval; writers paused for the rename, old store retained
+- [x] Derived artifacts rebuilt: `radar_stats.json` (n=21,005 vs stale n=2,357 from Jun 5),
+      geocode cache re-indexed (18 entries), `flood_eval_dataset.parquet`
+- [x] Verified: 0 NaN · strictly increasing · PNG/zarr in exact sync · preprocess idempotent
+      (21,005 skipped, 0 errors) · scheduled chain appended 5 frames, LastTaskResult 0 ·
+      100-step training smoke test passed on 120×217 (loss 0.4313, stage flag withheld)
+- [x] DoD Stage 3 colour + georeference criteria now checkable and checked; tracker synced;
+      lessons L011 (silent clamp) and L012 (banded fields) written
+
+### Review
+- **The decisive result is check 9.** Rain within ~1.5 km of a geocoded flood cell at event
+  time went from **19% of events (median peak 0.00 mm/hr) to 100% (median peak 51.6 mm/hr)**.
+  That is the physical proof the new georeferencing is right, and it is the acceptance gate
+  L009 demands — no bounds claim was trusted on documentation alone.
+- **This closes L008.** "Flood cells show 0 mm/hr" was never warning semantics. L009 fixed the
+  timezone half in July; this crop bug was the other half. L008's caveat can now be resolved:
+  Stage 5 has real spatial signal, which unblocks the design of task 5.5.
+- **Two approved tasks, and one of them was aimed at the wrong thing.** 3.8 had a plausible,
+  documented, month-old diagnosis that turned out to be false — the fix it asked for would
+  have changed nothing. Reproducing the symptom before implementing the approved fix is what
+  caught it. Same failure mode as L008→L009: a plausible story that explains the evidence is
+  not the same as the cause.
+- Stage 3 day count is unaffected (81/90, ETA 2026-08-20) — PNGs are the source of truth and
+  were never touched. Stage 4 will now train on correctly georeferenced, lossless data.
+- **Open:** `radar.zarr.old` (74 MB) is retained pending a soak-period contract gate — delete
+  it only after Stage 4 has trained successfully on the new archive.
+- **Note:** the "▶ RESUME HERE (saved 2026-06-17)" block below is stale (references 26/90 days
+  and the Preprocess task deleted in July). Left as-is, superseded by newer sections.
+
+---
+
 ## Blank-frame root cause + 24h-off collection guarantee (2026-07-18, session 2)
 
 > Approved scope: the two Stage 3 follow-ups + ensure collection survives laptop-off up to 1 day.
