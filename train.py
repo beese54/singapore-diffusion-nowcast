@@ -55,7 +55,10 @@ DEFAULTS = {
     "ch_mults": (1, 2, 4, 8),
     "diffusion_steps": 1000,
     "inference_steps": 50,
-    "num_workers": 2,
+    # 0, not 2: RadarDataset holds the whole archive in RAM (3.45 GB at 33k
+    # frames), so workers add spawn-pickling cost and zero I/O benefit — and
+    # on Windows the pickle of that array fails outright (OSError 22).
+    "num_workers": 0,
 }
 
 CKPT_DIR = ROOT / "checkpoints" / "nowcaster"
@@ -162,10 +165,20 @@ def main():
 
     print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
 
+    # Fail fast with the real reason: the cryptic alternative is a truncated
+    # pickle from the spawned worker, which reads as data corruption.
+    if args.num_workers > 0:
+        gb = train_ds.rain.nbytes / 1e9
+        raise SystemExit(
+            f"--num-workers {args.num_workers} is unsupported: RadarDataset is "
+            f"in-memory ({gb:.2f} GB) and Windows spawn cannot pickle it to "
+            f"workers. Use --num-workers 0 (the default); it is not slower here, "
+            f"because there is no I/O to overlap."
+        )
+
     train_loader = DataLoader(
         train_ds, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.num_workers, pin_memory=True, drop_last=True,
-        persistent_workers=args.num_workers > 0,
+        num_workers=0, pin_memory=True, drop_last=True,
     )
     val_loader = DataLoader(
         val_ds, batch_size=args.batch_size, shuffle=False,
