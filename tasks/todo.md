@@ -1,5 +1,37 @@
 # Task Checklist
 
+## Radar gap alerting + Stage 4 launch (2026-09-22)
+
+> Trigger: first real FLASH_FLOOD labels since collection began (King's Road 17:11 SGT,
+> Coronation Road 17:15 SGT). Ran under Pattern AP (Observability) for the alerting and
+> Pattern N (Timeboxed Spike) for "can we predict today's flood?" —
+> see `tasks/observability_plan.md` and `tasks/spike_nowcast_today.md`.
+
+### Backfill + ground truth
+- [x] Recovered 141 missing slots for 22 Sep (laptop off 06:15–17:55 SGT); coverage now 241/241
+- [x] Measured NEA retention: ~6.5–7 d (-156h served, -168h 404) — this is the real safe laptop-off window
+- [x] Verified no colorbar/legend leak in the decode (4 independent checks; `UNKNOWN_COLOURS` empty over 937k px + 400 random frames). The sustained 84.7–100 mm/hr was real: 22 Sep exceeded 99.98% of archive frames by area ≥60 mm/hr
+- [x] Rebuilt `flood_eval_dataset.parquet` after the backfill — matched flood events 46/48 → **48/48** (lesson L014)
+
+### Gap alerting — `scripts/check_radar_gaps.py`
+- [x] Severity keyed to **verified** recoverability, not gap existence: CRITICAL (recoverable+aging, or overlaps a flood label) / WARN (recent; zarr behind PNGs) / INFO (past retention, or never published upstream — suppressed forever)
+- [x] `probe_upstream()` confirms NEA actually serves a gap before paging — added after the first live run printed CRITICAL for 4 frames that all 404'd (lesson L015)
+- [x] Mirrors `check_flash_flood.py`: durable flag (`checkpoints/RADAR_GAP_ALERT.flag`) + best-effort toast + JSON dedup state; CRITICAL re-pages at most every 24h
+- [x] `tasks/repro/gap_alert_tiers_repro.py` — **7/7 tiers verified**
+- [x] Live end-to-end: real WARN (zarr 9 frames behind) fired with flag+toast → printed runbook cleared it → next run silent
+- [x] Registered as 5th action on `\SG-Weather\SG-Weather Telegram Labels` (daily 09:00 SGT, conda `sg-weather`; deps confirmed present). Task backed up before edit; verified Ready, 1 trigger, 5 actions
+- [ ] Consider collapsing the 332 known-unrecoverable gaps into a single suppressed record (state file is currently one id per gap)
+
+### Stage 4 unblocked + launched
+- [x] Found the blocker stale: "until 90-day archive (~late Aug 2026)" had been satisfied ~1 month (archive 123 d / 33,102 frames) — lesson L013
+- [x] Fixed `num_workers` default 2 → 0: `RadarDataset` is 3.45 GB in RAM and Windows spawn cannot pickle it (crashed `OSError 22`/truncated pickle; worked in June at 1.21 GB). `num_workers>0` now raises with the real reason
+- [x] Measured throughput: **132 ms/step (7.56 steps/s)** → 300k steps ≈ 11 h on RTX 4060
+- [x] Confirmed today's floods sit at index 33,058 → **TEST** split (clean holdout), 139 usable 22-Sep samples; contiguity passes only because of the backfill
+- [x] Launched real run: `python train.py --max-steps 300000 --batch-size 4 --num-workers 0` → `logs/nowcaster_train.log`
+- [ ] Score the run against the 139 usable 22-Sep test samples (needs Stage 5 tasks 5.1/5.2/5.3 — `evaluate.py` does radar-vs-radar FSS/CRPS only and never reads flood labels)
+- [ ] Proper fix: lazy/memmap reads in `RadarDataset` so workers become usable again as the archive grows
+
+
 ## Georeference + colour-mapping correction, full re-ingest (2026-08-11) — tasks 3.7 / 3.8
 
 > Approved scope: tasks 3.7 and 3.8. Diagnosis found 3.7 understated, 3.8's premise wrong,
@@ -187,18 +219,18 @@
 - [x] `python scripts/preprocess_radar.py` — run 2026-06-16; +844 frames → 5,605 timestamps (last: 2026-06-16 12:25, 26/90 days); run periodically to append new PNGs (idempotent)
 - [x] AUTOMATED 2026-06-17: scheduled task `\SG-Weather\SG-Weather Radar Preprocess` runs preprocess_radar.py daily 08:00 SGT (conda sg-weather python; battery-allowed + StartWhenAvailable for travel). Test-triggered → result 0, zarr updated. radar.zarr now stays current without manual runs.
 - [x] `python scripts/validate_dataset.py` — run 2026-06-16; 23.5% overall gap rate, but ~1,500/1,722 missing slots are the May 22–28 scheduler ramp-up + in-progress current day. Steady state (May 29–Jun 14) has ≥240 frames/day → healthy. Fixed cp1252 UnicodeEncodeError (≥ → >=).
-- [ ] Archive ≥ 90 days (target: late August 2026) before starting Stage 4
-- [ ] `checkpoints/stage3_complete.flag`
+- [x] Archive ≥ 90 days — reached ~2026-08-20; **123 days** as of 2026-09-22
+- [x] `checkpoints/stage3_complete.flag` — written 2026-09-22
 
 ## Stage 4 — Nowcaster Training
-> Blocked until Stage 3 reaches 90-day target (~late August 2026)
+> UNBLOCKED 2026-09-22 (gate had been clear ~1 month — see lesson L013). Full run in progress.
 > Smoke-test command is now: `python train.py --smoke training.max_steps=100 training.batch_size=2 training.num_workers=0`
 - [x] Smoke-test — run 2026-06-16. PASSED: no OOM on RTX 4060 (7GB), 25.8M params, loss 1.12→0.52 over 100 steps. Fixes made during testing:
       - `pip install tensorboard` (in requirements.txt but missing from system Python3.12 env)
       - train.py: added `--smoke` flag → isolates ckpts to `nowcaster/smoke/` + skips `stage4_complete.flag` (was falsely self-certifying on `step==max_steps`)
       - train.py: fixed `lstrip("training.")` prefix bug that silently dropped `num_workers`/`target_offset`/`inference_steps` overrides (caused Windows DataLoader spawn OSError)
       - benign fp16 `nan` at step ~20 (GradScaler recovers) — expected, not blocking
-- [ ] Full run: `python train.py`  (resumes with `--resume checkpoints/nowcaster/latest.pt`)
+- [~] Full run launched 2026-09-22 ~20:50 SGT: `python train.py --max-steps 300000 --batch-size 4 --num-workers 0` (~11 h; resumes with `--resume auto`)
 - [ ] Confirm loss plateau; `checkpoints/stage4_complete.flag`
 
 ## Stage 5 — Evaluation
