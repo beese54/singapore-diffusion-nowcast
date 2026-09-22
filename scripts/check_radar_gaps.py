@@ -19,7 +19,9 @@ So severity is keyed to recoverability, not to existence:
             a flood label — a gap there silently deletes ground truth from both
             training and evaluation, because RadarDataset._contiguous drops any
             sample whose context+lead span crosses a hole
-  WARN      recent gap (the catch-up task should heal it); or zarr behind PNGs
+  WARN      recent gap (the catch-up task should heal it); or the daily
+            preprocess has not run in >26h (the zarr being merely *behind* the
+            PNGs is normal between daily runs and is not reported)
   INFO      nothing to be done - recorded once, then suppressed forever so it
             cannot train the reader to ignore gap alerts. Two kinds: older than
             retention, or still in-window but never published upstream (NEA
@@ -76,6 +78,8 @@ FRESH_LAG_MIN = 45
 FLOOD_SPAN_MIN = 30
 # Re-page an actionable CRITICAL gap at most this often.
 REALERT_H = 24
+# The zarr is only stale if the DAILY preprocess did not run: 24h cadence + grace.
+ZARR_STALE_H = 26
 # Upstream probe: how many slots to sample per in-window gap, and the rate limit
 # (matches scrape_radar.py's REQUEST_INTERVAL_S).
 PROBE_SAMPLES = 4
@@ -280,9 +284,15 @@ def zarr_lag(n_png: int, now: datetime) -> dict | None:
         return {"error": str(e)[:80]}
     behind = n_png - n
     lag_h = (now - last).total_seconds() / 3600
+    # "behind by any frames" is NOT staleness: preprocess_radar.py runs once a
+    # day (2nd action of '\SG-Weather\SG-Weather Radar Scraper', 08:00 SGT) while
+    # the scraper collects every 30 min, so the zarr is *normally* up to a day
+    # behind. This check runs at 09:00, one hour after preprocess, where it would
+    # see ~12 frames behind and warn every single day forever.
+    # Only a preprocess that did not happen is worth reporting.
     return {
         "frames": n, "behind": behind, "last": last, "lag_h": lag_h,
-        "stale": behind > 0 or lag_h > 24,
+        "stale": lag_h > ZARR_STALE_H,
     }
 
 
@@ -371,7 +381,7 @@ def report(gaps: list[dict], zl: dict | None, tasks, n_png: int) -> None:
     elif "error" in zl:
         print(f"zarr: unreadable ({zl['error']})")
     else:
-        flag = "STALE" if zl["stale"] else "ok"
+        flag = f"STALE - daily preprocess has not run in {zl['lag_h']:.0f}h"             if zl["stale"] else "ok (daily preprocess cadence)"
         print(f"zarr: {zl['frames']:,} frames, last {zl['last']:%Y-%m-%d %H:%M} "
               f"({zl['lag_h']:.1f}h ago), {zl['behind']:+d} vs PNGs -> {flag}")
     if tasks:
@@ -457,8 +467,8 @@ def main() -> None:
             lines.append(f"    fix: {runbook(g)}")
         alerted[g["id"]] = now.isoformat()
     if stale_zarr:
-        lines.append(f"WARN  zarr behind PNGs by {zl['behind']} frames "
-                     f"(last {zl['last']:%Y-%m-%d %H:%M}) - "
+        lines.append(f"WARN  daily preprocess has not run in {zl['lag_h']:.0f}h - zarr "
+                     f"{zl['behind']} frames behind PNGs (last {zl['last']:%Y-%m-%d %H:%M}) - "
                      f"fix: python scripts/preprocess_radar.py")
     for name, res, last in bad_tasks:
         lines.append(f"WARN  scheduled task '{name}' last result {res} (last run {last})")

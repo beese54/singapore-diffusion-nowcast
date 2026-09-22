@@ -102,6 +102,15 @@ def main() -> None:
     g = pick(run(build(h, 4)), h)
     results.append(check("gap inside fresh-lag window", g, None))
 
+    # 8. The zarr trailing the PNGs is NORMAL, not staleness. preprocess runs
+    #    once daily at 08:00 SGT while the scraper collects every 30 min, and
+    #    this check runs at 09:00 -- so "behind by any frames" would have warned
+    #    every single day forever. Only a preprocess that did not happen counts.
+    stale = lambda lag_h: lag_h > crg.ZARR_STALE_H
+    results.append(check("zarr 1h behind (normal cadence)", stale(1.0), False))
+    results.append(check("zarr 9h behind (normal cadence)", stale(9.1), False))
+    results.append(check("zarr 30h behind (preprocess missed)", stale(30.0), True))
+
     print(f"\n{sum(results)}/{len(results)} passed")
     if not all(results):
         sys.exit(1)
