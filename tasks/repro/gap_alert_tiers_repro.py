@@ -111,6 +111,15 @@ def main() -> None:
     results.append(check("zarr 9h behind (normal cadence)", stale(9.1), False))
     results.append(check("zarr 30h behind (preprocess missed)", stale(30.0), True))
 
+    # 9-11. Scheduled-task result codes. 267009 is the self-referential one:
+    #       this script is the last action OF the Telegram Labels task, so while
+    #       it runs its own parent reports "currently running" -- which it once
+    #       reported as a failed task on every single scheduled run.
+    bad = lambda code: code not in crg.BENIGN_TASK_RESULTS
+    results.append(check("task result 0 (success)", bad("0"), False))
+    results.append(check("task result 267009 (own parent running)", bad("267009"), False))
+    results.append(check("task result 2147942401 (real failure)", bad("2147942401"), True))
+
     print(f"\n{sum(results)}/{len(results)} passed")
     if not all(results):
         sys.exit(1)

@@ -93,6 +93,18 @@ RADAR_REFERER = "https://www.weather.gov.sg/weather-rain-area-50km/"
 
 SEV_ORDER = {"CRITICAL": 0, "WARN": 1, "INFO": 2}
 
+# Windows task LastTaskResult values that are NOT failures. 267009 matters most:
+# this script runs as the last action OF the Telegram Labels task, so while it is
+# executing, its own parent task reports "currently running" -- without this the
+# check reports itself as a failed task on every scheduled run.
+BENIGN_TASK_RESULTS = {
+    "0",           # success
+    "?",           # not parsed
+    "267009",      # 0x41301 task is currently running (this script's own parent)
+    "267011",      # 0x41303 task has not yet run
+    "267014",      # 0x41306 task terminated by user
+}
+
 
 # ── state ─────────────────────────────────────────────────────────────────────
 
@@ -387,7 +399,13 @@ def report(gaps: list[dict], zl: dict | None, tasks, n_png: int) -> None:
     if tasks:
         print("scheduled tasks:")
         for name, res, last in tasks:
-            print(f"  {'ok ' if res == '0' else 'BAD'} {name:<34} result={res:<5} last={last}")
+            if res == "0":
+                mark = "ok "
+            elif res in BENIGN_TASK_RESULTS:
+                mark = "run"  # e.g. currently running: this script's own parent
+            else:
+                mark = "BAD"
+            print(f"  {mark} {name:<34} result={res:<5} last={last}")
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -449,7 +467,7 @@ def main() -> None:
                 fire.append(g)
 
     stale_zarr = bool(zl and zl.get("stale"))
-    bad_tasks = [t for t in tasks if t[1] not in ("0", "?")]
+    bad_tasks = [t for t in tasks if t[1] not in BENIGN_TASK_RESULTS]
 
     if not fire and not stale_zarr and not bad_tasks:
         print("\nNo new alerts.")
