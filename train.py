@@ -62,6 +62,12 @@ DEFAULTS = {
     # to optimal -- two runs degenerated there. 100 puts ~34% of the weight on
     # wet pixels. See GaussianDiffusion.p_losses.
     "intensity_alpha": 100.0,
+    # "v" or "eps". eps-prediction fails on this data: 97.3% of pixels sit at
+    # exactly -1.0, so at high t the x0 signal is a 0.0296 shift the loss barely
+    # rewards, sampling starts off-manifold and never recovers (measured: sample
+    # median wandering around 0 over 20k steps, 0.00% dry vs a 99.7% dry target).
+    # See GaussianDiffusion's parameterization helpers.
+    "parameterization": "v",
     # 0, not 2: RadarDataset holds the whole archive in RAM (3.45 GB at 33k
     # frames), so workers add spawn-pickling cost and zero I/O benefit — and
     # on Windows the pickle of that array fails outright (OSError 22).
@@ -170,8 +176,23 @@ def save_checkpoint(state: dict, step: int, ckpt_dir: Path = CKPT_DIR,
     return path
 
 
-def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler) -> int:
+def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
+                    parameterization: str | None = None) -> int:
     state = torch.load(path, map_location="cpu", weights_only=True)
+    # A checkpoint's weights only mean something under the parameterization they
+    # were trained with. Mixing them produces wrong samples and no error, which
+    # is how a dead checkpoint once read as "36.9 mm/hr" instead of collapsed.
+    saved_param = state.get("parameterization")
+    mismatch = (parameterization is not None and saved_param is not None
+                and saved_param != parameterization)
+    if mismatch:
+        raise SystemExit(
+            f"Checkpoint {path.name} was trained with parameterization "
+            f"'{saved_param}' but this run uses '{parameterization}'. Refusing to "
+            f"resume: the weights would be interpreted wrongly and sampling would "
+            f"be silently incorrect. Start fresh, or pass "
+            f"--parameterization {saved_param}."
+        )
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
     # Only restore the scaler when it is actually in use. Restoring a COLLAPSED
@@ -261,7 +282,8 @@ def main():
         base_ch=args.base_ch,
         use_checkpoint=True,   # always use gradient checkpointing for 8GB GPU
     )
-    diffusion = GaussianDiffusion(unet, timesteps=args.diffusion_steps,
+    diffusion = GaussianDiffusion(unet, parameterization=args.parameterization,
+                                  timesteps=args.diffusion_steps,
                                   inference_steps=args.inference_steps)
     diffusion = diffusion.to(device)
 
@@ -297,7 +319,8 @@ def main():
         ckpt_path = (find_latest_checkpoint(ckpt_dir) if args.resume == "auto"
                      else Path(args.resume))
         if ckpt_path and ckpt_path.exists():
-            start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler)
+            start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler,
+                                         args.parameterization)
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
 
@@ -329,7 +352,11 @@ def main():
         if interrupted["flag"]:
             save_checkpoint(
                 {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
-                 "scaler": scaler.state_dict(), "step": step},
+                 "scaler": scaler.state_dict(), "step": step,
+                 # Stamped so a resume cannot silently mix parameterizations:
+                 # the same weights mean different things under v and eps, and
+                 # sampling would be wrong with no error raised.
+                 "parameterization": args.parameterization},
                 step, ckpt_dir, is_interrupt=True,
             )
             print("[interrupt] Checkpoint saved. Exiting safely.")
@@ -442,7 +469,11 @@ def main():
         if step % args.checkpoint_interval == 0:
             save_checkpoint(
                 {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
-                 "scaler": scaler.state_dict(), "step": step},
+                 "scaler": scaler.state_dict(), "step": step,
+                 # Stamped so a resume cannot silently mix parameterizations:
+                 # the same weights mean different things under v and eps, and
+                 # sampling would be wrong with no error raised.
+                 "parameterization": args.parameterization},
                 step, ckpt_dir,
             )
 
