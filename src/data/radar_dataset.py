@@ -5,9 +5,11 @@ Each sample:
 - context : (context_frames, H, W) float32 — past radar frames, normalised
 - target  : (1, H, W) float32           — future radar frame, normalised
 
-Normalisation: rain rates are log1p-transformed then mapped to [-1, 1]
-using dataset-level statistics. This handles the heavy-tailed distribution
-of precipitation (most pixels are zero; few are very large values).
+Normalisation: rain rates are log1p-transformed then mapped linearly to
+[-1, 1] against log_max, with NO clipping. This handles the heavy-tailed
+distribution of precipitation (most pixels are zero; few are very large)
+while keeping every one of NEA's 33 rain levels distinct -- see _normalise()
+for why the earlier z-score-and-clamp was fatal.
 
 Storage: the archive is held in RAM as uint8 codes into a float32 value table
 rather than as a float32 array — the product is banded (33 NEA levels plus
@@ -183,10 +185,14 @@ class RadarDataset(Dataset):
                      if self.frame_max[i] >= 10.0]
             self.indices = self.indices + heavy * (heavy_rain_oversample - 1)
 
-        # Normalisation stats
+        # Normalisation stats. Only log_max is used by the transform below --
+        # deliberately, because log_max is the top of NEA's fixed 33-level ramp
+        # (log1p(100)) and therefore does not drift as the archive grows, whereas
+        # log_mean/log_std do. They are kept for reference and diagnostics.
         stats = load_stats()
         self.log_mean = stats["log_mean"]
         self.log_std = max(stats["log_std"], 1e-6)
+        self.log_max = max(stats["log_max"], 1e-6)
 
     # Reserved code for blank (all-NaN) frames from failed scrapes. Real codes
     # start at 0, so 255 can never collide while there are <=255 rain levels.
@@ -299,14 +305,29 @@ class RadarDataset(Dataset):
         return len(self.indices)
 
     def _normalise(self, rain: np.ndarray) -> np.ndarray:
-        """log1p → zero-mean unit-variance → clamp to [-3, 3]."""
-        x = np.log1p(rain)
-        x = (x - self.log_mean) / self.log_std
-        return np.clip(x, -3.0, 3.0)
+        """log1p -> [-1, 1] against log_max. No clipping.
+
+        The previous version z-scored and clamped to [-3, 3], which silently
+        destroyed the entire signal of interest. This field is 97.5% zeros, so
+        log_std is only 0.215 and 3 sigma reaches just **0.96 mm/hr** -- 2 mm/hr
+        sits at 5 sigma, 20 at 14 sigma, 100 at 21.4 sigma. The result was that
+        **30 of the 35 rain levels mapped to exactly +3.0**, 65.9% of all wet
+        pixels were pinned at that ceiling, and the 35-level ramp collapsed to 6
+        distinct values. A 300k-step run trained on that target collapsed to
+        predicting the constant dry value (max output 0.006 mm/hr) and scored
+        FSS 0.000 against persistence's 0.070 -- strictly worse than assuming
+        the last frame persists.
+
+        Mapping log1p(rain) linearly onto [-1, 1] by log_max keeps every level
+        distinct, uses the full DDPM input range, and cannot clip: rain=0 -> -1,
+        0.5 -> -0.824, 2 -> -0.524, 20 -> +0.32, 100 -> +1.
+        """
+        x = np.log1p(rain) / self.log_max          # [0, 1]
+        return (2.0 * x - 1.0).astype(np.float32)  # [-1, 1]
 
     def denormalise(self, x: torch.Tensor) -> torch.Tensor:
-        """Invert normalisation: normalised → mm/hr."""
-        log_rain = x.float() * self.log_std + self.log_mean
+        """Invert normalisation: normalised -> mm/hr."""
+        log_rain = (x.float() + 1.0) * 0.5 * self.log_max
         return torch.expm1(log_rain.clamp(min=0))
 
     def __getitem__(self, idx: int) -> dict:

@@ -63,6 +63,10 @@ DEFAULTS = {
     "num_workers": 0,
 }
 
+# A forecast whose maximum never reaches this has collapsed to "no rain": the
+# lowest real NEA level is 0.5 mm/hr, so anything below it is not precipitation.
+RAIN_MIN_MMHR = 0.1
+
 CKPT_DIR = ROOT / "checkpoints" / "nowcaster"
 CKPT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -287,6 +291,10 @@ def main():
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
 
+    # Consecutive validations at which the model produced no rain at all.
+    # Used to refuse the stage flag rather than certify a collapsed model.
+    collapse_strikes = [0]
+
     # ── SIGINT handler: save checkpoint on Ctrl+C ─────────────────────────────
     interrupted = {"flag": False}
 
@@ -375,7 +383,36 @@ def main():
             writer.add_scalar("val/loss", val_loss, step)
             writer.add_scalar("val/nonfinite_batches", n_bad, step)
             warn = f"  [!] {n_bad}/{len(val_losses)} batches non-finite" if n_bad else ""
-            print(f"  [val] step {step} | val_loss {val_loss:.4f}{warn}")
+
+            # Does the model actually FORECAST RAIN? val_loss is diffusion
+            # noise-prediction MSE and a model that outputs the constant dry
+            # value scores WELL on it -- the 2026-09-23 300k run plateaued at a
+            # healthy-looking 0.0084 while emitting a max of 0.006 mm/hr and
+            # scoring FSS 0.000 against persistence's 0.070. Nothing in the loop
+            # measured forecast quality, so the collapse ran for 300,000 steps.
+            # Sampling two batches every val_interval costs ~100 UNet passes.
+            with torch.no_grad():
+                probe = next(iter(val_loader))
+                pctx = probe["context"].to(device)
+                with autocast("cuda", dtype=amp_dtype):
+                    samp = diffusion.ensemble_sample(pctx, n_members=2, eta=1.0)
+                samp_mm = val_ds.denormalise(samp.float().cpu())
+                tgt_mm = val_ds.denormalise(probe["target"].float())
+            max_rain = float(samp_mm.max())
+            tgt_max = float(tgt_mm.max())
+            wet_frac = float((samp_mm >= RAIN_MIN_MMHR).float().mean())
+            writer.add_scalar("val/sample_max_mmhr", max_rain, step)
+            writer.add_scalar("val/sample_wet_frac", wet_frac, step)
+            collapsed = max_rain < RAIN_MIN_MMHR
+            if collapsed:
+                collapse_strikes[0] += 1
+                warn += (f"  [COLLAPSE] model max {max_rain:.4f} mm/hr < "
+                         f"{RAIN_MIN_MMHR} (target max {tgt_max:.2f}) "
+                         f"-- forecasting no rain, strike {collapse_strikes[0]}")
+            else:
+                collapse_strikes[0] = 0
+            print(f"  [val] step {step} | val_loss {val_loss:.4f} | "
+                  f"sample max {max_rain:.3f} mm/hr (target {tgt_max:.2f}){warn}")
             diffusion.train()
 
         # Checkpoint
@@ -393,8 +430,17 @@ def main():
              "scaler": scaler.state_dict(), "step": step},
             step, ckpt_dir,
         )
-        # Write stage flag only for genuine full runs, never for smoke tests
-        if not args.smoke:
+        # Write stage flag only for genuine full runs, never for smoke tests --
+        # and never for a model that forecasts no rain. Reaching max_steps is not
+        # the same as producing a usable model: the 2026-09-23 run hit 300,000
+        # steps, wrote this flag, and was strictly worse than persistence.
+        if not args.smoke and collapse_strikes[0] >= 2:
+            print(f"[FAIL] Reached {step} steps but the model produced no rain at "
+                  f"the last {collapse_strikes[0]} validations (max < "
+                  f"{RAIN_MIN_MMHR} mm/hr). Stage 4 flag NOT written -- this "
+                  f"model has collapsed and is not usable. Check normalisation "
+                  f"and class balance before trusting val_loss.")
+        elif not args.smoke:
             flag = ROOT / "checkpoints" / "stage4_complete.flag"
             flag.touch()
             print(f"[done] Training complete. Stage 4 flag -> {flag}")
