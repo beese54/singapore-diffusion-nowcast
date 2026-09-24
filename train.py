@@ -57,6 +57,11 @@ DEFAULTS = {
     "ch_mults": (1, 2, 4, 8),
     "diffusion_steps": 1000,
     "inference_steps": 50,
+    # Per-pixel loss weighting by rain intensity. 0 = plain MSE, under which
+    # rain gets only ~1.9% of the gradient signal and a uniform field is close
+    # to optimal -- two runs degenerated there. 100 puts ~34% of the weight on
+    # wet pixels. See GaussianDiffusion.p_losses.
+    "intensity_alpha": 100.0,
     # 0, not 2: RadarDataset holds the whole archive in RAM (3.45 GB at 33k
     # frames), so workers add spawn-pickling cost and zero I/O benefit — and
     # on Windows the pickle of that array fails outright (OSError 22).
@@ -66,6 +71,11 @@ DEFAULTS = {
 # A forecast whose maximum never reaches this has collapsed to "no rain": the
 # lowest real NEA level is 0.5 mm/hr, so anything below it is not precipitation.
 RAIN_MIN_MMHR = 0.1
+# A forecast wetting more than this share of the domain has degenerated the other
+# way. Absolute cap plus a multiple of the batch's own target wet fraction, so a
+# genuinely stormy batch is not punished for being wet.
+WET_FRAC_MAX = 0.60
+WET_FRAC_TOL = 20.0
 
 CKPT_DIR = ROOT / "checkpoints" / "nowcaster"
 CKPT_DIR.mkdir(parents=True, exist_ok=True)
@@ -343,7 +353,8 @@ def main():
         # Forward + backward with mixed precision
         optimizer.zero_grad(set_to_none=True)
         with autocast("cuda", dtype=amp_dtype):
-            loss = diffusion.p_losses(target, context)
+            loss = diffusion.p_losses(target, context,
+                                      intensity_alpha=args.intensity_alpha)
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -367,6 +378,8 @@ def main():
                 for vbatch in val_loader:
                     vctx = vbatch["context"].to(device)
                     vtgt = vbatch["target"].to(device)
+                    # Deliberately unweighted: val_loss must stay comparable
+                    # across runs with different intensity_alpha.
                     with autocast("cuda", dtype=amp_dtype):
                         vloss = diffusion.p_losses(vtgt, vctx)
                     val_losses.append(vloss.item())
@@ -403,16 +416,26 @@ def main():
             wet_frac = float((samp_mm >= RAIN_MIN_MMHR).float().mean())
             writer.add_scalar("val/sample_max_mmhr", max_rain, step)
             writer.add_scalar("val/sample_wet_frac", wet_frac, step)
-            collapsed = max_rain < RAIN_MIN_MMHR
-            if collapsed:
+            # Degenerate in EITHER direction. The first guard only checked the
+            # dry end, and the next run promptly failed the other way: wet_frac
+            # sat at exactly 1.00000 for seven consecutive validations -- every
+            # pixel raining, 333x the target -- while val_loss looked fine. A
+            # forecast that wets the whole domain is as useless as one that
+            # wets none of it.
+            tgt_wet = float((tgt_mm >= RAIN_MIN_MMHR).float().mean())
+            writer.add_scalar("val/target_wet_frac", tgt_wet, step)
+            too_dry = max_rain < RAIN_MIN_MMHR
+            too_wet = wet_frac > min(WET_FRAC_MAX, max(tgt_wet, 1e-6) * WET_FRAC_TOL)
+            if too_dry or too_wet:
                 collapse_strikes[0] += 1
-                warn += (f"  [COLLAPSE] model max {max_rain:.4f} mm/hr < "
-                         f"{RAIN_MIN_MMHR} (target max {tgt_max:.2f}) "
-                         f"-- forecasting no rain, strike {collapse_strikes[0]}")
+                how = (f"no rain (max {max_rain:.4f} mm/hr)" if too_dry else
+                       f"rain everywhere (wet {wet_frac:.4f} vs target {tgt_wet:.4f})")
+                warn += (f"  [DEGENERATE] {how}, strike {collapse_strikes[0]}")
             else:
                 collapse_strikes[0] = 0
             print(f"  [val] step {step} | val_loss {val_loss:.4f} | "
-                  f"sample max {max_rain:.3f} mm/hr (target {tgt_max:.2f}){warn}")
+                  f"sample max {max_rain:.3f} mm/hr (target {tgt_max:.2f}) | "
+                  f"wet {wet_frac:.4f} (target {tgt_wet:.4f}){warn}")
             diffusion.train()
 
         # Checkpoint
@@ -435,11 +458,12 @@ def main():
         # the same as producing a usable model: the 2026-09-23 run hit 300,000
         # steps, wrote this flag, and was strictly worse than persistence.
         if not args.smoke and collapse_strikes[0] >= 2:
-            print(f"[FAIL] Reached {step} steps but the model produced no rain at "
-                  f"the last {collapse_strikes[0]} validations (max < "
-                  f"{RAIN_MIN_MMHR} mm/hr). Stage 4 flag NOT written -- this "
-                  f"model has collapsed and is not usable. Check normalisation "
-                  f"and class balance before trusting val_loss.")
+            print(f"[FAIL] Reached {step} steps but the forecast was degenerate "
+                  f"at the last {collapse_strikes[0]} validations (see "
+                  f"[DEGENERATE] above: either no rain anywhere or rain "
+                  f"everywhere). Stage 4 flag NOT written -- this model is not "
+                  f"usable. Check normalisation, intensity_alpha and crop "
+                  f"settings before trusting val_loss.")
         elif not args.smoke:
             flag = ROOT / "checkpoints" / "stage4_complete.flag"
             flag.touch()

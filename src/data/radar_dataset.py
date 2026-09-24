@@ -35,6 +35,25 @@ STATS_PATH = ROOT / "data" / "processed" / "radar_stats.json"
 CONTEXT_FRAMES = 6    # 6 × 5 min = 30 min of history
 TARGET_OFFSET = 6     # predict 6 steps ahead = +30 min (change to 12/18 for 60/90 min)
 
+# Training crop. The rain field is spatially sparse -- 3.3% of pixels wet on a
+# full 120x217 frame -- so a full-frame batch is mostly dry pixels no matter how
+# heavily wet FRAMES are oversampled. Cropping around a raining pixel raises the
+# wet fraction and cuts compute per step (measured, rain-centred):
+#
+#   full 120x217   3.31% wet   26,040 px   1.0x
+#   96 x 96        5.18% wet    9,216 px   2.8x
+#   64 x 64        7.95% wet    4,096 px   6.4x   <- chosen
+#   48 x 48       10.14% wet    2,304 px  11.3x
+#
+# 64 is the balance point: 2.4x the wet fraction at 6.4x less compute, while
+# keeping 64 km of context. Storms advect roughly 15-25 km over the 30-minute
+# lead, so a smaller window would crop the motion the model has to learn.
+# Must stay divisible by 8 (three downsamplings in ConditionedUNet).
+CROP_SIZE = 64
+# Fraction of training crops centred on a raining pixel; the rest are uniform so
+# the model still sees fully dry scenes and domain edges.
+CROP_RAIN_FRAC = 0.8
+
 # One encoded archive per process, shared by every split (see _attach_shared).
 # Keyed on (resolved zarr path, frame count).
 _CODE_CACHE: dict[tuple[str, int], tuple] = {}
@@ -109,9 +128,15 @@ class RadarDataset(Dataset):
         val_frac: float = 0.1,
         test_frac: float = 0.1,
         heavy_rain_oversample: int = 3,
+        crop_size: int | None = CROP_SIZE,
     ):
         self.context_frames = context_frames
         self.target_offset = target_offset
+        # Rain-centred cropping is a TRAINING-ONLY device. val/test stay full
+        # frame so metrics remain comparable across runs and match inference.
+        self.crop_size = crop_size if split == "train" else None
+        self.split = split
+        self._rng = np.random.default_rng(1234)
 
         ds = xr.open_zarr(zarr_path, consolidated=True)
         times = ds["time"].values  # datetime64, sorted (enforced at ingest)
@@ -294,6 +319,32 @@ class RadarDataset(Dataset):
         print(f"RadarDataset: {len(uniq)} rain levels -> uint8 codebook, "
               f"{mb_after:,.0f} MB in RAM (was {mb_before:,.0f} MB as float32)")
 
+    def _crop_origin(self, t: int) -> tuple[int, int]:
+        """Top-left of the training crop; (0, 0) when cropping is off.
+
+        Centred on a randomly chosen raining pixel of the TARGET frame with
+        probability CROP_RAIN_FRAC, else uniform. Centring on the target (not the
+        context) is deliberate: the target is what the loss is computed against,
+        so that is where wet pixels need to land.
+        """
+        c = self.crop_size
+        if c is None:
+            return 0, 0
+        H, W = self.codes.shape[1], self.codes.shape[2]
+        cy = cx = None
+        if self._rng.random() < CROP_RAIN_FRAC:
+            tgt = self.codes[t + self.target_offset]
+            ys, xs = np.nonzero(tgt > 0)          # code 0 is exactly 0.0 mm/hr
+            if len(ys):
+                j = int(self._rng.integers(len(ys)))
+                cy, cx = int(ys[j]), int(xs[j])
+        if cy is None:
+            cy = int(self._rng.integers(H))
+            cx = int(self._rng.integers(W))
+        y0 = int(np.clip(cy - c // 2, 0, max(H - c, 0)))
+        x0 = int(np.clip(cx - c // 2, 0, max(W - c, 0)))
+        return y0, x0
+
     def _decode(self, codes: np.ndarray) -> np.ndarray:
         """Codes -> float32 mm/hr. NaN code maps back to NaN."""
         if self.values is None:
@@ -334,9 +385,16 @@ class RadarDataset(Dataset):
         t = self.indices[idx]
 
         # Context: frames [t - context_frames, ..., t-1]
-        ctx_frames = self._decode(self.codes[t - self.context_frames: t])  # (C,H,W)
-        # Target: frame at t + target_offset
-        target_frame = self._decode(self.codes[t + self.target_offset])    # (H, W)
+        y0, x0 = self._crop_origin(t)
+        c = self.crop_size
+        if c is None:
+            ctx_codes = self.codes[t - self.context_frames: t]
+            tgt_codes = self.codes[t + self.target_offset]
+        else:
+            ctx_codes = self.codes[t - self.context_frames: t, y0:y0 + c, x0:x0 + c]
+            tgt_codes = self.codes[t + self.target_offset, y0:y0 + c, x0:x0 + c]
+        ctx_frames = self._decode(ctx_codes)      # (C, h, w)
+        target_frame = self._decode(tgt_codes)    # (h, w)
 
         context = self._normalise(ctx_frames)
         target = self._normalise(target_frame[np.newaxis, ...])  # (1, H, W)
