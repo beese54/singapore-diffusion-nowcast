@@ -57,11 +57,16 @@ DEFAULTS = {
     "ch_mults": (1, 2, 4, 8),
     "diffusion_steps": 1000,
     "inference_steps": 50,
-    # Per-pixel loss weighting by rain intensity. 0 = plain MSE, under which
-    # rain gets only ~1.9% of the gradient signal and a uniform field is close
-    # to optimal -- two runs degenerated there. 100 puts ~34% of the weight on
-    # wet pixels. See GaussianDiffusion.p_losses.
-    "intensity_alpha": 100.0,
+    # Per-pixel loss weighting by rain intensity, 0 = plain MSE.
+    #
+    # DEFAULT 0, deliberately. This was set to 100 to fix a class-imbalance
+    # diagnosis that the x0-reconstruction test later falsified: the network had
+    # learned the field fine (noise MSE 0.0008-0.037, x0 median -1.001 at t=10)
+    # and only SAMPLING was broken -- which v-prediction addresses. Weighting
+    # rain 101x over dry instead biases the model toward predicting rain, which
+    # is the wrong direction for generating a field that is 99.7% dry. Kept as a
+    # flag, not deleted, in case a future experiment wants it.
+    "intensity_alpha": 0.0,
     # "v" or "eps". eps-prediction fails on this data: 97.3% of pixels sit at
     # exactly -1.0, so at high t the x0 signal is a 0.0296 shift the loss barely
     # rewards, sampling starts off-manifold and never recovers (measured: sample

@@ -45,9 +45,14 @@ TARGET_OFFSET = 6     # predict 6 steps ahead = +30 min (change to 12/18 for 60/
 #   64 x 64        7.95% wet    4,096 px   6.4x   <- chosen
 #   48 x 48       10.14% wet    2,304 px  11.3x
 #
-# 64 is the balance point: 2.4x the wet fraction at 6.4x less compute, while
-# keeping 64 km of context. Storms advect roughly 15-25 km over the 30-minute
-# lead, so a smaller window would crop the motion the model has to learn.
+# NOT ENABLED BY DEFAULT. Cropping was introduced for the same falsified
+# class-imbalance diagnosis as intensity_alpha, and it turned out to be actively
+# harmful: rain-centred crops are ~9% wet while full frames are ~0.3% wet, so the
+# model learned a prior where rain is common and was then asked to generate
+# almost-dry scenes. A 300k-step run with crops converged (LR 5.6e-15, last four
+# checkpoints identical) to median -0.697 and 16.4% dry against a 99.7% dry
+# target -- a stable wrong answer, and train/inference distribution mismatch is
+# the most likely reason. Pass crop_size=64 explicitly to experiment.
 # Must stay divisible by 8 (three downsamplings in ConditionedUNet).
 CROP_SIZE = 64
 # Fraction of training crops centred on a raining pixel; the rest are uniform so
@@ -128,7 +133,7 @@ class RadarDataset(Dataset):
         val_frac: float = 0.1,
         test_frac: float = 0.1,
         heavy_rain_oversample: int = 3,
-        crop_size: int | None = CROP_SIZE,
+        crop_size: int | None = None,
     ):
         self.context_frames = context_frames
         self.target_offset = target_offset
