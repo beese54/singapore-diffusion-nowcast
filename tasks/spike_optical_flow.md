@@ -61,3 +61,16 @@ Stop treating "beat persistence at 35 min, 2 mm/hr" as a model-debugging
 target. Check how persistence skill decays with lead time; if it drops sharply
 at 60-90 min, that is where a generative model can add value (and the DoD asks
 for 60/90 min anyway).
+
+## Follow-up A/B: time-of-day + 60-min history (2026-09-25)
+Same 12k-step schedule, same 60 anchors and seeds, FSS @ 2 mm/hr:
+
+| | 6.1 km | 11.9 km | 23.5 km |
+|---|---|---|---|
+| persistence | 0.270 | 0.441 | 0.617 |
+| control: 6 frames, no clock | 0.061 | 0.107 | 0.182 |
+| 12 frames + hour-of-day | 0.058 | 0.109 | 0.185 |
+| full model, 6 frames, 300k steps | 0.082 | 0.142 | 0.214 |
+
+No measurable effect from the extra inputs. Defaults reverted to 6 / no clock
+(flags kept). More training helped slightly (0.107 -> 0.142 at 25x the steps).

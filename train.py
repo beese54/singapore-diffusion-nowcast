@@ -51,14 +51,13 @@ DEFAULTS = {
     "checkpoint_interval": 1_000,
     "log_interval": 100,
     "val_interval": 5_000,
-    # 12 frames = 60 min of history (was 6 / 30 min), so the model can see
-    # whether cells are building or dying -- the evaluation showed growth and
-    # decay, not motion, is what it gets wrong.
-    "context_frames": 12,
-    # 1 = add sin/cos of Singapore local hour as input channels. Convection here
-    # is strongly diurnal and the model had no clock. Int, not bool (see
-    # "residual").
-    "time_channels": 1,
+    # History length and hour-of-day channels. DEFAULTS 6 / 0: a same-length A/B
+    # (12k steps each, same anchors and seeds) found no effect -- 12 frames +
+    # clock scored FSS 0.109 at 11.9 km vs 0.107 for 6 frames without, with
+    # persistence at 0.441. Both remain available as flags. time_channels is an
+    # int, not a bool (see "residual").
+    "context_frames": 6,
+    "time_channels": 0,
     "target_offset": 6,       # 30 min ahead
     "base_ch": 64,
     "ch_mults": (1, 2, 4, 8),
