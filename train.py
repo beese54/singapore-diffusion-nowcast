@@ -27,6 +27,7 @@ import signal
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
@@ -58,6 +59,12 @@ DEFAULTS = {
     # int, not a bool (see "residual").
     "context_frames": 6,
     "time_channels": 0,
+    # Loss weight added over the heavy-rain neighbourhood (>= 10 mm/hr in the
+    # target or the last frame, dilated heavy_dilate px). 0 = off. See
+    # GaussianDiffusion.p_losses. At 20 with a 7 px (2 km) dilation, ~1.8% of
+    # pixels carry ~28% of the loss weight.
+    "heavy_weight": 0.0,
+    "heavy_dilate": 7,
     "target_offset": 6,       # 30 min ahead
     "base_ch": 64,
     "ch_mults": (1, 2, 4, 8),
@@ -302,6 +309,8 @@ def main():
                           time_channels=bool(args.time_channels))
 
     print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
+    # 10 mm/hr in the dataset's normalised space (heavy-rain loss weighting)
+    heavy_thr = float(train_ds._normalise(np.array([10.0], dtype=np.float32))[0])
 
     # Fail fast with the real reason: the cryptic alternative is a truncated
     # pickle from the spawned worker, which reads as data corruption.
@@ -394,7 +403,11 @@ def main():
                 # the input layout: needed to rebuild both the UNet and the
                 # dataset at evaluation time
                 "context_frames": int(args.context_frames),
-                "time_channels": bool(args.time_channels)}
+                "time_channels": bool(args.time_channels),
+                # provenance only: a training-loss setting, not needed to
+                # interpret the weights
+                "heavy_weight": float(args.heavy_weight),
+                "heavy_dilate": int(args.heavy_dilate)}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.
@@ -448,7 +461,10 @@ def main():
         optimizer.zero_grad(set_to_none=True)
         with autocast("cuda", dtype=amp_dtype):
             loss = diffusion.p_losses(target, context,
-                                      intensity_alpha=args.intensity_alpha)
+                                      intensity_alpha=args.intensity_alpha,
+                                      heavy_weight=args.heavy_weight,
+                                      heavy_thr=heavy_thr,
+                                      heavy_dilate=args.heavy_dilate)
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)

@@ -101,6 +101,9 @@ class GaussianDiffusion(nn.Module):
         context: torch.Tensor,
         t: Optional[torch.Tensor] = None,
         intensity_alpha: float = 0.0,
+        heavy_weight: float = 0.0,
+        heavy_thr: float | None = None,
+        heavy_dilate: int = 7,
     ) -> torch.Tensor:
         """
         Compute training loss L_simple = E[||noise - model(x_t, context, t)||²].
@@ -145,10 +148,26 @@ class GaussianDiffusion(nn.Module):
         target = (self._v_target(x0, noise, t)
                   if self.parameterization == "v" else noise)
 
-        if not intensity_alpha:
+        if not intensity_alpha and not heavy_weight:
             return F.mse_loss(pred, target)
 
-        w = 1.0 + intensity_alpha * (field.detach() + 1.0) * 0.5
+        w = torch.ones_like(field)
+        if intensity_alpha:
+            w = w + intensity_alpha * (field.detach() + 1.0) * 0.5
+        if heavy_weight:
+            # Heavy-rain neighbourhood: pixels at or above heavy_thr in the
+            # TARGET or in the LAST observed frame, dilated by heavy_dilate px.
+            # Diagnosis of the 300k model: storm cores decay too fast (12% of
+            # heavy pixels kept vs 27% observed) and are scattered across
+            # members. Weighting both sides penalises missing a core AND
+            # wrongly killing or keeping an existing one, while light rain and
+            # dry areas elsewhere keep weight 1 -- unlike intensity_alpha, which
+            # up-weighted all rain and pushed forecasts to rain everywhere.
+            last = self._residual_base(context)          # last radar frame
+            m = ((field >= heavy_thr) | (last >= heavy_thr)).float()
+            if heavy_dilate > 1:
+                m = F.max_pool2d(m, heavy_dilate, stride=1, padding=heavy_dilate // 2)
+            w = w + heavy_weight * m.detach()
         w = w / w.mean()                      # keep the loss scale unchanged
         return (w * (pred - target) ** 2).mean()
 
