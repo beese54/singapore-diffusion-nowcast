@@ -38,15 +38,19 @@
       "description": "DDPM diffusion model trained on NEA radar to nowcast 30-90min precipitation",
       "input": {
         "source": "NEA X-band radar (weather.gov.sg)",
-        "resolution_km": 1,
+        "resolution_km": 0.29,
+        "grid_px": [120, 217],
+        "domain_km": [34.8, 62.9],
+        "resolution_note": "Measured from radar.zarr lat/lon on 2026-09-25: 0.290 km per pixel, 34.8 x 62.9 km domain. Previously stated as 1 km, which was wrong by 3.4x.",
         "temporal_resolution": "5min",
         "context_frames": 6,
-        "context_window_minutes": 30
+        "context_window_minutes": 30,
+        "lead_note": "Samples use context frames t-6..t-1 and target t+6, so the nominal 30-min lead is 35 min from the last observed frame."
       },
       "output": {
         "lead_times_minutes": [30, 60, 90],
         "ensemble_size": 8,
-        "resolution_km": 1,
+        "resolution_km": 0.29,
         "format": "zarr"
       },
       "model": {
