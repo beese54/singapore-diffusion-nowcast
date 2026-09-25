@@ -79,14 +79,13 @@ def main() -> None:
     check("round-trip exact over all frames", mismatch == 0,
           f"{T:,} frames, {mismatch} mismatched values")
 
-    # ── 2. __getitem__ bit-identical to the old float32 path ─────────────────
-    stats = load_stats()
-    lm, ls = stats["log_mean"], max(stats["log_std"], 1e-6)
-
-    def old_normalise(rain):
-        x = np.log1p(rain)
-        x = (x - lm) / ls
-        return np.clip(x, -3.0, 3.0)
+    # ── 2. __getitem__ bit-identical to the float32 path ─────────────────────
+    # The reference is the dataset's CURRENT transform applied to the raw
+    # float32 archive, so this tests what it claims to -- that codebook decoding
+    # is lossless -- rather than a frozen copy of a formula. It used to embed the
+    # old z-score-and-clip normalisation, which went stale when the dataset moved
+    # to [-1, 1] by log_max (commit 955bc60) and failed unnoticed until re-run.
+    old_normalise = ds._normalise
 
     rng = np.random.default_rng(0)
     probe = rng.choice(len(ds), size=40, replace=False)

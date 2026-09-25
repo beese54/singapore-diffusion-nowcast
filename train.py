@@ -51,7 +51,14 @@ DEFAULTS = {
     "checkpoint_interval": 1_000,
     "log_interval": 100,
     "val_interval": 5_000,
-    "context_frames": 6,
+    # 12 frames = 60 min of history (was 6 / 30 min), so the model can see
+    # whether cells are building or dying -- the evaluation showed growth and
+    # decay, not motion, is what it gets wrong.
+    "context_frames": 12,
+    # 1 = add sin/cos of Singapore local hour as input channels. Convection here
+    # is strongly diurnal and the model had no clock. Int, not bool (see
+    # "residual").
+    "time_channels": 1,
     "target_offset": 6,       # 30 min ahead
     "base_ch": 64,
     "ch_mults": (1, 2, 4, 8),
@@ -194,13 +201,24 @@ def save_checkpoint(state: dict, step: int, ckpt_dir: Path = CKPT_DIR,
 
 def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
                     parameterization: str | None = None,
-                    residual: bool | None = None) -> int:
+                    residual: bool | None = None,
+                    expected_layout: tuple | None = None) -> int:
     state = torch.load(path, map_location="cpu", weights_only=True)
     # Residual and full-frame weights predict different quantities. Checkpoints
     # written before the residual option existed lack the key and are
     # full-frame by construction; everything written since goes through
     # _ckpt_state(), which always sets it.
     saved_res = bool(state.get("residual", False))
+    # Input layout. Absent keys are legacy (6 frames, no time) by construction.
+    # "12 frames + 2 time channels" and "14 frames" have the same channel count,
+    # so the weights would load silently while meaning something different.
+    layout = (int(state.get("context_frames", 6)), bool(state.get("time_channels", False)))
+    if expected_layout is not None and layout != tuple(expected_layout):
+        raise SystemExit(
+            f"Checkpoint {path.name} was trained with context_frames={layout[0]}, "
+            f"time_channels={layout[1]} but this run uses "
+            f"context_frames={expected_layout[0]}, time_channels={expected_layout[1]}. "
+            f"Refusing to resume.")
     if residual is not None and saved_res != bool(residual):
         raise SystemExit(
             f"Checkpoint {path.name} was trained with residual={saved_res} but "
@@ -278,16 +296,18 @@ def main():
         compute_stats(zarr_path, stats_path)
 
     train_ds = RadarDataset("train", context_frames=args.context_frames,
-                            target_offset=args.target_offset)
+                            target_offset=args.target_offset,
+                            time_channels=bool(args.time_channels))
     val_ds = RadarDataset("val", context_frames=args.context_frames,
-                          target_offset=args.target_offset)
+                          target_offset=args.target_offset,
+                          time_channels=bool(args.time_channels))
 
     print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
 
     # Fail fast with the real reason: the cryptic alternative is a truncated
     # pickle from the spawned worker, which reads as data corruption.
     if args.num_workers > 0:
-        gb = train_ds.rain.nbytes / 1e9
+        gb = train_ds.codes.nbytes / 1e9   # .rain no longer exists (codebook)
         raise SystemExit(
             f"--num-workers {args.num_workers} is unsupported: RadarDataset is "
             f"in-memory ({gb:.2f} GB) and Windows spawn cannot pickle it to "
@@ -306,7 +326,8 @@ def main():
 
     # ── Model ─────────────────────────────────────────────────────────────────
     unet = ConditionedUNet(
-        context_frames=args.context_frames,
+        # input channels = radar frames + optional time channels
+        context_frames=train_ds.in_channels,
         base_ch=args.base_ch,
         use_checkpoint=True,   # always use gradient checkpointing for 8GB GPU
     )
@@ -349,7 +370,9 @@ def main():
                      else Path(args.resume))
         if ckpt_path and ckpt_path.exists():
             start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler,
-                                         args.parameterization, bool(args.residual))
+                                         args.parameterization, bool(args.residual),
+                                         (int(args.context_frames),
+                                          bool(args.time_channels)))
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
 
@@ -368,7 +391,11 @@ def main():
                 # the same weights mean different things under v and eps,
                 # and under residual vs full-frame targets
                 "parameterization": args.parameterization,
-                "residual": bool(args.residual)}
+                "residual": bool(args.residual),
+                # the input layout: needed to rebuild both the UNet and the
+                # dataset at evaluation time
+                "context_frames": int(args.context_frames),
+                "time_channels": bool(args.time_channels)}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.

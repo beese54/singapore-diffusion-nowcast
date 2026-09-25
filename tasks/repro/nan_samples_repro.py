@@ -51,8 +51,9 @@ def part2_dataset_audit() -> None:
         poisoned = 0
         for k in range(len(dset)):
             t = dset.indices[k]
-            ctx = dset.rain[t - dset.context_frames: t]
-            tgt = dset.rain[t + dset.target_offset]
+            # .rain was replaced by a uint8 codebook (2026-09-23); decode instead
+            ctx = dset._decode(dset.codes[t - dset.context_frames: t])
+            tgt = dset._decode(dset.codes[t + dset.target_offset])
             if np.isnan(ctx).any() or np.isnan(tgt).any():
                 poisoned += 1
         print(f"{split:5s}: {poisoned}/{len(dset)} samples contain NaN")

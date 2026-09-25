@@ -83,7 +83,12 @@ def crps_ensemble(ensemble: np.ndarray, obs: np.ndarray) -> float:
 def load_model(checkpoint_path: Path, device: torch.device,
                parameterization: str | None = None) -> GaussianDiffusion:
     state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
-    unet = ConditionedUNet(context_frames=CONTEXT_FRAMES, use_checkpoint=False)
+    # Input layout from the checkpoint; absent means the pre-option legacy
+    # layout (6 frames, no time channels) by construction -- every checkpoint
+    # written since goes through train.py's single _ckpt_state().
+    cf = int(state.get("context_frames", CONTEXT_FRAMES))
+    tc = bool(state.get("time_channels", False))
+    unet = ConditionedUNet(context_frames=cf + (2 if tc else 0), use_checkpoint=False)
     # Never guess. This used to default an unstamped checkpoint to 'eps'; the
     # finished v-prediction model turned out to be unstamped (a save site in
     # train.py missed the field), so it was decoded as eps and scored MAE 29
@@ -105,9 +110,12 @@ def load_model(checkpoint_path: Path, device: torch.device,
     # it. Absent therefore means full-frame by construction.
     residual = bool(state.get("residual", False))
     print(f"Loaded {checkpoint_path.name}: step {state.get('step', '?')}, "
-          f"parameterization '{param}', residual={residual}")
+          f"parameterization '{param}', residual={residual}, "
+          f"context_frames={cf}, time_channels={tc}")
     diffusion = GaussianDiffusion(unet, parameterization=param, residual=residual)
     diffusion.load_state_dict(state["model"])
+    # Callers build their dataset from this so the input matches training.
+    diffusion.data_cfg = {"context_frames": cf, "time_channels": tc}
     return diffusion.to(device).eval()
 
 
@@ -142,7 +150,7 @@ def score_flood_events(model, device, rds, args) -> dict:
         return rds.denormalise(torch.as_tensor(x)).numpy()
 
     lead_steps = args.lead // 5  # convert lead time to 5-min steps
-    context_needed = CONTEXT_FRAMES + lead_steps
+    CF = rds.context_frames      # the model's own history length
 
     hits_model = 0
     hits_persist = 0
@@ -158,7 +166,7 @@ def score_flood_events(model, device, rds, args) -> dict:
 
         # We need context frames that end `lead_steps` before the event
         ctx_end = idx - lead_steps
-        ctx_start = ctx_end - CONTEXT_FRAMES
+        ctx_start = ctx_end - CF
         if ctx_start < 0 or ctx_end >= len(radar_times):
             continue
 
@@ -170,8 +178,8 @@ def score_flood_events(model, device, rds, args) -> dict:
         hit_persist = persist_pred_cell >= args.threshold
 
         # Model ensemble mean at flood cell
-        ctx_norm = rds._normalise(np.asarray(ctx_frames, dtype=np.float32))
-        ctx_tensor = torch.from_numpy(ctx_norm).unsqueeze(0).to(device)
+        # Built by the dataset, identical to training (incl. time channels).
+        ctx_tensor = rds.context_at(ctx_end).unsqueeze(0).to(device)
         with torch.no_grad():
             ens = model.ensemble_sample(ctx_tensor, n_members=args.members, eta=1.0)
             ens_np = ens.cpu().float().numpy()[0, :, 0, :, :]  # (M, H, W)
@@ -241,7 +249,11 @@ def main():
 
     target_offset = args.lead // 5  # 5-min steps
 
-    test_ds = RadarDataset("test", context_frames=CONTEXT_FRAMES, target_offset=target_offset)
+    cfg = getattr(model, "data_cfg", {"context_frames": CONTEXT_FRAMES,
+                                       "time_channels": False})
+    test_ds = RadarDataset("test", context_frames=cfg["context_frames"],
+                           target_offset=target_offset,
+                           time_channels=cfg["time_channels"])
     test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=0)
 
     def denorm(x):

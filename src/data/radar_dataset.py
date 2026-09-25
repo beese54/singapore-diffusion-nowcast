@@ -134,9 +134,12 @@ class RadarDataset(Dataset):
         test_frac: float = 0.1,
         heavy_rain_oversample: int = 3,
         crop_size: int | None = None,
+        time_channels: bool = False,
     ):
         self.context_frames = context_frames
         self.target_offset = target_offset
+        # Hour-of-day as two extra input channels (see _time_features).
+        self.time_channels = bool(time_channels)
         # Rain-centred cropping is a TRAINING-ONLY device. val/test stay full
         # frame so metrics remain comparable across runs and match inference.
         self.crop_size = crop_size if split == "train" else None
@@ -145,6 +148,7 @@ class RadarDataset(Dataset):
 
         ds = xr.open_zarr(zarr_path, consolidated=True)
         times = ds["time"].values  # datetime64, sorted (enforced at ingest)
+        self.times = times         # needed for time-of-day features
         # Codebook storage instead of a float32 array: see _load_codes(). Sets
         # self.codes (uint8), self.values (float32 table), self.frame_bad and
         # self.frame_max.
@@ -324,6 +328,51 @@ class RadarDataset(Dataset):
         print(f"RadarDataset: {len(uniq)} rain levels -> uint8 codebook, "
               f"{mb_after:,.0f} MB in RAM (was {mb_before:,.0f} MB as float32)")
 
+    @property
+    def in_channels(self) -> int:
+        """Channels of the context tensor the model receives."""
+        return self.context_frames + (2 if self.time_channels else 0)
+
+    def _time_features(self, i_last: int, h: int, w: int) -> np.ndarray:
+        """sin/cos of Singapore local hour at the last observed frame, (2, h, w).
+
+        Singapore convection is strongly diurnal -- afternoon sea-breeze storms --
+        and the model had no clock at all. The evaluation showed its remaining
+        error is where storms FORM and DIE, not how they move (a shift by the
+        true displacement still lost to persistence), so the time of day is
+        cheap information about exactly that. Uses the last OBSERVED frame, which
+        is known at forecast time. Times are UTC; SGT = UTC + 8.
+        """
+        ts = self.times[i_last].astype("datetime64[m]").astype(np.int64)  # minutes
+        hour = ((ts / 60.0) + 8.0) % 24.0
+        ang = 2.0 * np.pi * hour / 24.0
+        out = np.empty((2, h, w), dtype=np.float32)
+        out[0].fill(np.sin(ang))
+        out[1].fill(np.cos(ang))
+        return out
+
+    def _context(self, t: int, y0: int = 0, x0: int = 0,
+                 c: int | None = None) -> np.ndarray:
+        """The model's input for anchor t: frames t-CF..t-1, normalised, with
+        optional time channels PREPENDED. Order matters: context[-1] must stay
+        the last radar frame, because the residual base and the persistence
+        baseline both read it from there."""
+        if c is None:
+            codes = self.codes[t - self.context_frames: t]
+        else:
+            codes = self.codes[t - self.context_frames: t, y0:y0 + c, x0:x0 + c]
+        frames = self._normalise(self._decode(codes))          # (CF, h, w)
+        if not self.time_channels:
+            return frames
+        tf = self._time_features(t - 1, frames.shape[1], frames.shape[2])
+        return np.concatenate([tf, frames], axis=0)
+
+    def context_at(self, t: int) -> torch.Tensor:
+        """Full-frame model input for anchor t (last observed frame t-1). For
+        callers that pick their own times, e.g. flood-event scoring -- so they
+        cannot assemble a context that differs from training."""
+        return torch.from_numpy(self._context(t))
+
     def _crop_origin(self, t: int) -> tuple[int, int]:
         """Top-left of the training crop; (0, 0) when cropping is off.
 
@@ -392,16 +441,12 @@ class RadarDataset(Dataset):
         # Context: frames [t - context_frames, ..., t-1]
         y0, x0 = self._crop_origin(t)
         c = self.crop_size
+        context = self._context(t, y0, x0, c)
         if c is None:
-            ctx_codes = self.codes[t - self.context_frames: t]
             tgt_codes = self.codes[t + self.target_offset]
         else:
-            ctx_codes = self.codes[t - self.context_frames: t, y0:y0 + c, x0:x0 + c]
             tgt_codes = self.codes[t + self.target_offset, y0:y0 + c, x0:x0 + c]
-        ctx_frames = self._decode(ctx_codes)      # (C, h, w)
         target_frame = self._decode(tgt_codes)    # (h, w)
-
-        context = self._normalise(ctx_frames)
         target = self._normalise(target_frame[np.newaxis, ...])  # (1, H, W)
 
         return {
