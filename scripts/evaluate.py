@@ -80,10 +80,28 @@ def crps_ensemble(ensemble: np.ndarray, obs: np.ndarray) -> float:
     return float(mae_term - 0.5 * spread_term)
 
 
-def load_model(checkpoint_path: Path, device: torch.device) -> GaussianDiffusion:
+def load_model(checkpoint_path: Path, device: torch.device,
+               parameterization: str | None = None) -> GaussianDiffusion:
     state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     unet = ConditionedUNet(context_frames=CONTEXT_FRAMES, use_checkpoint=False)
-    diffusion = GaussianDiffusion(unet)
+    # Never guess. This used to default an unstamped checkpoint to 'eps'; the
+    # finished v-prediction model turned out to be unstamped (a save site in
+    # train.py missed the field), so it was decoded as eps and scored MAE 29
+    # mm/hr with no error raised. A silent default converted a missing field
+    # into a wrong answer. Now: the stamp wins, --parameterization fills a gap,
+    # and disagreement or absence stops the run.
+    stamped = state.get("parameterization")
+    if stamped and parameterization and stamped != parameterization:
+        sys.exit(f"{checkpoint_path.name} is stamped '{stamped}' but "
+                 f"--parameterization {parameterization} was given. Refusing.")
+    param = stamped or parameterization
+    if param is None:
+        sys.exit(f"{checkpoint_path.name} has no parameterization stamp. Pass "
+                 f"--parameterization v or eps explicitly -- decoding under the "
+                 f"wrong one gives plausible-looking, wrong results.")
+    print(f"Loaded {checkpoint_path.name}: step {state.get('step', '?')}, "
+          f"parameterization '{param}'")
+    diffusion = GaussianDiffusion(unet, parameterization=param)
     diffusion.load_state_dict(state["model"])
     return diffusion.to(device).eval()
 
@@ -93,7 +111,7 @@ def persistence_forecast(context_frames: np.ndarray) -> np.ndarray:
     return context_frames[-1]  # (H, W)
 
 
-def score_flood_events(model, device, stats, args) -> dict:
+def score_flood_events(model, device, rds, args) -> dict:
     """Score model against geocoded real flood events from flood_eval_dataset.parquet."""
     import pandas as pd
 
@@ -111,8 +129,12 @@ def score_flood_events(model, device, stats, args) -> dict:
     ds = xr.open_zarr(str(radar_zarr), consolidated=True)
     radar_times = ds.time.values
 
+    # Normalisation comes from the dataset -- never a local copy. This script
+    # used to carry its own z-score-and-clip formulas, which silently went stale
+    # when the dataset switched to [-1, 1] by log_max: decoded that way, 20 mm/hr
+    # reads as ~0.1 mm/hr and FSS at 2 mm/hr degenerates to "both empty".
     def denorm(x):
-        return np.expm1(np.clip(x * stats["log_std"] + stats["log_mean"], 0, None))
+        return rds.denormalise(torch.as_tensor(x)).numpy()
 
     lead_steps = args.lead // 5  # convert lead time to 5-min steps
     context_needed = CONTEXT_FRAMES + lead_steps
@@ -143,10 +165,7 @@ def score_flood_events(model, device, stats, args) -> dict:
         hit_persist = persist_pred_cell >= args.threshold
 
         # Model ensemble mean at flood cell
-        ctx_norm = np.stack([
-            np.clip((np.log1p(f) - stats["log_mean"]) / max(stats["log_std"], 1e-6), -3.0, 3.0)
-            for f in ctx_frames
-        ])
+        ctx_norm = rds._normalise(np.asarray(ctx_frames, dtype=np.float32))
         ctx_tensor = torch.from_numpy(ctx_norm).unsqueeze(0).to(device)
         with torch.no_grad():
             ens = model.ensemble_sample(ctx_tensor, n_members=args.members, eta=1.0)
@@ -194,6 +213,8 @@ def main():
     parser.add_argument("--members", type=int, default=8)
     parser.add_argument("--smoke", action="store_true",
                         help="Smoke test: random-weight model, 10 samples, no stage5 flag")
+    parser.add_argument("--parameterization", choices=["v", "eps"], default=None,
+                        help="Only needed for checkpoints without a stamp")
     parser.add_argument("--flood-eval", action="store_true",
                         help="Also score against geocoded flood events in flood_eval_dataset.parquet")
     args = parser.parse_args()
@@ -209,7 +230,7 @@ def main():
         if not ckpt_path.exists():
             print(f"Checkpoint not found: {ckpt_path}")
             sys.exit(1)
-        model = load_model(ckpt_path, device)
+        model = load_model(ckpt_path, device, args.parameterization)
 
     stats = load_stats()
 
@@ -219,10 +240,12 @@ def main():
     test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=0)
 
     def denorm(x):
-        return np.expm1(np.clip(x * stats["log_std"] + stats["log_mean"], 0, None))
+        # Single source of truth: the dataset's own inverse transform.
+        return test_ds.denormalise(torch.as_tensor(x)).numpy()
 
     model_fss_scores = []
     persist_fss_scores = []
+    obs_wet = []
     crps_scores = []
     mae_scores = []
     n_eval = min(args.n_samples, len(test_ds))
@@ -250,6 +273,10 @@ def main():
 
         model_fss_scores.append(fss(ens_mean, obs_mm, args.threshold))
         persist_fss_scores.append(fss(persist_mm, obs_mm, args.threshold))
+        # Frames where the observation has rain above threshold. On the others
+        # fss() returns a perfect 1.0 whenever the forecast is also empty, which
+        # pads model and persistence alike and hides the real difference.
+        obs_wet.append(bool((obs_mm >= args.threshold).any()))
         crps_scores.append(crps_ensemble(ens_mm, obs_mm))
         mae_scores.append(float(np.mean(np.abs(ens_mean - obs_mm))))
 
@@ -268,6 +295,15 @@ def main():
         "mae_mean": float(np.mean(mae_scores)),
         "model_beats_persistence": float(np.mean(model_fss_scores)) > float(np.mean(persist_fss_scores)),
     }
+    wet = np.array(obs_wet)
+    if wet.any():
+        m = np.array(model_fss_scores)[wet]; q = np.array(persist_fss_scores)[wet]
+        report.update({
+            "n_samples_obs_wet": int(wet.sum()),
+            "model_fss_mean_obs_wet": float(m.mean()),
+            "persistence_fss_mean_obs_wet": float(q.mean()),
+            "model_beats_persistence_obs_wet": bool(m.mean() > q.mean()),
+        })
 
     out_path = RESULTS_DIR / "evaluation_report.json"
     with open(out_path, "w") as f:
@@ -279,7 +315,7 @@ def main():
     print(f"\nSaved to {out_path}")
 
     if args.flood_eval:
-        flood_report = score_flood_events(model, device, stats, args)
+        flood_report = score_flood_events(model, device, test_ds, args)
         report["flood_eval"] = flood_report
         with open(out_path, "w") as f:
             json.dump(report, f, indent=2)
@@ -291,13 +327,16 @@ def main():
         print("\n[SMOKE] Pipeline OK — random weights, results not meaningful.")
         return
 
-    if report["model_beats_persistence"]:
-        print("\n[PASS] Model beats persistence baseline.")
-        flag = ROOT / "checkpoints" / "stage5_complete.flag"
-        flag.touch()
-        print(f"Stage 5 complete → {flag}")
-    else:
-        print("\n[FAIL] Model does not beat persistence — continue training.")
+    # Beating persistence is ONE Stage 5 criterion, not Stage 5. The DoD also
+    # requires FSS at 30/60/90 min, a qualitative case study, the flood-risk
+    # overlay notebook and <5 min end-to-end inference. Writing
+    # stage5_complete.flag here would self-certify the stage on a partial test
+    # (lesson L004), so this reports the criterion and leaves the flag alone.
+    verdict = "PASS" if report["model_beats_persistence"] else "FAIL"
+    print(f"\n[{verdict}] FSS criterion at {args.threshold} mm/hr, {args.lead} min "
+          f"lead: model {report['model_fss_mean']:.3f} vs persistence "
+          f"{report['persistence_fss_mean']:.3f}.")
+    print("Stage 5 flag NOT written -- the remaining DoD criteria are separate.")
 
 
 if __name__ == "__main__":

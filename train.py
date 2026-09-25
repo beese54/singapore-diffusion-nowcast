@@ -329,6 +329,21 @@ def main():
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
 
+    def _ckpt_state(step: int) -> dict:
+        """The one place a checkpoint's contents are defined.
+
+        There used to be three inline copies of this dict. When the
+        parameterization stamp was added, two got it and the final save on clean
+        exit did not -- and since that save overwrites ckpt_step_<max>.pt, the
+        finished model was the only unstamped checkpoint of the run. Evaluating
+        it then fell back to 'eps' and decoded v-prediction output as eps (MAE
+        29 mm/hr). One constructor means no save site can drift.
+        """
+        return {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
+                "scaler": scaler.state_dict(), "step": step,
+                # the same weights mean different things under v and eps
+                "parameterization": args.parameterization}
+
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.
     collapse_strikes = [0]
@@ -356,12 +371,7 @@ def main():
         # Check for interrupt signal
         if interrupted["flag"]:
             save_checkpoint(
-                {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
-                 "scaler": scaler.state_dict(), "step": step,
-                 # Stamped so a resume cannot silently mix parameterizations:
-                 # the same weights mean different things under v and eps, and
-                 # sampling would be wrong with no error raised.
-                 "parameterization": args.parameterization},
+                _ckpt_state(step),
                 step, ckpt_dir, is_interrupt=True,
             )
             print("[interrupt] Checkpoint saved. Exiting safely.")
@@ -473,20 +483,14 @@ def main():
         # Checkpoint
         if step % args.checkpoint_interval == 0:
             save_checkpoint(
-                {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
-                 "scaler": scaler.state_dict(), "step": step,
-                 # Stamped so a resume cannot silently mix parameterizations:
-                 # the same weights mean different things under v and eps, and
-                 # sampling would be wrong with no error raised.
-                 "parameterization": args.parameterization},
+                _ckpt_state(step),
                 step, ckpt_dir,
             )
 
     # Final checkpoint on clean exit
     if not interrupted["flag"] and step == args.max_steps:
         save_checkpoint(
-            {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
-             "scaler": scaler.state_dict(), "step": step},
+            _ckpt_state(step),
             step, ckpt_dir,
         )
         # Write stage flag only for genuine full runs, never for smoke tests --
