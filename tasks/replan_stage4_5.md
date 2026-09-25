@@ -86,3 +86,30 @@ this may be unreachable from radar alone on this domain. Options, to decide
 
 1. Approve (or change) the sequence **A → B → (C)**.
 2. Confirm the Stage 5 criterion decision is deferred until Step 1's results.
+
+---
+
+## Step 1 results (2026-09-25) — gate triggered
+
+`scripts/evaluate_probabilistic.py`, 300k model, 200 test times x 8 members +
+38 flood events; 95% CIs by bootstrap over test times (2,000 resamples).
+
+| | model vs persistence |
+|---|---|
+| **CRPS skill**, rain-relevant pixels | **+0.44** [+0.34, +0.56] |
+| CRPS skill vs *lagged-persistence ensemble* (fair probabilistic baseline) | **+0.33** |
+| Rain over 2.9 / 6.1 / 11.9 km boxes — CRPS skill vs lagged persistence | **+0.36 / +0.36 / +0.36** |
+| same — Brier skill, "box mean >= 0.5 mm/hr" | **+0.31 / +0.35 / +0.31** |
+| Ensemble-prob. FSS, 2 mm/hr, 11.9 km (pooled) | 0.820 vs 0.801 — **tie**, CI [-0.064, +0.063] |
+| Ensemble-prob. FSS, 10 mm/hr, 11.9 km | 0.530 vs 0.612 — worse, not significant |
+| Flood events, >=2 mm/hr within 1.4 km | 87% vs 68% hits; ordinary-time alarms 3.1% vs 10.7% |
+| Flood events, >=10 mm/hr within 1.4 km | 47% vs 58% hits |
+
+**Reading.** The earlier "FSS 0.14 vs 0.44" came mostly from *how* evaluate.py
+scores: single members, and FSS averaged per sample rather than pooled (the
+standard definition, Roberts & Lean 2008). Scored as an ensemble with pooled
+FSS, placement is a statistical **tie** with persistence; probabilistic skill is
+**clearly positive and robust**. The real weakness is **heavy rain (>= 10 mm/hr)** —
+which is what drives flash floods.
+
+Per section 3, this triggers the Stage 5 criterion decision.
