@@ -73,12 +73,17 @@ DEFAULTS = {
     # median wandering around 0 over 20k steps, 0.00% dry vs a 99.7% dry target).
     # See GaussianDiffusion's parameterization helpers.
     "parameterization": "v",
-    # 1 = residual forecasting: learn the change from the last context frame,
-    # so a model that learns nothing equals persistence. The full-frame v model
-    # used its context but scored FSS 0.095 vs persistence 0.264. See
-    # GaussianDiffusion._residual_base. An int, not a bool: parse_args builds
-    # types with type(default), and bool("False") is True.
-    "residual": 1,
+    # 1 = residual forecasting: learn the change from the last context frame.
+    # DEFAULT 0. The premise was that a model which learns nothing returns
+    # persistence exactly, so it could only improve on it. True for zero change
+    # -- but a generative model samples a plausibly SIZED change (mean |dr|
+    # 0.0132 vs true 0.0110) in the wrong places, which costs more than no
+    # change: a 12k-step probe scored FSS 0.091 at 41 km vs persistence 0.451,
+    # and scaling its change from 0 to 1 lowered FSS monotonically
+    # (0.426 -> 0.131 deterministic), so the change carried no usable signal.
+    # Kept as a flag. An int, not a bool: parse_args builds types with
+    # type(default), and bool("False") is True.
+    "residual": 0,
     # 0, not 2: RadarDataset holds the whole archive in RAM (3.45 GB at 33k
     # frames), so workers add spawn-pickling cost and zero I/O benefit — and
     # on Windows the pickle of that array fails outright (OSError 22).
