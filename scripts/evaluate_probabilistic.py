@@ -109,6 +109,8 @@ def main():
     ap.add_argument("--parameterization", choices=["v", "eps"], default=None)
     ap.add_argument("--n-samples", type=int, default=200)
     ap.add_argument("--members", type=int, default=8)
+    ap.add_argument("--out", default="results/probabilistic_eval.json",
+                    help="Results JSON, relative to the repo root")
     ap.add_argument("--from-cache", action="store_true",
                     help="Skip generation; fail if the cache is missing")
     args = ap.parse_args()
@@ -119,7 +121,11 @@ def main():
     ds = RadarDataset("test", target_offset=LEAD, **model.data_cfg)
 
     step = torch.load(ckpt, map_location="cpu", weights_only=True).get("step", "x")
-    cache = CACHE_DIR / f"ens_{ckpt.stem}_s{step}_n{args.n_samples}_m{args.members}.npz"
+    # Key includes the checkpoint's folder: probes all save as ckpt_step_<N>.pt,
+    # so filename + step alone would let one model silently reuse another's
+    # cached forecasts.
+    cache = CACHE_DIR / (f"ens_{ckpt.parent.name}_{ckpt.stem}_s{step}"
+                         f"_n{args.n_samples}_m{args.members}.npz")
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     # Anchors spread evenly over the whole test period, not its first hours.
@@ -275,9 +281,10 @@ def main():
                   f"persistence {ap_ / max(n_ctrl,1):>5.1%}  observed {ao / max(n_ctrl,1):>5.1%}")
     report["D_flood_events"] = D
 
-    RESULTS.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS.write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
-    print(f"\nSaved -> {RESULTS}")
+    out = ROOT / args.out
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
+    print(f"\nSaved -> {out}")
 
 
 if __name__ == "__main__":
