@@ -49,9 +49,13 @@ class GaussianDiffusion(nn.Module):
         schedule: str = "cosine",
         inference_steps: int = 50,
         parameterization: str = "v",
+        residual: bool = False,
     ):
         super().__init__()
         self.model = model
+        # Residual forecasting: learn the CHANGE from the last context frame
+        # instead of the whole future frame. See _residual_base().
+        self.residual = bool(residual)
         self.T = timesteps
         self.inference_steps = inference_steps
         if parameterization not in ("v", "eps"):
@@ -132,6 +136,10 @@ class GaussianDiffusion(nn.Module):
         if t is None:
             t = torch.randint(0, self.T, (B,), device=x0.device)
 
+        field = x0                                   # weights use the real field
+        if self.residual:
+            x0 = (x0 - self._residual_base(context)) * 0.5
+
         x_t, noise = self.q_sample(x0, t)
         pred = self.model(x_t, context, t)
         target = (self._v_target(x0, noise, t)
@@ -140,7 +148,7 @@ class GaussianDiffusion(nn.Module):
         if not intensity_alpha:
             return F.mse_loss(pred, target)
 
-        w = 1.0 + intensity_alpha * (x0.detach() + 1.0) * 0.5
+        w = 1.0 + intensity_alpha * (field.detach() + 1.0) * 0.5
         w = w / w.mean()                      # keep the loss scale unchanged
         return (w * (pred - target) ** 2).mean()
 
@@ -171,6 +179,28 @@ class GaussianDiffusion(nn.Module):
     #
     #     x0  = sqrt(ab) * x_t - sqrt(1-ab) * v
     #     eps = sqrt(1-ab) * x_t + sqrt(ab) * v
+
+    # ── residual forecasting ─────────────────────────────────────────────────
+    #
+    # Evaluated on the finished full-frame model: it USES its context (true
+    # frames FSS 0.095 vs frames from another time 0.039, better on 30/40
+    # samples) but only weakly -- persistence scores 0.264 on the same samples.
+    # Persistence is strong at 30 min because storms mostly keep their shape and
+    # position, yet the model had to redraw the whole field from noise and was
+    # never told "the last frame, shifted a bit" is the right starting point.
+    #
+    # With residual=True the model diffuses over r = (x0 - last_frame) / 2
+    # instead of x0. Both fields are in [-1, 1], so the difference is in [-2, 2]
+    # and /2 puts it back in [-1, 1] where the sampler's clamp is valid. A model
+    # that learns nothing now outputs r = 0, i.e. EXACTLY persistence, and
+    # anything it learns is improvement on top. As a side effect the target is
+    # centred on 0 (dry stays dry -> 0) rather than piled at the -1 boundary that
+    # broke eps-prediction.
+
+    @staticmethod
+    def _residual_base(context: torch.Tensor) -> torch.Tensor:
+        """Last context frame, (B, 1, H, W): the persistence forecast."""
+        return context[:, -1:]
 
     def _v_target(self, x0: torch.Tensor, noise: torch.Tensor,
                   t: torch.Tensor) -> torch.Tensor:
@@ -223,6 +253,12 @@ class GaussianDiffusion(nn.Module):
 
             alpha_t = self.alphas_cumprod[t][:, None, None, None]
             alpha_prev = self.alphas_cumprod[t_prev][:, None, None, None]
+            if i + 1 == len(timesteps):
+                # Final step lands on the clean sample (alpha = 1), as in DDIM.
+                # Using alphas_cumprod[0] = 0.999959 here left sqrt(1-a) = 0.0064
+                # of noise in every returned sample -- small, but it meant a model
+                # predicting "no change" did not return persistence exactly.
+                alpha_prev = torch.ones_like(alpha_prev)
 
             out = self.model(x, context, t)
             x0_pred, noise_pred = self._to_x0_eps(out, x, t)
@@ -235,6 +271,9 @@ class GaussianDiffusion(nn.Module):
 
             x = alpha_prev.sqrt() * x0_pred + direction + noise
 
+        if self.residual:
+            # back from change-space to a rain field: persistence + 2 * change
+            x = (self._residual_base(context) + 2.0 * x).clamp(-1, 1)
         return x
 
     @torch.no_grad()

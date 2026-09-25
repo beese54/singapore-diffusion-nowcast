@@ -99,9 +99,14 @@ def load_model(checkpoint_path: Path, device: torch.device,
         sys.exit(f"{checkpoint_path.name} has no parameterization stamp. Pass "
                  f"--parameterization v or eps explicitly -- decoding under the "
                  f"wrong one gives plausible-looking, wrong results.")
+    # Unlike parameterization, a missing 'residual' key is not a gap to guess
+    # across: the option did not exist before, and every checkpoint written since
+    # comes from train.py's single _ckpt_state() constructor, which always sets
+    # it. Absent therefore means full-frame by construction.
+    residual = bool(state.get("residual", False))
     print(f"Loaded {checkpoint_path.name}: step {state.get('step', '?')}, "
-          f"parameterization '{param}'")
-    diffusion = GaussianDiffusion(unet, parameterization=param)
+          f"parameterization '{param}', residual={residual}")
+    diffusion = GaussianDiffusion(unet, parameterization=param, residual=residual)
     diffusion.load_state_dict(state["model"])
     return diffusion.to(device).eval()
 

@@ -73,6 +73,12 @@ DEFAULTS = {
     # median wandering around 0 over 20k steps, 0.00% dry vs a 99.7% dry target).
     # See GaussianDiffusion's parameterization helpers.
     "parameterization": "v",
+    # 1 = residual forecasting: learn the change from the last context frame,
+    # so a model that learns nothing equals persistence. The full-frame v model
+    # used its context but scored FSS 0.095 vs persistence 0.264. See
+    # GaussianDiffusion._residual_base. An int, not a bool: parse_args builds
+    # types with type(default), and bool("False") is True.
+    "residual": 1,
     # 0, not 2: RadarDataset holds the whole archive in RAM (3.45 GB at 33k
     # frames), so workers add spawn-pickling cost and zero I/O benefit — and
     # on Windows the pickle of that array fails outright (OSError 22).
@@ -182,8 +188,20 @@ def save_checkpoint(state: dict, step: int, ckpt_dir: Path = CKPT_DIR,
 
 
 def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
-                    parameterization: str | None = None) -> int:
+                    parameterization: str | None = None,
+                    residual: bool | None = None) -> int:
     state = torch.load(path, map_location="cpu", weights_only=True)
+    # Residual and full-frame weights predict different quantities. Checkpoints
+    # written before the residual option existed lack the key and are
+    # full-frame by construction; everything written since goes through
+    # _ckpt_state(), which always sets it.
+    saved_res = bool(state.get("residual", False))
+    if residual is not None and saved_res != bool(residual):
+        raise SystemExit(
+            f"Checkpoint {path.name} was trained with residual={saved_res} but "
+            f"this run uses residual={bool(residual)}. Refusing to resume: the "
+            f"weights predict a different quantity. Start fresh, or pass "
+            f"--residual {int(saved_res)}.")
     # A checkpoint's weights only mean something under the parameterization they
     # were trained with. Mixing them produces wrong samples and no error, which
     # is how a dead checkpoint once read as "36.9 mm/hr" instead of collapsed.
@@ -288,6 +306,7 @@ def main():
         use_checkpoint=True,   # always use gradient checkpointing for 8GB GPU
     )
     diffusion = GaussianDiffusion(unet, parameterization=args.parameterization,
+                                  residual=bool(args.residual),
                                   timesteps=args.diffusion_steps,
                                   inference_steps=args.inference_steps)
     diffusion = diffusion.to(device)
@@ -325,7 +344,7 @@ def main():
                      else Path(args.resume))
         if ckpt_path and ckpt_path.exists():
             start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler,
-                                         args.parameterization)
+                                         args.parameterization, bool(args.residual))
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
 
@@ -341,8 +360,10 @@ def main():
         """
         return {"model": diffusion.state_dict(), "optimizer": optimizer.state_dict(),
                 "scaler": scaler.state_dict(), "step": step,
-                # the same weights mean different things under v and eps
-                "parameterization": args.parameterization}
+                # the same weights mean different things under v and eps,
+                # and under residual vs full-frame targets
+                "parameterization": args.parameterization,
+                "residual": bool(args.residual)}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.
