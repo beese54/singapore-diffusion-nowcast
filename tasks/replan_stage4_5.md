@@ -122,3 +122,29 @@ Per section 3, this triggers the Stage 5 criterion decision.
    (>= 10 mm/hr). `scripts/evaluate.py` now scores exactly this.
 2. **Step 2 (deterministic predictability test) skipped** — Step 1 answered the
    main question. Next effort goes to heavy-rain skill.
+
+## Heavy-rain work (2026-09-25)
+
+**Diagnosis** (300k model, cached 200 x 8 test forecasts):
+- *Intensity bias grows with intensity* — frequency bias 0.90 / 0.85 / 0.54 / 0.40 / 0.12
+  at >= 0.5 / 2 / 10 / 20 / 50 mm/hr; median member peak 6.5 vs observed 22.5 mm/hr
+  on heavy-rain cases (best-of-8 member: 30.6).
+- *Dilution* — members put heavy cores in different places: some member >= 10 mm/hr on
+  1.37% of pixels (3x observed), >= half the members on 0.056% (8x too little).
+- *Decay* — of pixels heavy in the last frame, 27% are still heavy 35 min later;
+  the model keeps 12% (66% vs 43% allowing 3 km of movement).
+
+**Cheap fixes — rejected:**
+- *Deterministic sampling (eta 0)*: fixes heavy intensity bias (0.54 -> 1.09) but
+  over-forecasts light rain (bias 1.47), lowers CRPS skill (+0.437 -> +0.370) and does
+  not improve heavy-rain FSS on the full 200 (0.530 -> 0.506). A 40-sample sweep on
+  heavy-rain cases only had suggested otherwise -- confirmed on the full set before
+  deciding.
+- *250 DDIM steps*: 5x compute, no clear gain on the full picture.
+- *Quantile calibration* (fitted on validation): modest, safe gain on the current
+  sampler (heavy FSS 0.530 -> 0.564, light 0.820 -> 0.830, CRPS unchanged, bias partly
+  fixed) but fragile — fitted on ~11 days, and the same method on the eta-0 sampler
+  collapsed heavy FSS to 0.269 through a val/test climate mismatch. Not adopted.
+
+**Conclusion:** intensity is fixable at the margins but is not what holds heavy rain
+back; the anchoring/decay of storm cores is. Next: heavy-rain weighted loss, clean A/B.
