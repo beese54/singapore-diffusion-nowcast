@@ -86,9 +86,10 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 
 ## Stage 5 — Evaluation & Flash Flood Map
 - [ ] `python scripts/evaluate.py` produces `results/evaluation_report.json` with FSS scores for lead times 30/60/90 min
-- [ ] **PRIMARY (amended 2026-09-25):** CRPS skill vs persistence > 0 at the 30-min (35 min from last frame) lead, with the 95% bootstrap CI lower bound > 0 — reported by `scripts/evaluate.py`
-- [ ] **TRACKED:** pooled ensemble-probability FSS at 2 mm/hr (≈20 dBZ) vs persistence, with 95% CI of the difference — reported, not a pass condition
+- [x] **PRIMARY (amended 2026-09-25):** CRPS skill vs persistence > 0 at the 30-min (35 min from last frame) lead, with the 95% bootstrap CI lower bound > 0 — reported by `scripts/evaluate.py`
+- [x] **TRACKED:** pooled ensemble-probability FSS at 2 mm/hr (≈20 dBZ) vs persistence, with 95% CI of the difference — reported, not a pass condition
 - [ ] **TARGET (open):** skill at heavy rain (≥ 10 mm/hr), which drives flash floods — pooled ensemble FSS and flood-event hit rate vs persistence
+  > *Result 2026-09-25 (300k model, 200 test samples x 8 members):* PRIMARY **PASS** — CRPS skill +0.437, 95% CI [+0.338, +0.557]. TRACKED: FSS 0.820 vs 0.801 at 11.9 km, CI of diff [-0.066, +0.061] (tie). TARGET open: 0.530 vs 0.612 at 10 mm/hr. `results/evaluation_report.json`.
   > *Amendment rationale:* the original criterion ("FSS at 20 dBZ > persistence") was being scored on single ensemble members with per-sample-averaged FSS, which made the model look ~3× worse than persistence. Scored as an ensemble with standard pooled FSS it is a statistical tie; its probabilistic skill is clearly positive (CRPS skill +0.44, 95% CI [+0.34, +0.56]). A probabilistic criterion matches what a diffusion ensemble is for. Evidence: `tasks/replan_stage4_5.md` (Step 1), lesson L026.
 - [ ] At least one identified heavy-rain event (≥30 mm/hr for ≥30 min) from 2023 is shown as a qualitative case study in `notebooks/02_nowcast_evaluation.ipynb`
 - [ ] `notebooks/03_flood_risk_overlay.ipynb` renders a map of Singapore with predicted rainfall overlaid on PUB flood-prone areas GeoJSON

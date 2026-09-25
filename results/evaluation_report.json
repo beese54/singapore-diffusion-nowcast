@@ -1,20 +1,78 @@
 {
   "lead_time_min": 30,
-  "threshold_mm_hr": 2.0,
-  "n_samples": 10,
-  "model_fss_mean": 1.0,
-  "persistence_fss_mean": 1.0,
-  "fss_skill": 0.0,
-  "crps_mean": NaN,
-  "mae_mean": NaN,
-  "model_beats_persistence": false,
-  "flood_eval": {
-    "n_events_geocoded": 3,
-    "n_events_scored": 3,
-    "lead_time_min": 30,
-    "threshold_mm_hr": 2.0,
-    "pod_model": 0.0,
-    "pod_persistence": 0.0,
-    "note": "Events are FLOOD_RISK warnings (rain approaches, flood lags rain). Low POD expected until FLASH_FLOOD events accumulate."
+  "lead_note": "35 min from the last observed frame (context ends t-1, target t+6)",
+  "n_samples": 200,
+  "members": 8,
+  "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
+  "crps_skill": 0.4373816848921862,
+  "crps_skill_95ci": [
+    0.3375405772468912,
+    0.5570360219248122
+  ],
+  "primary_pass": true,
+  "fss_pooled_ensemble_probability": {
+    "2.0 mm/hr": {
+      "6.1 km": {
+        "model": 0.7378175565279246,
+        "persistence": 0.7042537605835371,
+        "diff": 0.03356379594438752,
+        "diff_95ci": [
+          -0.059354245083408294,
+          0.08306428091259054
+        ]
+      },
+      "11.9 km": {
+        "model": 0.8196982593042096,
+        "persistence": 0.8010518338948823,
+        "diff": 0.01864642540932726,
+        "diff_95ci": [
+          -0.06590023711234039,
+          0.06140915255940964
+        ]
+      },
+      "23.5 km": {
+        "model": 0.8992582792060482,
+        "persistence": 0.8831602052307337,
+        "diff": 0.016098073975314486,
+        "diff_95ci": [
+          -0.056759159687819014,
+          0.06040559326044813
+        ]
+      }
+    },
+    "10.0 mm/hr": {
+      "6.1 km": {
+        "model": 0.42876493735776755,
+        "persistence": 0.4910353294669142,
+        "diff": -0.062270392109146644,
+        "diff_95ci": [
+          -0.21258104726591295,
+          0.043362670613671515
+        ]
+      },
+      "11.9 km": {
+        "model": 0.5302538674798236,
+        "persistence": 0.6118592322533187,
+        "diff": -0.08160536477349511,
+        "diff_95ci": [
+          -0.26646769582909696,
+          0.0657801030251226
+        ]
+      },
+      "23.5 km": {
+        "model": 0.6459333016386501,
+        "persistence": 0.7288221185375194,
+        "diff": -0.08288881689886929,
+        "diff_95ci": [
+          -0.2848686068004705,
+          0.15097301618146677
+        ]
+      }
+    }
+  },
+  "legacy_per_sample_single_forecast_fss": {
+    "model": 0.028360058214450916,
+    "persistence": 0.056480810312457684,
+    "note": "old headline; per-sample averaging and single members -- diagnostic only"
   }
 }
