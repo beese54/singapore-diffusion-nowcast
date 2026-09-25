@@ -113,3 +113,12 @@ FSS, placement is a statistical **tie** with persistence; probabilistic skill is
 which is what drives flash floods.
 
 Per section 3, this triggers the Stage 5 criterion decision.
+
+## Decisions (2026-09-25)
+
+1. **Stage 5 criterion amended** (definition_of_done.md, specification.json):
+   PRIMARY = CRPS skill vs persistence > 0 with 95% CI lower bound > 0;
+   TRACKED = pooled ensemble-probability FSS at 2 mm/hr; TARGET = heavy rain
+   (>= 10 mm/hr). `scripts/evaluate.py` now scores exactly this.
+2. **Step 2 (deterministic predictability test) skipped** — Step 1 answered the
+   main question. Next effort goes to heavy-rain skill.

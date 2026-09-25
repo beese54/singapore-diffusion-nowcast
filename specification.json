@@ -96,6 +96,6 @@
   },
   "success_metrics": {
     "corrdiff_track": "visually plausible 2km precipitation field vs NEA radar ground truth",
-    "nowcaster_track": "FSS > persistence baseline at 20dBZ threshold for 30-min lead time"
+    "nowcaster_track": "PRIMARY: CRPS skill vs persistence > 0 (95% CI lower bound > 0) at the 30-min lead. TRACKED: pooled ensemble-probability FSS at 20 dBZ vs persistence. TARGET: heavy-rain (>=10 mm/hr) skill. Amended 2026-09-25 from 'FSS > persistence at 20dBZ, 30-min lead'; see definition_of_done.md."
   }
 }

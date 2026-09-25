@@ -80,6 +80,42 @@ def crps_ensemble(ensemble: np.ndarray, obs: np.ndarray) -> float:
     return float(mae_term - 0.5 * spread_term)
 
 
+def fss_parts(prob: np.ndarray, obs_bin: np.ndarray, win: int) -> tuple[float, float]:
+    """One sample's contribution to POOLED FSS: (numerator, denominator).
+
+    FSS = 1 - sum(num) / sum(den) over the evaluation set (Roberts & Lean 2008).
+    Averaging per-sample FSS instead -- what this script used to do -- heavily
+    punishes near-dry samples where a few misplaced pixels score 0, and made the
+    model look ~3x worse than persistence when the pooled scores are a tie.
+    `prob` is a probability field in [0, 1]; a single forecast is passed as its
+    0/1 exceedance field.
+    """
+    from scipy.ndimage import uniform_filter
+    pf = uniform_filter(prob.astype(np.float64), size=win, mode="constant")
+    of = uniform_filter(obs_bin.astype(np.float64), size=win, mode="constant")
+    return float(np.sum((pf - of) ** 2)), float(np.sum(pf ** 2) + np.sum(of ** 2))
+
+
+def crps_pixelwise(ens: np.ndarray, obs: np.ndarray) -> np.ndarray:
+    """Per-element CRPS of an ensemble (M, ...) against obs (...). For a single
+    forecast (M = 1) this reduces to the absolute error."""
+    ens = ens.astype(np.float32)
+    t1 = np.abs(ens - obs[None]).mean(0)
+    M = ens.shape[0]
+    t2 = np.zeros_like(obs, dtype=np.float32)
+    for i in range(M):
+        t2 += np.abs(ens[i][None] - ens).sum(0)
+    return t1 - 0.5 * t2 / (M * M)
+
+
+def bootstrap_ci(stat, n: int, reps: int = 2000, seed: int = 0) -> tuple[float, float]:
+    """95% CI of stat(indices) by resampling evaluation samples."""
+    rng = np.random.default_rng(seed)
+    vals = [stat(rng.integers(0, n, n)) for _ in range(reps)]
+    lo, hi = np.percentile(vals, [2.5, 97.5])
+    return float(lo), float(hi)
+
+
 def load_model(checkpoint_path: Path, device: torch.device,
                parameterization: str | None = None) -> GaussianDiffusion:
     state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
@@ -260,68 +296,88 @@ def main():
         # Single source of truth: the dataset's own inverse transform.
         return test_ds.denormalise(torch.as_tensor(x)).numpy()
 
-    model_fss_scores = []
-    persist_fss_scores = []
-    obs_wet = []
-    crps_scores = []
-    mae_scores = []
+    # Stage 5 criterion (definition_of_done.md, amended 2026-09-25):
+    #   PRIMARY   CRPS skill vs persistence > 0, 95% CI lower bound > 0
+    #   TRACKED   pooled ensemble-probability FSS at the threshold vs persistence
+    #   TARGET    the same at >= 10 mm/hr (heavy rain drives flash floods)
+    WINDOWS = {"6.1 km": 21, "11.9 km": 41, "23.5 km": 81}     # 0.29 km pixels
+    THRESHOLDS = sorted({args.threshold, 10.0})
+    parts = {(thr, w, who): [] for thr in THRESHOLDS for w in WINDOWS
+             for who in ("model", "persistence")}
+    crps_m, crps_p, legacy_member_fss, legacy_persist_fss = [], [], [], []
+
     n_eval = min(args.n_samples, len(test_ds))
+    # Spread over the whole test period. Taking the first n in time order
+    # covered only ~17 hours of a ~12-day test set.
+    picks = np.linspace(0, len(test_ds) - 1, n_eval).astype(int)
+    print(f"Evaluating {n_eval} test samples spread over the test period, "
+          f"lead={args.lead} min, {args.members} members")
 
-    print(f"Evaluating on {n_eval} test samples, threshold={args.threshold} mm/hr, lead={args.lead}min")
-
-    for i, batch in enumerate(test_loader):
-        if i >= n_eval:
-            break
-
-        ctx = batch["context"].to(device)           # (1, C, H, W)
-        tgt = batch["target"].squeeze(0).squeeze(0).numpy()  # (H, W) normalised
-
-        # Generate ensemble
+    for k, i in enumerate(picks):
+        batch = test_ds[int(i)]
+        ctx = batch["context"].unsqueeze(0).to(device)
+        torch.manual_seed(1000 + k)
         with torch.no_grad():
             ens = model.ensemble_sample(ctx, n_members=args.members, eta=1.0)
-            ens_np = ens.cpu().float().numpy()[0, :, 0, :, :]  # (M, H, W)
+        ens_mm = denorm(ens.cpu().float().numpy()[0, :, 0])            # (M, H, W)
+        obs_mm = denorm(batch["target"][0].numpy())
+        persist_mm = denorm(batch["context"][-1].numpy())                # last frame
 
-        obs_mm = denorm(tgt)
-        ens_mm = denorm(ens_np)
-        ens_mean = ens_mm.mean(axis=0)
+        for thr in THRESHOLDS:
+            ob = obs_mm >= thr
+            prob = (ens_mm >= thr).mean(0)
+            pers = (persist_mm >= thr).astype(np.float32)
+            for name, w in WINDOWS.items():
+                parts[(thr, name, "model")].append(fss_parts(prob, ob, w))
+                parts[(thr, name, "persistence")].append(fss_parts(pers, ob, w))
 
-        ctx_mm = denorm(batch["context"].squeeze(0).numpy())  # (C, H, W)
-        persist_mm = persistence_forecast(ctx_mm)
+        rel = (obs_mm >= 0.5) | (persist_mm >= 0.5) | (ens_mm.max(0) >= 0.5)
+        crps_m.append(float(crps_pixelwise(ens_mm, obs_mm)[rel].sum()))
+        crps_p.append(float(np.abs(persist_mm - obs_mm)[rel].sum()))
+        # legacy diagnostic: the old per-sample, single-forecast FSS
+        legacy_member_fss.append(fss(ens_mm[0], obs_mm, args.threshold))
+        legacy_persist_fss.append(fss(persist_mm, obs_mm, args.threshold))
 
-        model_fss_scores.append(fss(ens_mean, obs_mm, args.threshold))
-        persist_fss_scores.append(fss(persist_mm, obs_mm, args.threshold))
-        # Frames where the observation has rain above threshold. On the others
-        # fss() returns a perfect 1.0 whenever the forecast is also empty, which
-        # pads model and persistence alike and hides the real difference.
-        obs_wet.append(bool((obs_mm >= args.threshold).any()))
-        crps_scores.append(crps_ensemble(ens_mm, obs_mm))
-        mae_scores.append(float(np.mean(np.abs(ens_mean - obs_mm))))
+        if k % 25 == 0:
+            print(f"  {k}/{n_eval}", flush=True)
 
-        if i % 20 == 0:
-            print(f"  {i}/{n_eval}  FSS(model)={np.mean(model_fss_scores):.3f}  "
-                  f"FSS(persist)={np.mean(persist_fss_scores):.3f}")
+    n = len(crps_m)
+    cm, cp = np.array(crps_m), np.array(crps_p)
+
+    def skill(ix):
+        return 1.0 - cm[ix].sum() / max(cp[ix].sum(), 1e-12)
+
+    crps_skill = skill(np.arange(n))
+    crps_ci = bootstrap_ci(skill, n)
+
+    def pooled(arr, ix):
+        return 1.0 - arr[ix, 0].sum() / max(arr[ix, 1].sum(), 1e-12)
+
+    fss_report = {}
+    for thr in THRESHOLDS:
+        fss_report[f"{thr} mm/hr"] = {}
+        for name in WINDOWS:
+            a = np.array(parts[(thr, name, "model")])
+            b = np.array(parts[(thr, name, "persistence")])
+            all_ix = np.arange(n)
+            fss_report[f"{thr} mm/hr"][name] = {
+                "model": pooled(a, all_ix), "persistence": pooled(b, all_ix),
+                "diff": pooled(a, all_ix) - pooled(b, all_ix),
+                "diff_95ci": bootstrap_ci(lambda ix, a=a, b=b: pooled(a, ix) - pooled(b, ix), n)}
 
     report = {
         "lead_time_min": args.lead,
-        "threshold_mm_hr": args.threshold,
-        "n_samples": n_eval,
-        "model_fss_mean": float(np.mean(model_fss_scores)),
-        "persistence_fss_mean": float(np.mean(persist_fss_scores)),
-        "fss_skill": float(np.mean(model_fss_scores) - np.mean(persist_fss_scores)),
-        "crps_mean": float(np.mean(crps_scores)),
-        "mae_mean": float(np.mean(mae_scores)),
-        "model_beats_persistence": float(np.mean(model_fss_scores)) > float(np.mean(persist_fss_scores)),
+        "lead_note": "35 min from the last observed frame (context ends t-1, target t+6)",
+        "n_samples": n, "members": args.members,
+        "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
+        "crps_skill": crps_skill, "crps_skill_95ci": crps_ci,
+        "primary_pass": bool(crps_ci[0] > 0),
+        "fss_pooled_ensemble_probability": fss_report,
+        "legacy_per_sample_single_forecast_fss": {
+            "model": float(np.mean(legacy_member_fss)),
+            "persistence": float(np.mean(legacy_persist_fss)),
+            "note": "old headline; per-sample averaging and single members -- diagnostic only"},
     }
-    wet = np.array(obs_wet)
-    if wet.any():
-        m = np.array(model_fss_scores)[wet]; q = np.array(persist_fss_scores)[wet]
-        report.update({
-            "n_samples_obs_wet": int(wet.sum()),
-            "model_fss_mean_obs_wet": float(m.mean()),
-            "persistence_fss_mean_obs_wet": float(q.mean()),
-            "model_beats_persistence_obs_wet": bool(m.mean() > q.mean()),
-        })
-
     out_path = RESULTS_DIR / "evaluation_report.json"
     with open(out_path, "w") as f:
         json.dump(report, f, indent=2)
@@ -349,10 +405,18 @@ def main():
     # overlay notebook and <5 min end-to-end inference. Writing
     # stage5_complete.flag here would self-certify the stage on a partial test
     # (lesson L004), so this reports the criterion and leaves the flag alone.
-    verdict = "PASS" if report["model_beats_persistence"] else "FAIL"
-    print(f"\n[{verdict}] FSS criterion at {args.threshold} mm/hr, {args.lead} min "
-          f"lead: model {report['model_fss_mean']:.3f} vs persistence "
-          f"{report['persistence_fss_mean']:.3f}.")
+    lo, hi = report["crps_skill_95ci"]
+    verdict = "PASS" if report["primary_pass"] else "FAIL"
+    print(f"\n[{verdict}] PRIMARY -- CRPS skill vs persistence "
+          f"{report['crps_skill']:+.3f}  95% CI [{lo:+.3f}, {hi:+.3f}]")
+    for thr, rows in report["fss_pooled_ensemble_probability"].items():
+        tag = "TARGET (heavy rain)" if thr.startswith("10.0") else "TRACKED"
+        r = rows["11.9 km"]
+        clo, chi = r["diff_95ci"]
+        sig = ("model better" if clo > 0 else "persistence better" if chi < 0
+               else "not distinguishable")
+        print(f"[{tag}] pooled ensemble FSS {thr}, 11.9 km: model {r['model']:.3f} vs "
+              f"persistence {r['persistence']:.3f}  CI of diff [{clo:+.3f}, {chi:+.3f}] -> {sig}")
     print("Stage 5 flag NOT written -- the remaining DoD criteria are separate.")
 
 

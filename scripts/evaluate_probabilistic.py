@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from evaluate import load_model  # noqa: E402
+from evaluate import crps_pixelwise, fss_parts, load_model  # noqa: E402
 from src.data.radar_dataset import RadarDataset  # noqa: E402
 
 PX_KM = 0.290            # measured from radar.zarr lat/lon (see lesson L025)
@@ -74,26 +74,16 @@ def generate(model, ds, anchors, members, device, seed0) -> np.ndarray:
 # ── metrics ───────────────────────────────────────────────────────────────────
 
 def fss_pooled(pred_prob: np.ndarray, obs_bin: np.ndarray, win: int) -> float:
-    """FSS pooled over samples (Roberts & Lean 2008). pred_prob in [0, 1];
-    a deterministic forecast is passed as its 0/1 exceedance field."""
+    """Pooled FSS over samples; the per-sample building block is in evaluate.py."""
     num = den = 0.0
     for p, o in zip(pred_prob, obs_bin):
-        pf = uniform_filter(p.astype(np.float64), size=win, mode="constant")
-        of = uniform_filter(o.astype(np.float64), size=win, mode="constant")
-        num += np.sum((pf - of) ** 2)
-        den += np.sum(pf ** 2) + np.sum(of ** 2)
+        a, b = fss_parts(p, o, win)
+        num += a
+        den += b
     return float(1.0 - num / den) if den > 0 else float("nan")
 
 
-def crps_ens(ens: np.ndarray, obs: np.ndarray) -> np.ndarray:
-    """Per-element CRPS of an ensemble (M, ...) against obs (...)."""
-    ens = ens.astype(np.float32)
-    t1 = np.abs(ens - obs[None]).mean(0)
-    M = ens.shape[0]
-    t2 = np.zeros_like(obs, dtype=np.float32)
-    for i in range(M):
-        t2 += np.abs(ens[i][None] - ens).sum(0)
-    return t1 - 0.5 * t2 / (M * M)
+crps_ens = crps_pixelwise    # single implementation, in evaluate.py
 
 
 def box_means(field: np.ndarray, b: int) -> np.ndarray:
