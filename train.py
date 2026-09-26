@@ -125,6 +125,11 @@ def parse_args():
                              "shared folder. Needed for side-by-side models (e.g. one per "
                              "lead time): the shared folder holds the 300k 30-min model, "
                              "and pruning / latest.pt would otherwise mix runs.")
+    parser.add_argument("--init-from", default=None,
+                        help="Warm start: initialise the weights from this checkpoint "
+                             "(optimizer and step start fresh; the lead may differ). "
+                             "Ignored once the run folder has its own checkpoint, so a "
+                             "stopped warm-started run resumes normally with --resume.")
     parser.add_argument("--smoke", action="store_true",
                         help="Smoke-test run: isolate checkpoints to a throwaway subdir "
                              "and skip writing stage4_complete.flag.")
@@ -210,11 +215,10 @@ def save_checkpoint(state: dict, step: int, ckpt_dir: Path = CKPT_DIR,
     return path
 
 
-def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
-                    parameterization: str | None = None,
-                    residual: bool | None = None,
-                    expected_layout: tuple | None = None) -> int:
-    state = torch.load(path, map_location="cpu", weights_only=True)
+def _check_compatible(state: dict, path: Path, parameterization: str | None,
+                      residual: bool | None, expected_layout: tuple | None,
+                      action: str = "resume") -> None:
+    """Refuse weights whose meaning differs from this run's settings."""
     # Residual and full-frame weights predict different quantities. Checkpoints
     # written before the residual option existed lack the key and are
     # full-frame by construction; everything written since goes through
@@ -229,11 +233,11 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
             f"Checkpoint {path.name} was trained with context_frames={layout[0]}, "
             f"time_channels={layout[1]} but this run uses "
             f"context_frames={expected_layout[0]}, time_channels={expected_layout[1]}. "
-            f"Refusing to resume.")
+            f"Refusing to {action}.")
     if residual is not None and saved_res != bool(residual):
         raise SystemExit(
             f"Checkpoint {path.name} was trained with residual={saved_res} but "
-            f"this run uses residual={bool(residual)}. Refusing to resume: the "
+            f"this run uses residual={bool(residual)}. Refusing to {action}: the "
             f"weights predict a different quantity. Start fresh, or pass "
             f"--residual {int(saved_res)}.")
     # A checkpoint's weights only mean something under the parameterization they
@@ -246,10 +250,18 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
         raise SystemExit(
             f"Checkpoint {path.name} was trained with parameterization "
             f"'{saved_param}' but this run uses '{parameterization}'. Refusing to "
-            f"resume: the weights would be interpreted wrongly and sampling would "
+            f"{action}: the weights would be interpreted wrongly and sampling would "
             f"be silently incorrect. Start fresh, or pass "
             f"--parameterization {saved_param}."
         )
+
+
+def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
+                    parameterization: str | None = None,
+                    residual: bool | None = None,
+                    expected_layout: tuple | None = None) -> int:
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    _check_compatible(state, path, parameterization, residual, expected_layout)
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
     # Only restore the scaler when it is actually in use. Restoring a COLLAPSED
@@ -267,6 +279,23 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
     step = state["step"]
     print(f"[ckpt] Resumed from {path} (step {step})")
     return step
+
+
+def init_weights_from(path: Path, model: nn.Module, parameterization: str | None,
+                      residual: bool | None, expected_layout: tuple | None) -> None:
+    """Warm start: copy another run's WEIGHTS only. Step, optimizer state and
+    LR schedule start fresh, and the lead (target_offset) may differ -- that is
+    the point: a 60/90-min model starts from the 30-min model, which already
+    reads the radar and moves storms, instead of from noise. (From scratch at
+    100k steps, both longer leads learned WHETHER it rains but not WHERE:
+    output uncorrelated with the input, lesson L029.) Everything that changes
+    what the weights mean must match, exactly as for a resume."""
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    _check_compatible(state, path, parameterization, residual, expected_layout,
+                      action="warm-start")
+    model.load_state_dict(state["model"])
+    print(f"[init] Weights from {path} (its step {state.get('step', '?')}, "
+          f"target_offset {state.get('target_offset', '?')}); optimizer and step start fresh")
 
 
 def cosine_lr(step: int, base_lr: float, warmup_steps: int, max_steps: int) -> float:
@@ -393,6 +422,14 @@ def main():
                                           bool(args.time_channels)))
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
+    if start_step == 0 and args.init_from:
+        init_path = Path(args.init_from)
+        if not init_path.is_absolute():
+            init_path = ROOT / init_path
+        if not init_path.exists():
+            raise SystemExit(f"--init-from {init_path} not found")
+        init_weights_from(init_path, diffusion, args.parameterization, bool(args.residual),
+                          (int(args.context_frames), bool(args.time_channels)))
 
     def _ckpt_state(step: int) -> dict:
         """The one place a checkpoint's contents are defined.
@@ -420,7 +457,9 @@ def main():
                 # provenance only: a training-loss setting, not needed to
                 # interpret the weights
                 "heavy_weight": float(args.heavy_weight),
-                "heavy_dilate": int(args.heavy_dilate)}
+                "heavy_dilate": int(args.heavy_dilate),
+                # warm-start source, if any (provenance only)
+                "init_from": str(args.init_from or "")}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.
