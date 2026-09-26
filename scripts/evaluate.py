@@ -147,11 +147,15 @@ def load_model(checkpoint_path: Path, device: torch.device,
     residual = bool(state.get("residual", False))
     print(f"Loaded {checkpoint_path.name}: step {state.get('step', '?')}, "
           f"parameterization '{param}', residual={residual}, "
-          f"context_frames={cf}, time_channels={tc}")
+          f"context_frames={cf}, time_channels={tc}, "
+          f"target_offset={int(state.get('target_offset', 6))}")
     diffusion = GaussianDiffusion(unet, parameterization=param, residual=residual)
     diffusion.load_state_dict(state["model"])
     # Callers build their dataset from this so the input matches training.
     diffusion.data_cfg = {"context_frames": cf, "time_channels": tc}
+    # Each model forecasts ONE lead. Unstamped checkpoints predate the stamp and
+    # were all trained with the default target_offset of 6 (nominal 30 min).
+    diffusion.target_offset = int(state.get("target_offset", 6))
     return diffusion.to(device).eval()
 
 
@@ -185,7 +189,7 @@ def score_flood_events(model, device, rds, args) -> dict:
     def denorm(x):
         return rds.denormalise(torch.as_tensor(x)).numpy()
 
-    lead_steps = args.lead // 5  # convert lead time to 5-min steps
+    lead_steps = getattr(model, "target_offset", args.lead // 5)
     CF = rds.context_frames      # the model's own history length
 
     hits_model = 0
@@ -257,7 +261,9 @@ def main():
     parser.add_argument("--checkpoint", default="checkpoints/nowcaster/latest.pt")
     parser.add_argument("--threshold", type=float, default=2.0,
                         help="Rain-rate threshold for FSS in mm/hr (default 2.0 ≈ 20dBZ)")
-    parser.add_argument("--lead", type=int, default=30, help="Lead time in minutes")
+    parser.add_argument("--lead", type=int, default=None,
+                        help="Nominal lead in minutes. Defaults to the checkpoint's own; "
+                             "a mismatch is refused (one model per lead time).")
     parser.add_argument("--n-samples", type=int, default=200)
     parser.add_argument("--members", type=int, default=8)
     parser.add_argument("--smoke", action="store_true",
@@ -283,7 +289,16 @@ def main():
 
     stats = load_stats()
 
-    target_offset = args.lead // 5  # 5-min steps
+    # The lead is a property of the model, not a free choice at evaluation
+    # time: scoring a 60-min model against the 30-min target frame would run
+    # without error and be meaningless.
+    target_offset = getattr(model, "target_offset", None)
+    if target_offset is None:                            # random smoke model
+        target_offset = (args.lead or 30) // 5
+    elif args.lead is not None and args.lead // 5 != target_offset:
+        sys.exit(f"--lead {args.lead} does not match the checkpoint's lead "
+                 f"({target_offset * 5} min). One model per lead time.")
+    args.lead = target_offset * 5
 
     cfg = getattr(model, "data_cfg", {"context_frames": CONTEXT_FRAMES,
                                        "time_channels": False})
@@ -367,8 +382,13 @@ def main():
 
     report = {
         "lead_time_min": args.lead,
-        "lead_note": "35 min from the last observed frame (context ends t-1, target t+6)",
+        "lead_note": (f"nominal {args.lead} min = {args.lead + 5} min from the last "
+                      f"observed frame (context ends t-1, target t+{target_offset})"),
         "n_samples": n, "members": args.members,
+        # The test split is the last 10% of a GROWING archive, so it moves every
+        # day. Record exactly which period was scored so results are traceable.
+        "test_period": [str(test_ds.times[test_ds.indices[int(picks[0])]])[:16],
+                        str(test_ds.times[test_ds.indices[int(picks[-1])]])[:16]],
         "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
         "crps_skill": crps_skill, "crps_skill_95ci": crps_ci,
         "primary_pass": bool(crps_ci[0] > 0),

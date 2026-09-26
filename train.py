@@ -404,6 +404,9 @@ def main():
                 # dataset at evaluation time
                 "context_frames": int(args.context_frames),
                 "time_channels": bool(args.time_channels),
+                # the lead the model forecasts, in 5-min steps after the last
+                # context frame's anchor; one model per lead time
+                "target_offset": int(args.target_offset),
                 # provenance only: a training-loss setting, not needed to
                 # interpret the weights
                 "heavy_weight": float(args.heavy_weight),

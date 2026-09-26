@@ -43,7 +43,7 @@ from evaluate import crps_pixelwise, fss_parts, load_model  # noqa: E402
 from src.data.radar_dataset import RadarDataset  # noqa: E402
 
 PX_KM = 0.290            # measured from radar.zarr lat/lon (see lesson L025)
-LEAD = 6                 # target_offset; lead is 35 min from the last frame
+LEAD = 6                 # set from the checkpoint in main(); one model per lead
 CACHE_DIR = ROOT / "data" / "processed" / "eval_cache"
 RESULTS = ROOT / "results" / "probabilistic_eval.json"
 
@@ -118,6 +118,8 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ckpt = ROOT / args.checkpoint
     model = load_model(ckpt, device, args.parameterization)
+    global LEAD
+    LEAD = model.target_offset
     ds = RadarDataset("test", target_offset=LEAD, **model.data_cfg)
 
     step = torch.load(ckpt, map_location="cpu", weights_only=True).get("step", "x")
@@ -155,10 +157,30 @@ def main():
         f_cell.append((int(r["location_lat_idx"]), int(r["location_lon_idx"])))
         f_type.append(r["message_type"])
 
+    # The test split is "the last 10% of the archive", and the archive grows
+    # every morning (daily preprocess). So the same code picks DIFFERENT test
+    # times on different days. A cache that stores only forecasts would then be
+    # scored against the wrong observations -- this happened once: cached
+    # forecasts from 25 Sep, re-scored on 26 Sep, read CRPS skill +0.129 instead
+    # of +0.437. The cache therefore stores the exact times it covers, and a
+    # mismatch is refused rather than silently scored.
+    a_times = ds.times[np.array(anchors)].astype("datetime64[m]")
+    f_times = ds.times[np.array(f_anchor, dtype=int)].astype("datetime64[m]") \
+        if f_anchor else np.array([], dtype="datetime64[m]")
     if cache.exists():
         z = np.load(cache)
+        if "anchor_times" not in z.files:
+            sys.exit(f"{cache.name} predates time-stamped caches, so the test "
+                     f"times it covers are unknown. Delete it and regenerate.")
+        same = (np.array_equal(z["anchor_times"], a_times)
+                and np.array_equal(z["flood_times"], f_times))
+        if not same:
+            sys.exit(f"{cache.name} covers different test times than today's test "
+                     f"split (the archive has grown since it was written). Delete it "
+                     f"and regenerate; do not reuse it.")
         ens, fens = z["ens"], z["fens"]
-        print(f"Loaded cached ensembles: {cache.name}")
+        print(f"Loaded cached ensembles: {cache.name} "
+              f"(test times {str(a_times[0])} .. {str(a_times[-1])})")
     elif args.from_cache:
         sys.exit(f"--from-cache given but {cache.name} does not exist")
     else:
@@ -166,14 +188,17 @@ def main():
         ens = generate(model, ds, anchors, args.members, device, seed0=1000)
         print(f"Generating {len(f_anchor)} flood-event forecasts...")
         fens = generate(model, ds, f_anchor, args.members, device, seed0=5000)
-        np.savez_compressed(cache, ens=ens, fens=fens)
+        np.savez_compressed(cache, ens=ens, fens=fens,
+                            anchor_times=a_times, flood_times=f_times)
         print(f"Cached -> {cache}")
     ens = ens.astype(np.float32)
     fens = fens.astype(np.float32)
 
     report = {"checkpoint": str(args.checkpoint), "step": step,
+              "test_period": [str(a_times[0]), str(a_times[-1])],
               "n_samples": len(anchors), "members": args.members,
-              "lead_min_from_last_frame": 35, "pixel_km": PX_KM}
+              "nominal_lead_min": LEAD * 5,
+              "lead_min_from_last_frame": (LEAD + 1) * 5, "pixel_km": PX_KM}
 
     # ── A. ensemble-probability FSS ───────────────────────────────────────
     print("\nA. FSS -- ensemble probability vs persistence (pooled over samples)")
@@ -245,7 +270,7 @@ def main():
 
     # ── D. recorded flood events ────────────────────────────────────────────
     print(f"\nD. Recorded flood events ({len(f_anchor)} usable; "
-          f"forecast issued 35 min before the event frame)")
+          f"forecast issued {(LEAD + 1) * 5} min before the event frame)")
     D = {"n_events": len(f_anchor),
          "types": {t: f_type.count(t) for t in set(f_type)}}
     # Hits alone reward a forecaster that simply rains more often. The control
