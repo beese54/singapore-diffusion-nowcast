@@ -212,7 +212,9 @@
         {
           "id": "5.1",
           "description": "Run FSS evaluation script",
-          "status": "Pending"
+          "status": "Complete",
+          "completed_date": "2026-09-26",
+          "notes": "All three leads scored on the pinned test period (results/evaluation_report.json by_lead; probabilistic_eval_lead{30,60,90}.json). 30 min: CRPS +0.384 [+0.251,+0.505], FSS 2 mm/hr 0.827 vs 0.742. 60/90 min pass CRPS but fail every placement measure (FSS 2 mm/hr 0.36/0.44 vs 0.56/0.51; output uncorrelated with input) -- not usable, see lesson L029."
         },
         {
           "id": "5.2",
@@ -249,6 +251,19 @@
           "id": "5.5",
           "description": "Wire flood_eval_dataset into evaluate.py for event-based Stage 5 scoring",
           "status": "Pending"
+        },
+        {
+          "id": "5.8",
+          "description": "Fix src/inference/nowcast.py (one stamped model per lead, shared transforms) and time end-to-end inference",
+          "status": "Complete",
+          "completed_date": "2026-09-26",
+          "notes": "19.6 s for 8 members x 3 leads on the RTX 4060 (budget 5 min)."
+        },
+        {
+          "id": "5.9",
+          "description": "Make the 60/90-min models usable (they ignore where the rain is)",
+          "status": "Pending",
+          "notes": "Options: warm-start from the 30-min model, or train longer (the 30-min model had 300k steps, these 100k). Awaiting user decision."
         }
       ]
     },

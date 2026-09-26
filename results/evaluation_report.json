@@ -1,78 +1,253 @@
 {
-  "lead_time_min": 30,
-  "lead_note": "35 min from the last observed frame (context ends t-1, target t+6)",
-  "n_samples": 200,
-  "members": 8,
-  "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
-  "crps_skill": 0.4373816848921862,
-  "crps_skill_95ci": [
-    0.3375405772468912,
-    0.5570360219248122
-  ],
-  "primary_pass": true,
-  "fss_pooled_ensemble_probability": {
-    "2.0 mm/hr": {
-      "6.1 km": {
-        "model": 0.7378175565279246,
-        "persistence": 0.7042537605835371,
-        "diff": 0.03356379594438752,
-        "diff_95ci": [
-          -0.059354245083408294,
-          0.08306428091259054
-        ]
+  "by_lead": {
+    "30": {
+      "lead_time_min": 30,
+      "lead_note": "nominal 30 min = 35 min from the last observed frame (context ends t-1, target t+6)",
+      "n_samples": 200,
+      "members": 8,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T23:25"
+      ],
+      "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
+      "crps_skill": 0.38382568407768425,
+      "crps_skill_95ci": [
+        0.25052130343139845,
+        0.5052574507374858
+      ],
+      "primary_pass": true,
+      "fss_pooled_ensemble_probability": {
+        "2.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.7388829668086558,
+            "persistence": 0.6509256577700051,
+            "diff": 0.08795730903865073,
+            "diff_95ci": [
+              -0.012433309470905261,
+              0.14429045013878972
+            ]
+          },
+          "11.9 km": {
+            "model": 0.8269940058197165,
+            "persistence": 0.7422765365035247,
+            "diff": 0.08471746931619184,
+            "diff_95ci": [
+              -0.005996224733692204,
+              0.13230168356759672
+            ]
+          },
+          "23.5 km": {
+            "model": 0.9033352532424964,
+            "persistence": 0.8223797377063748,
+            "diff": 0.08095551553612157,
+            "diff_95ci": [
+              0.003339892467465292,
+              0.12580545354656092
+            ]
+          }
+        },
+        "10.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.27515678710237335,
+            "persistence": 0.357486289692141,
+            "diff": -0.08232950258976768,
+            "diff_95ci": [
+              -0.14388420100218274,
+              0.03695720041537885
+            ]
+          },
+          "11.9 km": {
+            "model": 0.33681853811069584,
+            "persistence": 0.4455385052150235,
+            "diff": -0.10871996710432763,
+            "diff_95ci": [
+              -0.15885035510444345,
+              0.03530249304527471
+            ]
+          },
+          "23.5 km": {
+            "model": 0.3764992147915941,
+            "persistence": 0.5213646580711091,
+            "diff": -0.144865443279515,
+            "diff_95ci": [
+              -0.16847070673985565,
+              0.0023139697594113536
+            ]
+          }
+        }
       },
-      "11.9 km": {
-        "model": 0.8196982593042096,
-        "persistence": 0.8010518338948823,
-        "diff": 0.01864642540932726,
-        "diff_95ci": [
-          -0.06590023711234039,
-          0.06140915255940964
-        ]
+      "legacy_per_sample_single_forecast_fss": {
+        "model": 0.032435262590954125,
+        "persistence": 0.06110119614502686,
+        "note": "old headline; per-sample averaging and single members -- diagnostic only"
       },
-      "23.5 km": {
-        "model": 0.8992582792060482,
-        "persistence": 0.8831602052307337,
-        "diff": 0.016098073975314486,
-        "diff_95ci": [
-          -0.056759159687819014,
-          0.06040559326044813
-        ]
-      }
+      "checkpoint": "checkpoints/nowcaster/ckpt_step_300000.pt"
     },
-    "10.0 mm/hr": {
-      "6.1 km": {
-        "model": 0.42876493735776755,
-        "persistence": 0.4910353294669142,
-        "diff": -0.062270392109146644,
-        "diff_95ci": [
-          -0.21258104726591295,
-          0.043362670613671515
-        ]
+    "60": {
+      "lead_time_min": 60,
+      "lead_note": "nominal 60 min = 65 min from the last observed frame (context ends t-1, target t+12)",
+      "n_samples": 200,
+      "members": 8,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T22:55"
+      ],
+      "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
+      "crps_skill": 0.414425711090868,
+      "crps_skill_95ci": [
+        0.2500853377500063,
+        0.5787105320711147
+      ],
+      "primary_pass": true,
+      "fss_pooled_ensemble_probability": {
+        "2.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.296207871398679,
+            "persistence": 0.46017151915594257,
+            "diff": -0.16396364775726358,
+            "diff_95ci": [
+              -0.2347877360538927,
+              -0.06996488745303478
+            ]
+          },
+          "11.9 km": {
+            "model": 0.35902264375386284,
+            "persistence": 0.5575654456712351,
+            "diff": -0.19854280191737228,
+            "diff_95ci": [
+              -0.2802907760771201,
+              -0.08180578863307372
+            ]
+          },
+          "23.5 km": {
+            "model": 0.46727119389395955,
+            "persistence": 0.6785317789066656,
+            "diff": -0.21126058501270606,
+            "diff_95ci": [
+              -0.2972216911487145,
+              -0.06171606897449013
+            ]
+          }
+        },
+        "10.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.015418591983400565,
+            "persistence": 0.1665240772233071,
+            "diff": -0.15110548523990652,
+            "diff_95ci": [
+              -0.22519080523710047,
+              -0.04572567958224254
+            ]
+          },
+          "11.9 km": {
+            "model": 0.028098226454808417,
+            "persistence": 0.23606965110711242,
+            "diff": -0.207971424652304,
+            "diff_95ci": [
+              -0.306731046532478,
+              -0.06302400061232577
+            ]
+          },
+          "23.5 km": {
+            "model": 0.06529719442148174,
+            "persistence": 0.3319208248219976,
+            "diff": -0.26662363040051584,
+            "diff_95ci": [
+              -0.3787867099551612,
+              -0.07082771102368318
+            ]
+          }
+        }
       },
-      "11.9 km": {
-        "model": 0.5302538674798236,
-        "persistence": 0.6118592322533187,
-        "diff": -0.08160536477349511,
-        "diff_95ci": [
-          -0.26646769582909696,
-          0.0657801030251226
-        ]
+      "legacy_per_sample_single_forecast_fss": {
+        "model": 0.007858680949642073,
+        "persistence": 0.04510209994316502,
+        "note": "old headline; per-sample averaging and single members -- diagnostic only"
       },
-      "23.5 km": {
-        "model": 0.6459333016386501,
-        "persistence": 0.7288221185375194,
-        "diff": -0.08288881689886929,
-        "diff_95ci": [
-          -0.2848686068004705,
-          0.15097301618146677
-        ]
-      }
+      "checkpoint": "checkpoints/nowcaster/lead60/ckpt_step_100000.pt"
+    },
+    "90": {
+      "lead_time_min": 90,
+      "lead_note": "nominal 90 min = 95 min from the last observed frame (context ends t-1, target t+18)",
+      "n_samples": 200,
+      "members": 8,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T22:25"
+      ],
+      "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
+      "crps_skill": 0.4363584991257917,
+      "crps_skill_95ci": [
+        0.30055102153825364,
+        0.5829299180125264
+      ],
+      "primary_pass": true,
+      "fss_pooled_ensemble_probability": {
+        "2.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.3692932090284471,
+            "persistence": 0.4284651482526778,
+            "diff": -0.059171939224230696,
+            "diff_95ci": [
+              -0.15536996292865374,
+              0.03616780264564364
+            ]
+          },
+          "11.9 km": {
+            "model": 0.44141874913705037,
+            "persistence": 0.5096595713066062,
+            "diff": -0.06824082216955585,
+            "diff_95ci": [
+              -0.18758666028419047,
+              0.047502883723244405
+            ]
+          },
+          "23.5 km": {
+            "model": 0.5529536780922029,
+            "persistence": 0.6110773585038767,
+            "diff": -0.05812368041167382,
+            "diff_95ci": [
+              -0.21034864723410954,
+              0.07213461634521719
+            ]
+          }
+        },
+        "10.0 mm/hr": {
+          "6.1 km": {
+            "model": 0.03145596038142806,
+            "persistence": 0.1054417390463459,
+            "diff": -0.07398577866491785,
+            "diff_95ci": [
+              -0.2273505855045143,
+              0.03531366109309266
+            ]
+          },
+          "11.9 km": {
+            "model": 0.04110526203806708,
+            "persistence": 0.16208711136166687,
+            "diff": -0.12098184932359979,
+            "diff_95ci": [
+              -0.3263734988110313,
+              0.02299899119983368
+            ]
+          },
+          "23.5 km": {
+            "model": 0.06080132081688194,
+            "persistence": 0.2680625990986607,
+            "diff": -0.20726127828177876,
+            "diff_95ci": [
+              -0.4637479532903197,
+              0.001960753504468334
+            ]
+          }
+        }
+      },
+      "legacy_per_sample_single_forecast_fss": {
+        "model": 0.008256317583450428,
+        "persistence": 0.03259556647940347,
+        "note": "old headline; per-sample averaging and single members -- diagnostic only"
+      },
+      "checkpoint": "checkpoints/nowcaster/lead90/ckpt_step_100000.pt"
     }
-  },
-  "legacy_per_sample_single_forecast_fss": {
-    "model": 0.028360058214450916,
-    "persistence": 0.056480810312457684,
-    "note": "old headline; per-sample averaging and single members -- diagnostic only"
   }
 }

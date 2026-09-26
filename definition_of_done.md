@@ -85,15 +85,26 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 ---
 
 ## Stage 5 — Evaluation & Flash Flood Map
-- [ ] `python scripts/evaluate.py` produces `results/evaluation_report.json` with FSS scores for lead times 30/60/90 min
+- [x] `python scripts/evaluate.py` produces `results/evaluation_report.json` with FSS scores for lead times 30/60/90 min
+  > *2026-09-26, pinned test period 14–25 Sep, 200 samples x 8 members, one model per lead (30 min: 300k steps; 60/90: 100k):*
+  >
+  > | lead | CRPS skill [95% CI] | FSS 2 mm/hr, model vs persistence | FSS 10 mm/hr | flood events, >=2 mm/hr within 1.4 km (of 38) |
+  > |---|---|---|---|---|
+  > | 30 | +0.384 [+0.251, +0.505] | **0.827** vs 0.742 | 0.337 vs **0.446** | **33** vs 26 |
+  > | 60 | +0.414 [+0.250, +0.579] | 0.359 vs **0.558** (CI excl. 0) | 0.028 vs **0.236** | 4 vs **8** |
+  > | 90 | +0.436 [+0.301, +0.583] | 0.441 vs **0.510** | 0.041 vs **0.162** | 1 vs **4** |
+  >
+  > **The 60/90-min models are not usable.** They pass CRPS but lose on every placement measure: their output is uncorrelated with the input (member vs last frame r ≈ 0.01, against 0.21 at 30 min) and keeps ~1/10 of the heavy-rain area. CRPS vs persistence rewards smooth weak rain because persistence is double-penalised when storms move (lesson L029). Likely cause: 100k steps is too short for the weaker conditioning signal at longer leads; untested. Details: `results/evaluation_report.json`, `results/probabilistic_eval_lead{30,60,90}.json`.
 - [x] **PRIMARY (amended 2026-09-25):** CRPS skill vs persistence > 0 at the 30-min (35 min from last frame) lead, with the 95% bootstrap CI lower bound > 0 — reported by `scripts/evaluate.py`
 - [x] **TRACKED:** pooled ensemble-probability FSS at 2 mm/hr (≈20 dBZ) vs persistence, with 95% CI of the difference — reported, not a pass condition
 - [ ] **TARGET (open):** skill at heavy rain (≥ 10 mm/hr), which drives flash floods — pooled ensemble FSS and flood-event hit rate vs persistence
-  > *Result 2026-09-25 (300k model, 200 test samples x 8 members):* PRIMARY **PASS** — CRPS skill +0.437, 95% CI [+0.338, +0.557]. TRACKED: FSS 0.820 vs 0.801 at 11.9 km, CI of diff [-0.066, +0.061] (tie). TARGET open: 0.530 vs 0.612 at 10 mm/hr. `results/evaluation_report.json`.
+  > *Re-scored 2026-09-26 on the pinned test period:* PRIMARY **PASS** — CRPS skill +0.384, 95% CI [+0.251, +0.505]; corroborated by FSS 2 mm/hr 0.827 vs 0.742 (CI of diff [-0.006, +0.132]). TARGET still open: 0.337 vs 0.446 at 10 mm/hr.
+  > *Result 2026-09-25 (300k model, 200 test samples x 8 members, pre-pinned moving test period):* PRIMARY **PASS** — CRPS skill +0.437, 95% CI [+0.338, +0.557]. TRACKED: FSS 0.820 vs 0.801 at 11.9 km, CI of diff [-0.066, +0.061] (tie). TARGET open: 0.530 vs 0.612 at 10 mm/hr. `results/evaluation_report.json`.
   > *Amendment rationale:* the original criterion ("FSS at 20 dBZ > persistence") was being scored on single ensemble members with per-sample-averaged FSS, which made the model look ~3× worse than persistence. Scored as an ensemble with standard pooled FSS it is a statistical tie; its probabilistic skill is clearly positive (CRPS skill +0.44, 95% CI [+0.34, +0.56]). A probabilistic criterion matches what a diffusion ensemble is for. Evidence: `tasks/replan_stage4_5.md` (Step 1), lesson L026.
 - [x] At least one identified heavy-rain event (≥30 mm/hr for ≥30 min) ~~from 2023~~ **from the radar test period** is shown as a qualitative case study in `notebooks/02_nowcast_evaluation.ipynb`
   > *Amended 2026-09-26:* the radar archive starts 2026-05-22, so no 2023 event exists. Case = 22 Sep 2026 Bukit Timah storm (King's Road / Coronation Road flash floods, 17:11/17:15 SGT), inside the pinned test split. Criterion verified in the notebook: ≥30 mm/hr for 100 min (15:55–17:35 SGT), peak 85 mm/hr. Lead-30 finding: first minutes missed, first P≥0.25 flag issued 15:45 SGT (86 min before the flood report), intensity ~5× low, decay better than persistence. 60/90-min sections fill in when their case caches exist (`scripts/case_study_forecasts.py`, then re-execute).
 - [x] `notebooks/03_flood_risk_overlay.ipynb` renders a map of Singapore with predicted rainfall overlaid on PUB flood-prone areas GeoJSON
   > *2026-09-26:* PUB publishes a named list (Nov 2025, 36 sites), not polygons; geocoded to points in `data/processed/flood_prone_areas.geojson` (36/36 located, 35 in domain). Map = P(≥10 mm/hr within 0.9 km) with the Natural Earth coastline. On 22 Sep: Brier 0.225 vs persistence 0.341 at the PUB points; the ensemble is under-confident (points given 0.25–0.5 were wet 88% of the time).
-- [ ] End-to-end inference time (6 input frames → 8 ensemble members × 3 lead times) is <5 minutes on RTX 4060
+- [x] End-to-end inference time (6 input frames → 8 ensemble members × 3 lead times) is <5 minutes on RTX 4060
+  > *2026-09-26:* `src/inference/nowcast.py` with the three lead checkpoints, issue 22 Sep 16:15 SGT: **19.6 s** wall time including model loading, data read and saving (~5.5 s per lead).
 - [ ] `checkpoints/stage5_complete.flag` exists
