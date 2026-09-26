@@ -8,7 +8,7 @@ Each sample:
 Normalisation: rain rates are log1p-transformed then mapped linearly to
 [-1, 1] against log_max, with NO clipping. This handles the heavy-tailed
 distribution of precipitation (most pixels are zero; few are very large)
-while keeping every one of NEA's 33 rain levels distinct -- see _normalise()
+while keeping every one of NEA's 33 rain levels distinct -- see normalise_rain()
 for why the earlier z-score-and-clamp was fatal.
 
 Storage: the archive is held in RAM as uint8 codes into a float32 value table
@@ -120,6 +120,69 @@ def load_stats() -> dict:
         with open(STATS_PATH) as f:
             return json.load(f)
     return compute_stats()
+
+
+# The model-input transforms, as plain functions so that live inference
+# (src/inference/nowcast.py) builds its input with the SAME code as training,
+# without encoding the whole archive. RadarDataset delegates to these.
+
+def normalise_rain(rain: np.ndarray, log_max: float) -> np.ndarray:
+    """log1p -> [-1, 1] against log_max. No clipping.
+
+    The previous version z-scored and clamped to [-3, 3], which silently
+    destroyed the entire signal of interest. This field is 97.5% zeros, so
+    log_std is only 0.215 and 3 sigma reaches just **0.96 mm/hr** -- 2 mm/hr
+    sits at 5 sigma, 20 at 14 sigma, 100 at 21.4 sigma. The result was that
+    **30 of the 35 rain levels mapped to exactly +3.0**, 65.9% of all wet
+    pixels were pinned at that ceiling, and the 35-level ramp collapsed to 6
+    distinct values. A 300k-step run trained on that target collapsed to
+    predicting the constant dry value (max output 0.006 mm/hr) and scored
+    FSS 0.000 against persistence's 0.070 -- strictly worse than assuming
+    the last frame persists.
+
+    Mapping log1p(rain) linearly onto [-1, 1] by log_max keeps every level
+    distinct, uses the full DDPM input range, and cannot clip: rain=0 -> -1,
+    0.5 -> -0.824, 2 -> -0.524, 20 -> +0.32, 100 -> +1.
+    """
+    x = np.log1p(rain) / log_max               # [0, 1]
+    return (2.0 * x - 1.0).astype(np.float32)  # [-1, 1]
+
+
+def denormalise_rain(x: torch.Tensor, log_max: float) -> torch.Tensor:
+    """Invert normalise_rain: normalised -> mm/hr."""
+    log_rain = (x.float() + 1.0) * 0.5 * log_max
+    return torch.expm1(log_rain.clamp(min=0))
+
+
+def time_features(t_last: np.datetime64, h: int, w: int) -> np.ndarray:
+    """sin/cos of Singapore local hour at the last observed frame, (2, h, w).
+
+    Singapore convection is strongly diurnal -- afternoon sea-breeze storms --
+    and the model had no clock at all. The evaluation showed its remaining
+    error is where storms FORM and DIE, not how they move (a shift by the
+    true displacement still lost to persistence), so the time of day is
+    cheap information about exactly that. Uses the last OBSERVED frame, which
+    is known at forecast time. Times are UTC; SGT = UTC + 8.
+    """
+    ts = np.datetime64(t_last).astype("datetime64[m]").astype(np.int64)  # minutes
+    hour = ((ts / 60.0) + 8.0) % 24.0
+    ang = 2.0 * np.pi * hour / 24.0
+    out = np.empty((2, h, w), dtype=np.float32)
+    out[0].fill(np.sin(ang))
+    out[1].fill(np.cos(ang))
+    return out
+
+
+def build_context(frames: np.ndarray, t_last: np.datetime64, log_max: float,
+                  time_channels: bool) -> np.ndarray:
+    """The model's input from raw mm/hr frames (CF, h, w), oldest first: the
+    normalised frames, with time channels PREPENDED when the model uses them.
+    Order matters: context[-1] must stay the last radar frame, because the
+    residual base and the persistence baseline both read it from there."""
+    x = normalise_rain(frames, log_max)
+    if not time_channels:
+        return x
+    return np.concatenate([time_features(t_last, x.shape[1], x.shape[2]), x], axis=0)
 
 
 class RadarDataset(Dataset):
@@ -340,22 +403,8 @@ class RadarDataset(Dataset):
         return self.context_frames + (2 if self.time_channels else 0)
 
     def _time_features(self, i_last: int, h: int, w: int) -> np.ndarray:
-        """sin/cos of Singapore local hour at the last observed frame, (2, h, w).
-
-        Singapore convection is strongly diurnal -- afternoon sea-breeze storms --
-        and the model had no clock at all. The evaluation showed its remaining
-        error is where storms FORM and DIE, not how they move (a shift by the
-        true displacement still lost to persistence), so the time of day is
-        cheap information about exactly that. Uses the last OBSERVED frame, which
-        is known at forecast time. Times are UTC; SGT = UTC + 8.
-        """
-        ts = self.times[i_last].astype("datetime64[m]").astype(np.int64)  # minutes
-        hour = ((ts / 60.0) + 8.0) % 24.0
-        ang = 2.0 * np.pi * hour / 24.0
-        out = np.empty((2, h, w), dtype=np.float32)
-        out[0].fill(np.sin(ang))
-        out[1].fill(np.cos(ang))
-        return out
+        """See time_features(); i_last is the archive index of the last observed frame."""
+        return time_features(self.times[i_last], h, w)
 
     def _context(self, t: int, y0: int = 0, x0: int = 0,
                  c: int | None = None) -> np.ndarray:
@@ -367,11 +416,8 @@ class RadarDataset(Dataset):
             codes = self.codes[t - self.context_frames: t]
         else:
             codes = self.codes[t - self.context_frames: t, y0:y0 + c, x0:x0 + c]
-        frames = self._normalise(self._decode(codes))          # (CF, h, w)
-        if not self.time_channels:
-            return frames
-        tf = self._time_features(t - 1, frames.shape[1], frames.shape[2])
-        return np.concatenate([tf, frames], axis=0)
+        return build_context(self._decode(codes), self.times[t - 1],
+                             self.log_max, self.time_channels)
 
     def context_at(self, t: int) -> torch.Tensor:
         """Full-frame model input for anchor t (last observed frame t-1). For
@@ -416,30 +462,12 @@ class RadarDataset(Dataset):
         return len(self.indices)
 
     def _normalise(self, rain: np.ndarray) -> np.ndarray:
-        """log1p -> [-1, 1] against log_max. No clipping.
-
-        The previous version z-scored and clamped to [-3, 3], which silently
-        destroyed the entire signal of interest. This field is 97.5% zeros, so
-        log_std is only 0.215 and 3 sigma reaches just **0.96 mm/hr** -- 2 mm/hr
-        sits at 5 sigma, 20 at 14 sigma, 100 at 21.4 sigma. The result was that
-        **30 of the 35 rain levels mapped to exactly +3.0**, 65.9% of all wet
-        pixels were pinned at that ceiling, and the 35-level ramp collapsed to 6
-        distinct values. A 300k-step run trained on that target collapsed to
-        predicting the constant dry value (max output 0.006 mm/hr) and scored
-        FSS 0.000 against persistence's 0.070 -- strictly worse than assuming
-        the last frame persists.
-
-        Mapping log1p(rain) linearly onto [-1, 1] by log_max keeps every level
-        distinct, uses the full DDPM input range, and cannot clip: rain=0 -> -1,
-        0.5 -> -0.824, 2 -> -0.524, 20 -> +0.32, 100 -> +1.
-        """
-        x = np.log1p(rain) / self.log_max          # [0, 1]
-        return (2.0 * x - 1.0).astype(np.float32)  # [-1, 1]
+        """See normalise_rain()."""
+        return normalise_rain(rain, self.log_max)
 
     def denormalise(self, x: torch.Tensor) -> torch.Tensor:
         """Invert normalisation: normalised -> mm/hr."""
-        log_rain = (x.float() + 1.0) * 0.5 * self.log_max
-        return torch.expm1(log_rain.clamp(min=0))
+        return denormalise_rain(x, self.log_max)
 
     def __getitem__(self, idx: int) -> dict:
         t = self.indices[idx]
