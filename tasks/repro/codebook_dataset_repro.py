@@ -118,7 +118,11 @@ def main() -> None:
         bad[a:b] = nn.any(axis=(1, 2))
         fmax[a:b] = np.nan_to_num(blk, nan=0.0).max(axis=(1, 2))
     bad_cs = np.concatenate(([0], np.cumsum(bad)))
-    exp = [i for i in range(6, n_train) if i <= T - 7
+    # Pinned split (2026-09-26): train anchors end before SPLIT_VAL_START and
+    # their target must stay inside train as well.
+    from src.data.radar_dataset import SPLIT_VAL_START
+    vs = int(np.searchsorted(times, SPLIT_VAL_START))
+    exp = [i for i in range(6, vs) if i + 6 < vs
            and ok_cs[i + 6] - ok_cs[i - 6] == 12
            and bad_cs[i + 7] - bad_cs[i - 6] == 0]
     exp = exp + [i for i in exp if fmax[i] >= 10.0] * 2

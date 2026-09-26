@@ -59,6 +59,17 @@ CROP_SIZE = 64
 # the model still sees fully dry scenes and domain edges.
 CROP_RAIN_FRAC = 0.8
 
+# Split boundaries, PINNED by date (2026-09-26). They used to be "last 10% =
+# test, previous 10% = val" of an archive that grows every morning, so every
+# split moved daily: evaluations from different days scored different test
+# periods, and a cache silently compared yesterday's forecasts with today's
+# observations (lesson L028). Fixing the dates makes every result reproducible
+# and lets models trained on different days share one test period. Frames after
+# SPLIT_TEST_END are excluded from all three splits -- a fresh holdout.
+SPLIT_VAL_START = np.datetime64("2026-09-02T06:50")
+SPLIT_TEST_START = np.datetime64("2026-09-14T03:20")
+SPLIT_TEST_END = np.datetime64("2026-09-25T23:55")      # inclusive
+
 # One encoded archive per process, shared by every split (see _attach_shared).
 # Keyed on (resolved zarr path, frame count).
 _CODE_CACHE: dict[tuple[str, int], tuple] = {}
@@ -119,8 +130,8 @@ class RadarDataset(Dataset):
     context_frames: number of past frames to use as conditioning
     target_offset : how many steps ahead to predict
     zarr_path     : path to radar.zarr (default: data/processed/radar.zarr)
-    val_frac      : fraction of data for validation (last N days)
-    test_frac     : fraction of data for test (last M days)
+    val_frac, test_frac : ignored -- splits are pinned by date (see
+                    SPLIT_VAL_START / SPLIT_TEST_START / SPLIT_TEST_END)
     heavy_rain_oversample : factor to oversample heavy rain events (≥10 mm/hr)
     """
 
@@ -162,23 +173,18 @@ class RadarDataset(Dataset):
         ds.close()
 
         T = self.codes.shape[0]
-        n_val = max(1, int(T * val_frac))
-        n_test = max(1, int(T * test_frac))
-        n_train = T - n_val - n_test
+        vs = int(np.searchsorted(times, SPLIT_VAL_START))
+        ts = int(np.searchsorted(times, SPLIT_TEST_START))
+        te = int(np.searchsorted(times, SPLIT_TEST_END, side="right"))  # exclusive
+        self.split_bounds = {"train": (0, vs), "val": (vs, ts), "test": (ts, te)}
+        lo, hi = self.split_bounds[split]
 
-        # Minimum index for a valid sample: need context_frames before + target_offset after
-        min_idx = context_frames
-        max_idx = T - target_offset - 1
-
-        if split == "train":
-            valid_range = range(min_idx, n_train)
-        elif split == "val":
-            valid_range = range(n_train, n_train + n_val)
-        else:
-            valid_range = range(n_train + n_val, T - target_offset)
-
-        # Build index list; optionally oversample heavy-rain events
-        self.indices = [i for i in valid_range if i <= max_idx]
+        # Anchor t reads context t-CF..t-1 and TARGET t+target_offset. Keep an
+        # anchor only if its target lies inside its own split: the old fraction
+        # logic let training anchors near the boundary take their target from
+        # the validation period.
+        min_idx = max(context_frames, lo)
+        self.indices = [i for i in range(min_idx, hi) if i + target_offset < hi]
 
         # Gap-aware filtering: __getitem__ assumes positional adjacency means
         # 5-min steps, but the archive has holes (missed scrapes). A sample at
