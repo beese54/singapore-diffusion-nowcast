@@ -27,13 +27,15 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import xarray as xr
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from evaluate import load_model  # noqa: E402
-from src.data.radar_dataset import RadarDataset  # noqa: E402
+from src.data.radar_dataset import (ZARR_PATH, build_context,  # noqa: E402
+                                    denormalise_rain, load_stats)
 
 START = np.datetime64("2026-09-22T07:30")
 END = np.datetime64("2026-09-22T10:30")
@@ -47,28 +49,37 @@ def main():
 
     model = load_model(ROOT / args.checkpoint, "cuda" if torch.cuda.is_available() else "cpu")
     off = model.target_offset
-    ds = RadarDataset("test", target_offset=off, **model.data_cfg)
+    cf, tc = model.data_cfg["context_frames"], model.data_cfg["time_channels"]
+    log_max = max(load_stats()["log_max"], 1e-6)       # as RadarDataset
 
+    # Only this afternoon's frames are read (not the whole archive, ~1 GB in
+    # RAM), through the same build_context() the training dataset uses.
+    da = xr.open_zarr(ZARR_PATH, consolidated=True)["rain_rate"]
+    times = da.time.values.astype("datetime64[m]")
     targets = np.arange(START, END + np.timedelta64(1, "m"), np.timedelta64(10, "m"))
-    idx = [int(np.searchsorted(ds.times, t)) for t in targets]
-    if not all(ds.times[i] == t for i, t in zip(idx, targets)):
+    idx = [int(np.searchsorted(times, t)) for t in targets]
+    if not all(times[i] == t for i, t in zip(idx, targets)):
         sys.exit("a target frame is missing from the archive")
     anchors = [i - off for i in idx]
-    step_ok = np.diff(ds.times) == np.timedelta64(5, "m")
+    step_ok = np.diff(times) == np.timedelta64(5, "m")
     okc = np.concatenate(([0], np.cumsum(step_ok)))
-    cf = ds.context_frames
     for a, i in zip(anchors, idx):
         if okc[i] - okc[a - cf] != i - (a - cf):
-            sys.exit(f"archive gap inside the span for target {ds.times[i]}")
+            sys.exit(f"archive gap inside the span for target {times[i]}")
+    lo = min(anchors) - cf
+    block = da.isel(time=slice(lo, max(anchors))).values.astype(np.float32)
+    if np.isnan(block).any():
+        sys.exit("a context frame is blank (failed scrape)")
 
-    ens = np.empty((len(anchors), args.members, *ds.codes.shape[1:]), np.float16)
+    ens = np.empty((len(anchors), args.members, *block.shape[1:]), np.float16)
     dev = next(model.parameters()).device
     for k, t in enumerate(anchors):
+        ctx = build_context(block[t - cf - lo: t - lo], times[t - 1], log_max, tc)
         torch.manual_seed(9000 + k)
         with torch.no_grad():
-            e = model.ensemble_sample(ds.context_at(t).unsqueeze(0).to(dev),
+            e = model.ensemble_sample(torch.from_numpy(ctx).unsqueeze(0).to(dev),
                                       n_members=args.members, eta=1.0)
-        ens[k] = ds.denormalise(e.cpu().float()[0, :, 0]).numpy()
+        ens[k] = denormalise_rain(e.cpu().float()[0, :, 0], log_max).numpy()
 
     out = ROOT / "data" / "processed" / "eval_cache" / f"case_22sep_lead{off * 5}.npz"
     out.parent.mkdir(parents=True, exist_ok=True)
