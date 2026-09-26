@@ -120,6 +120,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", nargs="?", const="auto", default=None,
                         help="Resume from checkpoint. No value = auto-find latest.")
+    parser.add_argument("--run-name", default="",
+                        help="Train into checkpoints/nowcaster/<run-name>/ instead of the "
+                             "shared folder. Needed for side-by-side models (e.g. one per "
+                             "lead time): the shared folder holds the 300k 30-min model, "
+                             "and pruning / latest.pt would otherwise mix runs.")
     parser.add_argument("--smoke", action="store_true",
                         help="Smoke-test run: isolate checkpoints to a throwaway subdir "
                              "and skip writing stage4_complete.flag.")
@@ -277,7 +282,12 @@ def main():
 
     # Smoke runs write to an isolated subdir so --resume auto can never pick up
     # toy checkpoints, and they never mark the stage complete.
-    ckpt_dir = CKPT_DIR / "smoke" if args.smoke else CKPT_DIR
+    if args.smoke:
+        ckpt_dir = CKPT_DIR / "smoke"
+    elif args.run_name:
+        ckpt_dir = CKPT_DIR / args.run_name
+    else:
+        ckpt_dir = CKPT_DIR
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     if args.smoke:
         print(f"[smoke] Test run: checkpoints -> {ckpt_dir} (stage flag will NOT be written)")
