@@ -119,17 +119,32 @@ def in_sg(lat: float, lon: float) -> bool:
 
 def onemap_geocode(query: str) -> dict | None:
     """Query OneMap; return best in-SG result closest to the query name."""
-    try:
-        r = requests.get(
-            ONEMAP_URL,
-            params={"searchVal": query, "returnGeom": "Y",
-                    "getAddrDetails": "Y", "pageNum": 1},
-            timeout=15,
-        )
+    # OneMap rate-limits bursts with HTTP 429. That used to be treated like "no
+    # match", so a busy moment silently left real locations unresolved (found
+    # 2026-09-26: 11 of 36 PUB flood-prone areas, all ordinary road names,
+    # failed on 429s). Back off and retry instead.
+    results = None
+    for attempt in range(5):
+        try:
+            r = requests.get(
+                ONEMAP_URL,
+                params={"searchVal": query, "returnGeom": "Y",
+                        "getAddrDetails": "Y", "pageNum": 1},
+                timeout=15,
+            )
+        except requests.RequestException:
+            return None
+        if r.status_code == 429:
+            time.sleep(2 ** attempt)          # 1, 2, 4, 8, 16 s
+            continue
         if r.status_code != 200:
             return None
-        results = r.json().get("results", [])
-    except (requests.RequestException, ValueError):
+        try:
+            results = r.json().get("results", [])
+        except ValueError:
+            return None
+        break
+    if results is None:                       # still rate-limited after retries
         return None
 
     q = query.lower()
