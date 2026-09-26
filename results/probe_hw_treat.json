@@ -1,0 +1,196 @@
+{
+  "checkpoint": "checkpoints/nowcaster/probe_hw_treat/ckpt_step_12000.pt",
+  "step": 12000,
+  "n_samples": 200,
+  "members": 8,
+  "lead_min_from_last_frame": 35,
+  "pixel_km": 0.29,
+  "A_fss": {
+    "0.5": {
+      "persistence": {
+        "6.1 km": 0.7698759211542651,
+        "11.9 km": 0.8465531232572643,
+        "23.5 km": 0.9065523530493165
+      },
+      "model: ensemble probability": {
+        "6.1 km": 0.5776678075810724,
+        "11.9 km": 0.6412022853755823,
+        "23.5 km": 0.7106312034371903
+      },
+      "model: single member": {
+        "6.1 km": 0.31162816229183155,
+        "11.9 km": 0.4041085297540439,
+        "23.5 km": 0.537555841609443
+      },
+      "useful_threshold": 0.5208437019969278
+    },
+    "2.0": {
+      "persistence": {
+        "6.1 km": 0.7042537605835373,
+        "11.9 km": 0.8010518338948822,
+        "23.5 km": 0.8831602052307337
+      },
+      "model: ensemble probability": {
+        "6.1 km": 0.4467917835519757,
+        "11.9 km": 0.5212057299130315,
+        "23.5 km": 0.616713062365779
+      },
+      "model: single member": {
+        "6.1 km": 0.2359483512622389,
+        "11.9 km": 0.32933741099515457,
+        "23.5 km": 0.4723234714033193
+      },
+      "useful_threshold": 0.5081284562211982
+    },
+    "10.0": {
+      "persistence": {
+        "6.1 km": 0.491035329466914,
+        "11.9 km": 0.6118592322533186,
+        "23.5 km": 0.7288221185375195
+      },
+      "model: ensemble probability": {
+        "6.1 km": 0.23712439599994817,
+        "11.9 km": 0.311692027606583,
+        "23.5 km": 0.44207147326584795
+      },
+      "model: single member": {
+        "6.1 km": 0.12304914920169552,
+        "11.9 km": 0.20261539475543322,
+        "23.5 km": 0.3662877747398068
+      },
+      "useful_threshold": 0.5022257104454685
+    }
+  },
+  "B_crps": {
+    "all pixels": {
+      "model": 0.3302905559539795,
+      "persistence": 0.2811833322048187,
+      "skill": -0.17464486022020043
+    },
+    "rain-relevant pixels": {
+      "model": 0.5090438723564148,
+      "persistence": 0.44794803857803345,
+      "skill": -0.1363904482589633
+    }
+  },
+  "C_boxes": {
+    "2.9 km": {
+      "crps_model": 0.3429296314716339,
+      "crps_persistence": 0.2724992632865906,
+      "crps_skill": -0.2584607654919453,
+      "brier_model": 0.05411768353174603,
+      "brier_persistence": 0.028015872463583946,
+      "brier_skill": -0.9316793936041139,
+      "event_rate": 0.03238095238095238,
+      "model_p>=0.5": {
+        "hits": 1132,
+        "misses": 500,
+        "false_alarms": 2259,
+        "POD": 0.6936274509803921,
+        "FAR": 0.6661751695664996,
+        "CSI": 0.2909277820611668
+      },
+      "persistence": {
+        "hits": 1016,
+        "misses": 616,
+        "false_alarms": 796,
+        "POD": 0.6225490196078431,
+        "FAR": 0.4392935982339956,
+        "CSI": 0.4184514003294893
+      }
+    },
+    "6.1 km": {
+      "crps_model": 0.34041666984558105,
+      "crps_persistence": 0.24752165377140045,
+      "crps_skill": -0.3753005632386981,
+      "brier_model": 0.06901875,
+      "brier_persistence": 0.0272000003606081,
+      "brier_skill": -1.537454010476968,
+      "event_rate": 0.0373,
+      "model_p>=0.5": {
+        "hits": 299,
+        "misses": 74,
+        "false_alarms": 664,
+        "POD": 0.8016085790884718,
+        "FAR": 0.6895119418483905,
+        "CSI": 0.28833172613307617
+      },
+      "persistence": {
+        "hits": 248,
+        "misses": 125,
+        "false_alarms": 147,
+        "POD": 0.6648793565683646,
+        "FAR": 0.3721518987341772,
+        "CSI": 0.47692307692307695
+      }
+    },
+    "11.9 km": {
+      "crps_model": 0.3531370162963867,
+      "crps_persistence": 0.2299417108297348,
+      "crps_skill": -0.5357675430964959,
+      "brier_model": 0.1037265625,
+      "brier_persistence": 0.025499999523162842,
+      "brier_skill": -3.067708409397432,
+      "event_rate": 0.05,
+      "model_p>=0.5": {
+        "hits": 88,
+        "misses": 12,
+        "false_alarms": 279,
+        "POD": 0.88,
+        "FAR": 0.7602179836512262,
+        "CSI": 0.23218997361477572
+      },
+      "persistence": {
+        "hits": 75,
+        "misses": 25,
+        "false_alarms": 26,
+        "POD": 0.75,
+        "FAR": 0.25742574257425743,
+        "CSI": 0.5952380952380952
+      }
+    }
+  },
+  "D_flood_events": {
+    "n_events": 38,
+    "types": {
+      "FLOOD_RISK": 36,
+      "FLASH_FLOOD": 2
+    },
+    ">=2.0 mm/hr within 1.4 km": {
+      "model_hits": 32,
+      "persistence_hits": 26,
+      "observed": 38,
+      "n_events": 38,
+      "model_alarm_rate_ordinary": 0.09595238095238096,
+      "persistence_alarm_rate_ordinary": 0.10666666666666667,
+      "observed_rate_ordinary": 0.10738095238095238
+    },
+    ">=2.0 mm/hr within 4.9 km": {
+      "model_hits": 38,
+      "persistence_hits": 33,
+      "observed": 38,
+      "n_events": 38,
+      "model_alarm_rate_ordinary": 0.8476190476190476,
+      "persistence_alarm_rate_ordinary": 0.5726190476190476,
+      "observed_rate_ordinary": 0.555
+    },
+    ">=10.0 mm/hr within 1.4 km": {
+      "model_hits": 17,
+      "persistence_hits": 22,
+      "observed": 37,
+      "n_events": 38,
+      "model_alarm_rate_ordinary": 0.021904761904761906,
+      "persistence_alarm_rate_ordinary": 0.01904761904761905,
+      "observed_rate_ordinary": 0.01904761904761905
+    },
+    ">=10.0 mm/hr within 4.9 km": {
+      "model_hits": 36,
+      "persistence_hits": 30,
+      "observed": 38,
+      "n_events": 38,
+      "model_alarm_rate_ordinary": 0.33,
+      "persistence_alarm_rate_ordinary": 0.05071428571428571,
+      "observed_rate_ordinary": 0.055714285714285716
+    }
+  }
+}

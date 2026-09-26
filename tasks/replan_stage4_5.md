@@ -148,3 +148,24 @@ Per section 3, this triggers the Stage 5 criterion decision.
 
 **Conclusion:** intensity is fixable at the margins but is not what holds heavy rain
 back; the anchoring/decay of storm cores is. Next: heavy-rain weighted loss, clean A/B.
+
+**Heavy-rain weighted loss — rejected** (clean A/B, 12k steps each, 200 test times x 8):
+
+| | control | heavy-weighted (beta 20, 2 km) |
+|---|---|---|
+| training guard | clean | DEGENERATE "rain everywhere" at 8k and 12k |
+| frequency bias >=2 / >=10 mm/hr | 0.69 / 0.60 | 4.90 / 4.97 |
+| storm cores kept (observed 27.0%) | 14.6% | 5.0% |
+| pooled FSS 2 mm/hr, 11.9 km | 0.746 | 0.521 (paired CI [-0.312, -0.008]) |
+| pooled FSS 10 mm/hr, 11.9 km | 0.556 | 0.312 |
+| CRPS skill vs persistence | +0.415 | -0.136 |
+| rain flagged within 4.9 km of flood sites at ordinary times | 5.9% | 84.8% |
+
+Mechanism (see L027): with example-dependent weights the optimal denoiser is the
+posterior mean under a *reweighted* distribution, so the model samples a world
+where rain is more common. This is the second loss weighting to produce "rain
+everywhere" (the first, intensity_alpha, was attributed to confounded crops in
+L022). Loss reweighting is not a usable lever for rare-event skill here.
+
+**Status of heavy rain:** open. Cheap fixes (sampler, calibration) and loss
+weighting are exhausted; what remains is information or architecture.
