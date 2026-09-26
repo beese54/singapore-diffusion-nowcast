@@ -262,8 +262,8 @@
         {
           "id": "5.9",
           "description": "Make the 60/90-min models usable (they ignore where the rain is)",
-          "status": "Pending",
-          "notes": "Options: warm-start from the 30-min model, or train longer (the 30-min model had 300k steps, these 100k). Awaiting user decision."
+          "status": "In-Progress",
+          "notes": "User chose warm start (2026-09-26): train.py --init-from the 30-min 300k model, 100k steps each, run names lead60_warm / lead90_warm (from-scratch lead60/lead90 kept for comparison). Launched 21:3x detached via train_leads_warm.bat (--resume auto safe after shutdown)."
         }
       ]
     },
