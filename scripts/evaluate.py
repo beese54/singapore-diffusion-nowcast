@@ -385,8 +385,8 @@ def main():
         "lead_note": (f"nominal {args.lead} min = {args.lead + 5} min from the last "
                       f"observed frame (context ends t-1, target t+{target_offset})"),
         "n_samples": n, "members": args.members,
-        # The test split is the last 10% of a GROWING archive, so it moves every
-        # day. Record exactly which period was scored so results are traceable.
+        # The test split is pinned by date (radar_dataset.SPLIT_*); record the
+        # anchors actually scored so results stay traceable.
         "test_period": [str(test_ds.times[test_ds.indices[int(picks[0])]])[:16],
                         str(test_ds.times[test_ds.indices[int(picks[-1])]])[:16]],
         "criterion": "PRIMARY: CRPS skill vs persistence > 0 with 95% CI lower bound > 0",
@@ -398,9 +398,25 @@ def main():
             "persistence": float(np.mean(legacy_persist_fss)),
             "note": "old headline; per-sample averaging and single members -- diagnostic only"},
     }
-    out_path = RESULTS_DIR / "evaluation_report.json"
-    with open(out_path, "w") as f:
-        json.dump(report, f, indent=2)
+    report["checkpoint"] = "smoke" if args.smoke else str(args.checkpoint)
+    out_path = RESULTS_DIR / ("evaluation_report_smoke.json" if args.smoke
+                              else "evaluation_report.json")
+
+    def save(rep):
+        # One model per lead, so each run fills its own lead's section of ONE
+        # report (the DoD asks for 30/60/90 in evaluation_report.json). A file
+        # from before the pinned split (single lead at top level) is replaced:
+        # its test period is not comparable.
+        full = {}
+        if out_path.exists():
+            full = json.loads(out_path.read_text(encoding="utf-8"))
+        if "by_lead" not in full:
+            full = {"by_lead": {}}
+        full["by_lead"][str(rep["lead_time_min"])] = rep
+        full["by_lead"] = dict(sorted(full["by_lead"].items(), key=lambda kv: int(kv[0])))
+        out_path.write_text(json.dumps(full, indent=2), encoding="utf-8")
+
+    save(report)
 
     print("\n=== Evaluation Report ===")
     for k, v in report.items():
@@ -410,8 +426,7 @@ def main():
     if args.flood_eval:
         flood_report = score_flood_events(model, device, test_ds, args)
         report["flood_eval"] = flood_report
-        with open(out_path, "w") as f:
-            json.dump(report, f, indent=2)
+        save(report)
         print("\n=== Flood Event Evaluation ===")
         for k, v in flood_report.items():
             print(f"  {k}: {v}")
