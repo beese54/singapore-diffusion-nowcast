@@ -127,6 +127,7 @@ The GitHub push and the LinkedIn post are the two outward-facing steps; each get
 
 - D1 **MIT** for code, **CC-BY-4.0** for docs/figures.
 - D2 **Code + results + small derived figures** with NEA/PUB attribution; no radar archive, no raw messages.
+- D2a (2026-09-27, user decision) NEA's weather.gov.sg terms bar republishing without written permission except personal, non-commercial, informational use with copyright notices intact. The user chose **not** to request permission and to rely on that exception: every radar-derived image carries "Radar imagery © NEA / Meteorological Service Singapore (weather.gov.sg). Used for personal, non-commercial, informational purposes only." in the README, docs/DATA.md, dashboard footer, figure captions and the LinkedIn post. No NEA images or archives are redistributed as data.
 - D3 repo name: default `beese54/singapore-diffusion-nowcast` unless changed at push time.
 - D4 **Static site on GitHub Pages.**
 - D5 CorrDiff: **local spike first**, then a go/no-go with a cost estimate before any spend.

@@ -1,4 +1,4 @@
-cl#!/usr/bin/env bash
+#!/usr/bin/env bash
 # init.sh — Reproducible environment setup for Singapore Weather Diffusion POC
 # Run this once (or after a fresh clone) to create the conda environment.
 # Safe to re-run: skips steps that are already complete.
@@ -44,8 +44,8 @@ if [ -f "$HOME/.cdsapirc" ]; then
 else
   echo "[NOTICE] ~/.cdsapirc not found."
   echo "  To download ERA5 data, create ~/.cdsapirc with:"
-  echo "    url: https://cds.climate.copernicus.eu/api/v2"
-  echo "    key: <your-uid>:<your-api-key>"
+  echo "    url: https://cds.climate.copernicus.eu/api"
+  echo "    key: <your-personal-access-token>"
   echo "  Get your key at: https://cds.climate.copernicus.eu"
 fi
 

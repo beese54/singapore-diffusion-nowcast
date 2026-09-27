@@ -2,11 +2,12 @@
 diffusion.py — DDPM diffusion process for radar nowcasting.
 
 Implements:
-- Linear noise schedule (beta schedule)
+- Cosine noise schedule (default; linear available), 1000 training steps
 - Forward process: q(x_t | x_0)
-- Reverse process: p_theta(x_{t-1} | x_t, context)
-- Training loss: simplified L_simple (predict noise)
-- Inference: DDIM sampler for fast generation (50 steps vs 1000 training steps)
+- Reverse process: p_theta(x_{t-1} | x_t, context), context = past radar frames
+- Training loss: MSE on the v-prediction target (default; eps available but
+  fails on this near-binary data -- see train.py DEFAULTS "parameterization")
+- Inference: DDIM sampler, 50 steps, eta=1 for ensembles
 """
 
 import math
