@@ -112,8 +112,8 @@ too low; handled the decay far better than persistence. 60/90 min: no flag.
 **27 Sep 2026, Neo Pee Teck Lane / Pasir Panjang Road (after the test period — fully out of
 sample).** Dry until 11:05 SGT, 100 mm/hr (top of NEA's scale) 11:30–11:40, flash flood 11:57.
 30-min model: first flag issued **10:35 SGT (P≥10 = 0.38) while persistence was still dry** —
-35 min before rain reached the site, 30 min before PUB's first warning anywhere, 82 min before the
-flood report. Intensity ~10× too low. 60 min: one flag (P = 0.50) issued 10:35; 90 min: none.
+35 min before rain reached the site, 30 min before PUB's first alert anywhere, **59 min before the
+drain-sensor flood-risk alert at that junction (11:34)**, 82 min before the flash-flood report. Intensity ~10× too low. 60 min: one flag (P = 0.50) issued 10:35; 90 min: none.
 
 ## 5. Inference speed
 

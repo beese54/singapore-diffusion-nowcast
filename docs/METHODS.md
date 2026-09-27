@@ -20,8 +20,9 @@
 
 ### Flood ground truth
 - **Source:** PUB's public Telegram channel (@pubfloodalerts), collected daily
-  (`scripts/collect_flood_labels.py`). Message types: rain warnings, flood-risk warnings, flash
-  floods. Times in the message text are Singapore wall-clock and are converted to UTC (lesson L009).
+  (`scripts/collect_flood_labels.py`). Message types: rain warnings, **flood-risk alerts** (issued when a
+  drain's water-level sensor reaches 90% of its depth — PUB runs more than 1,000 such sensors), and flash
+  floods (reported flooding). Times in the message text are Singapore wall-clock and are converted to UTC (lesson L009).
 - **Geocoding** (`scripts/geocode_flood_labels.py`): OneMap search with a local cache
   (`data/processed/geocode_cache.json`, versioned); junctions are placed on the first road named;
   unresolvable names are fixed by hand in the cache and marked `method: manual`.

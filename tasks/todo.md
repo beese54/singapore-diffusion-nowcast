@@ -48,6 +48,11 @@
 - [ ] USER: post on LinkedIn (content/linkedin_post_phase1.md, links filled; images docs/img/linkedin/)
 - [x] ~~USER: apply for NVIDIA LaunchPad~~ dropped 2026-09-27: console needs an enterprise sign-in; hosted CorrDiff NIM deprecated. Spike runs locally.
 
+### F. Flood-response layer (from the user, 2026-09-27)
+- [ ] F1 "minutes ahead of PUB's drain sensor" benchmark over all out-of-sample drain alerts
+- [ ] F2 per-location P(drain alert | forecast rain) once enough alerts accumulate (months)
+- [ ] F3 check whether PUB's public water-level page can be used for continuous levels
+
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)
 - [ ] C2 regression-stage spike per `tasks/spike_corrdiff.md` (question, design and go/no-go fixed before results) -> go/no-go with cost estimate

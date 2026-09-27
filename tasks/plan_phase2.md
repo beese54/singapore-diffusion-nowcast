@@ -107,6 +107,21 @@ Why: every radar-only fix failed; the diagnosis is missing information — storm
 - D3. Write `tasks/plan_stage7_heavy_rain.md` (for approval) after 2–4 weeks of 240 km data: candidate designs (240 km context as extra conditioning; satellite channels; gauge-calibrated targets), evaluation on heavy-rain FSS + flood hits, with an honest go/no-go.
 - Data longevity: the archive is the project's most valuable asset → document backup (OneDrive already syncs `data/`? verify) and storage growth (~X GB/month, measure).
 
+## 4b. Workstream F — flood-response layer (added 2026-09-27, from the user)
+
+The nowcaster predicts rain, not floods. PUB's Telegram "Risk of Flash Floods" alerts are issued when a drain's
+water-level sensor reaches **90% of its depth** (PUB, "Subscribe to SMS Alerts"; >1,000 sensors), so every
+FLOOD_RISK label is a drain-sensor threshold crossing. As of 27 Sep: 72 such alerts (52 geocoded, 35 locations,
+16 days) vs 3 flash-flood reports — 24× more flood-related ground truth.
+
+- F1. Benchmark "minutes ahead of PUB's drain sensor": for each out-of-sample drain alert, when did the model first
+  warn nearby? (27 Sep Neo Pee Teck: model 10:35, drain alert 11:34 → 59 min.)
+- F2. Flood-response layer: per location, P(drain alert within 30–60 min | forecast rain around it), learned from
+  alert history; score hits/false alarms honestly, count storms not alerts (L031).
+- F3. Check whether PUB's public water-level page (app.pub.gov.sg/waterlevel) offers continuous readings that may be
+  used respectfully; the alerts only reveal crossings of 90%, never levels below it.
+- Needs time: months of alerts, including the Northeast Monsoon. Keep the daily Telegram collection running.
+
 ## 5. Workstream E — LinkedIn post  *(Pattern V)*
 
 - Framing: **continuation**, not a wrap-up — "Phase 1 done, here's what worked, what didn't, and what's next (CorrDiff + heavy rain)".

@@ -34,9 +34,10 @@ Read these before using any result from this repository.
 
 ## Ground truth and data caveats
 
-10. **Flood labels are alerts, not measurements.** PUB flood-risk warnings are issued when rain is
-    already heavy; flash-flood reports depend on someone observing and reporting. Absence of a report
-    is not absence of flooding.
+10. **Flood labels are threshold crossings and reports, not continuous measurements.** A PUB flood-risk alert
+    means a drain sensor reached 90% of its depth — we never see levels below that. Flash-flood reports
+    depend on someone observing and reporting. Absence of a report is not absence of flooding, and only
+    places with sensors can raise an alert.
 11. **Locations are points.** Road names are geocoded to one point (junctions to the first road
     named); PUB's flood-prone list is names, not areas.
 12. **Radar is a proxy for rain at the ground.** It is NEA's colour-coded product at 33 intensity
