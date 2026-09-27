@@ -27,9 +27,9 @@
 ### A. Repo hygiene & docs
 - [x] A1 cleanup: portable launchers, results/ablations/ (+README), docs/history/, spec wording, per-lead eval output (5c1a431). ERA5 tmp files KEPT: they are download_era5.py's cache (17 MB, gitignored)
 - [x] C0 LaunchPad brief rewritten with verified facts; June package -> docs/history/launchpad_2026-06/. **User action: apply for the PhysicsNeMo lab**
-- [ ] A2 README.md
-- [ ] A3 docs/ (METHODS, RESULTS, LIMITATIONS, LESSONS, REPRODUCE, DATA)
-- [ ] A4 LICENSE (MIT) + CC-BY docs note, CITATION.cff
+- [x] A2 README.md (results table, mermaid diagram, repo map, NEA notice, roadmap)
+- [x] A3 docs/ METHODS, RESULTS, LIMITATIONS, LESSONS, REPRODUCE, DATA + docs/img. Every command in REPRODUCE was run; all numbers read from results/*.json; links checked
+- [x] A4 LICENSE (MIT, holder "beese54" — user may change to real name) + CC BY 4.0 docs note + CITATION.cff
 
 ### B. Dashboard (static, GitHub Pages)
 - [ ] B0 `scripts/build_dashboard.py` data export

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this code or its findings, please cite it as below."
+title: "Singapore flash-flood nowcasting with generative diffusion"
+authors:
+  - alias: beese54
+type: software
+license: MIT
+date-released: "2026-09-27"
+abstract: >-
+  A v-prediction diffusion nowcaster for Singapore rain radar (NEA, 0.29 km, 5-min), producing
+  8-member ensembles at 30/60/90-minute leads, with an evaluation against persistence that includes
+  pooled FSS, CRPS and out-of-sample flash-flood reports. Heavy-rain skill is a documented limitation.
+keywords:
+  - nowcasting
+  - diffusion models
+  - weather radar
+  - flash floods
+  - Singapore
