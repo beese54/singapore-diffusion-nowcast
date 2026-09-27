@@ -4,7 +4,8 @@ scrape_radar.py — Incremental archiver for NEA Singapore radar imagery.
 Behaviour
 ---------
 - Downloads radar rain-area PNG images from NEA's public weather portal
-- Stores each image as data/raw/radar/YYYYMMDD_HHMM.png
+- Stores each image as data/raw/radar/YYYYMMDD_HHMM.png (70 km product, the
+  nowcaster's input) or data/raw/radar_240km/YYYYMMDD_HHMM.png (--product 240km)
 - Already-downloaded images are skipped
 - Respectful rate limiting (1 request/s by default)
 - Safe to run repeatedly; each session extends the archive
@@ -14,6 +15,16 @@ Usage
     python scripts/scrape_radar.py                      # archive past 24h
     python scripts/scrape_radar.py --hours 720          # archive past 30 days (first run)
     python scripts/scrape_radar.py --status             # report archive coverage
+    python scripts/scrape_radar.py --product 240km --hours 720   # 240 km product
+
+Products (both 5-min, file names in UTC):
+    70km   the 35 x 63 km, 0.29 km-pixel product the nowcaster is trained on.
+           NEA serves ~7 days back.
+    240km  480 x 480 wide-range product, collected from 2026-09-27 for the
+           heavy-rain stage: it sees storms 100+ km out, before they reach the
+           70 km domain (the missing information behind the heavy-rain
+           limitation). NEA serves ~30 days back (measured 2026-09-27:
+           -30 d served, -32 d 404), so a backfill reaches one month.
 """
 
 import argparse
@@ -28,7 +39,6 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 
 ROOT = Path(__file__).resolve().parent.parent
 RADAR_DIR = ROOT / "data" / "raw" / "radar"
-RADAR_DIR.mkdir(parents=True, exist_ok=True)
 CHECKPOINT_DIR = ROOT / "checkpoints"
 
 console = Console()
@@ -36,8 +46,21 @@ console = Console()
 # Direct radar image URL — no API key required.
 # Format: YYYYMMDDHHmm (12 digits, SGT) + 0000
 # Images are served at 5-minute intervals from weather.gov.sg
-RADAR_URL_TEMPLATE = "https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_{ts}0000dBR.dpsri.png"
-RADAR_REFERER = "https://www.weather.gov.sg/weather-rain-area-50km/"
+PRODUCTS = {
+    "70km": {
+        "url": "https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_{ts}0000dBR.dpsri.png",
+        "referer": "https://www.weather.gov.sg/weather-rain-area-50km/",
+        "dir": RADAR_DIR,
+    },
+    "240km": {
+        "url": "https://www.weather.gov.sg/files/rainarea/240km/dpsri_240km_{ts}0000dBR.dpsri.png",
+        "referer": "https://www.weather.gov.sg/weather-rain-area-240km/",
+        "dir": ROOT / "data" / "raw" / "radar_240km",
+    },
+}
+# Selected in main(); defaults keep every existing caller on the 70 km product.
+RADAR_URL_TEMPLATE = PRODUCTS["70km"]["url"]
+RADAR_REFERER = PRODUCTS["70km"]["referer"]
 
 REQUEST_INTERVAL_S = 1.2   # ~50 req/min, well under typical server limits
 RADAR_INTERVAL_MIN = 5     # NEA updates every 5 minutes
@@ -172,7 +195,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Archive NEA Singapore radar imagery")
     parser.add_argument("--hours", type=int, default=24, help="Hours of history to archive (default: 24)")
     parser.add_argument("--status", action="store_true", help="Show archive status and exit")
+    parser.add_argument("--product", choices=sorted(PRODUCTS), default="70km",
+                        help="Radar product (default 70km, the nowcaster input)")
     args = parser.parse_args()
+
+    global RADAR_DIR, RADAR_URL_TEMPLATE, RADAR_REFERER
+    prod = PRODUCTS[args.product]
+    RADAR_DIR, RADAR_URL_TEMPLATE, RADAR_REFERER = prod["dir"], prod["url"], prod["referer"]
+    RADAR_DIR.mkdir(parents=True, exist_ok=True)
 
     if args.status:
         print_status()
@@ -181,7 +211,7 @@ def main() -> None:
     end_dt = round_to_5min(datetime.now(timezone.utc).replace(tzinfo=None))
     start_dt = end_dt - timedelta(hours=args.hours)
 
-    console.print(f"Archiving radar: [cyan]{start_dt}[/cyan] -> [cyan]{end_dt}[/cyan]")
+    console.print(f"Archiving {args.product} radar: [cyan]{start_dt}[/cyan] -> [cyan]{end_dt}[/cyan] -> {RADAR_DIR}")
     saved, skipped, errors = archive_range(start_dt, end_dt)
     console.print(f"[bold]Done:[/bold] {saved} saved, {skipped} skipped, {errors} errors")
 

@@ -1,5 +1,47 @@
 # Task Checklist
 
+## Phase 2 — publish, dashboard, CorrDiff, heavy-rain data (started 2026-09-27)
+
+> Plan: `tasks/plan_phase2.md` (approved 2026-09-27). **Resume here after a shutdown:**
+> the first unchecked item is the next step. Background jobs are listed under "Running".
+
+### Running / scheduled
+- 240 km backfill (one-off, ~3 h from 11:52 SGT 27 Sep): `scripts/backfill_240km.bat` -> `logs/backfill_240km.log`. Safe to re-run after a shutdown (skips existing); only the oldest day is lost per day missed.
+- 240 km ongoing: added to `SG-Weather Radar Continuous` (every 30 min, --hours 2) and `SG-Weather Radar Scraper` (daily 08:00, --hours 120). Task XML backups: `logs/task_backup_20260927/`.
+
+### D. Heavy-rain data
+- [x] D1a Probe NEA 240 km product: 5-min, 480x480 RGBA PNG ~45 KB, **served ~30 days back** (70 km: ~7 d). ~13 MB/day.
+- [x] D1b `scrape_radar.py --product 240km` -> `data/raw/radar_240km/` (70 km default unchanged)
+- [x] D1c Scheduled collection + verified a task run under the conda env (result 0, 12 files for its 2 h window)
+- [ ] D1d Backfill complete — check `logs/backfill_240km.log` for "backfill exited"; expect ~8.6k images from ~2026-08-28
+- [ ] D1e 240 km gap alert (extend `check_radar_gaps.py` or a `--status` check) + colour-legend/georeference check of the 240 km PNG before any modelling
+- [ ] D2 Rain-gauge API history depth (data.gov.sg)
+- [ ] D3 Stage 7 heavy-rain plan after 2-4 weeks of 240 km data
+
+### A. Repo hygiene & docs
+- [ ] A1 cleanup: portable .bat launchers (remove username paths), results/ablations/, docs/history/, ERA5 tmp files, specification.json wording
+- [ ] C0 rewrite `scripts/launchpad/project_brief.md` with correct facts (then the user applies to LaunchPad)
+- [ ] A2 README.md
+- [ ] A3 docs/ (METHODS, RESULTS, LIMITATIONS, LESSONS, REPRODUCE, DATA)
+- [ ] A4 LICENSE (MIT) + CC-BY docs note, CITATION.cff
+
+### B. Dashboard (static, GitHub Pages)
+- [ ] B0 `scripts/build_dashboard.py` data export
+- [ ] B1-B8 sections; verify in Chrome (desktop + phone width)
+
+### E. LinkedIn
+- [ ] E1 screenshots via Chrome extension -> docs/img/; E2 `docs/linkedin_post.md` draft (user posts)
+
+### Publish
+- [ ] A5 first-push gate: re-run secret scan on final tree + history; ask user; push; verify origin/main
+
+### C. CorrDiff
+- [ ] C1 ERA5 2026-05-22 -> now download (background)
+- [ ] C2 local regression-stage spike -> go/no-go with cost estimate
+
+---
+
+
 ## Radar gap alerting + Stage 4 launch (2026-09-22)
 
 > Trigger: first real FLASH_FLOOD labels since collection began (King's Road 17:11 SGT,
