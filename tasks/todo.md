@@ -19,8 +19,8 @@
 - [ ] D3 Stage 7 heavy-rain plan after 2-4 weeks of 240 km data
 
 ### A. Repo hygiene & docs
-- [ ] A1 cleanup: portable .bat launchers (remove username paths), results/ablations/, docs/history/, ERA5 tmp files, specification.json wording
-- [ ] C0 rewrite `scripts/launchpad/project_brief.md` with correct facts (then the user applies to LaunchPad)
+- [x] A1 cleanup: portable launchers, results/ablations/ (+README), docs/history/, spec wording, per-lead eval output (5c1a431). ERA5 tmp files KEPT: they are download_era5.py's cache (17 MB, gitignored)
+- [x] C0 LaunchPad brief rewritten with verified facts; June package -> docs/history/launchpad_2026-06/. **User action: apply for the PhysicsNeMo lab**
 - [ ] A2 README.md
 - [ ] A3 docs/ (METHODS, RESULTS, LIMITATIONS, LESSONS, REPRODUCE, DATA)
 - [ ] A4 LICENSE (MIT) + CC-BY docs note, CITATION.cff

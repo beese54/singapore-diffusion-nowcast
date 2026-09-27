@@ -278,20 +278,21 @@
       "name": "LaunchPad CorrDiff Fine-tuning",
       "status": "Blocked",
       "checkpoint_artifact": "checkpoints/corrdiff_singapore/",
-      "resume_command": "scripts/launchpad/submit_job.sh",
-      "notes": "Parallel track. Apply at developer.nvidia.com/launchpad. Would fine-tune CorrDiff on SG ERA5+radar paired data — would produce first equatorial CorrDiff model.",
+      "resume_command": "see scripts/launchpad/project_brief.md and tasks/plan_phase2.md section 3",
+      "notes": "Re-scoped 2026-09-27: LaunchPad offers short-term hands-on labs, not training-job hosting. Request the PhysicsNeMo (and Earth-2) lab to learn the CorrDiff recipe; training runs locally (spike) then on cloud GPU if the spike says go. June package archived in docs/history/launchpad_2026-06/.",
       "tasks": [
         {
           "id": "6.1",
           "description": "Apply for NVIDIA LaunchPad access",
           "status": "Pending",
-          "notes": "Application package ready in scripts/launchpad/: project_brief.md, submit_job.sh, finetune_corrdiff_sg.py. User must submit at developer.nvidia.com/launchpad."
+          "notes": "Brief rewritten 2026-09-27 with correct facts (scripts/launchpad/project_brief.md). User applies at https://www.nvidia.com/en-us/launchpad/ requesting the PhysicsNeMo lab."
         },
         {
           "id": "6.2",
           "description": "Package fine-tuning script for LaunchPad submission",
           "status": "Complete",
-          "completed_date": "2026-06-18"
+          "completed_date": "2026-06-18",
+          "notes": "June package superseded (assumed job submission); archived in docs/history/launchpad_2026-06/."
         },
         {
           "id": "6.3",

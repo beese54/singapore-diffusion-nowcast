@@ -77,6 +77,11 @@ Verification: open in Chrome, check desktop + phone width, no console errors, re
 2. Decide a small cloud-GPU budget if the spike says go (D5).
 3. Optionally NVIDIA Inception (if you register a company) for credits.
 
+> **Added 2026-09-27:** NVIDIA's open Earth-2 Nowcasting model **StormScope** does 0-6 h, km-scale storm
+> prediction from GOES satellite + radar (trained over CONUS). It is the natural reference design for the
+> heavy-rain stage (Himawari-9 in place of GOES) and a candidate baseline. LaunchPad offers a
+> **PhysicsNeMo** hands-on lab — that is what to request.
+
 ## 4. Workstream D — Heavy-rain stage: collect the right data now  *(Pattern N, then Stage 7 plan)*
 
 Why: every radar-only fix failed; the diagnosis is missing information — storms that are not on the 35 × 63 km radar yet, and growth/decay. Two kinds of data: things we must **collect forward** (not archived upstream), and things we can **backfill** later.
