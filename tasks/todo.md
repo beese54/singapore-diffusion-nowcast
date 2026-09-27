@@ -55,7 +55,7 @@
 
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)
-- [ ] C2 regression-stage spike per `tasks/spike_corrdiff.md` (question, design and go/no-go fixed before results) -> go/no-go with cost estimate
+- [ ] C2 regression-stage spike per `tasks/spike_corrdiff.md`: targets built, code smoke-tested (6.85 M params, 0.70 GB GPU); full run QUEUED to start when ERA5 finishes (`scripts/corrdiff/run_spike_after_download.bat`, re-run it after a shutdown) -> go/no-go with cost estimate
 
 ---
 

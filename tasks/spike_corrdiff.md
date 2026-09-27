@@ -22,7 +22,7 @@ diffusion stage has nothing to build on, and full CorrDiff is not worth GPU mone
 | ERA5 window | N 3.0, W 102.0, S −0.5, E 105.5 (0.25°) | margin for regridding + later larger-context experiments |
 | Period | 2026-05-22 → latest ERA5 (≈ 5-day lag): ~3,000 hourly samples | radar and ERA5 must share times (the June brief's error) |
 | Split | same pinned dates as the nowcaster (train < 2 Sep, val < 14 Sep, test 14–25 Sep) | comparable, no leakage |
-| Model | `CorrDiffRegressionUNet`, SongUNet, small (≈ 2–5 M params), bf16 | fits 8 GB |
+| Model | `CorrDiffRegressionUNet`, SongUNet, small, fp32 (PhysicsNeMo layers refuse autocast unless amp_mode) | fits 8 GB |
 | Baseline | ERA5 `tp` (m per hour → mm/hr) bilinearly interpolated to the target grid | "what ERA5 already knows" |
 
 ## Go / no-go (decided now)
@@ -47,3 +47,11 @@ On the test period, versus the bilinear-ERA5 baseline:
   2,855 of 3,075 hours kept (27 May – 27 Sep; ≥10 of 12 frames, none blank), 16 × 28 at 2.03 km, 2.7% of cells
   wet ≥0.5 mm/hr, max 63 mm/hr hourly mean. Spot check 22 Sep 09:00 UTC cell (7,12): independent mean of the 12
   frames = 44.046 mm/hr = stored value.
+- 2026-09-27: `scripts/corrdiff/spike_regression.py` written. Smoke test on the 91 matched May hours: the
+  `CorrDiffRegressionUNet` (6.85 M params, SongUNet, fp32) trains with `RegressionLoss`; peak GPU memory
+  0.70 GB; the scorer runs. PhysicsNeMo API notes: `img_in_channels` = ERA5 channels only (the constructor adds the
+  output channels for the zero image); its layers refuse `torch.autocast` unless built with `amp_mode=True`.
+  Note: ERA5 lags ~6 days, so the test period is covered only to ~21 Sep (of 14–25 Sep).
+- 2026-09-27: full run chained to the end of the download: `scripts/corrdiff/run_spike_after_download.bat`
+  → `logs/corrdiff_spike.log`, `results/corrdiff_spike.json`.
+
