@@ -105,6 +105,7 @@ class GaussianDiffusion(nn.Module):
         heavy_weight: float = 0.0,
         heavy_thr: float | None = None,
         heavy_dilate: int = 7,
+        env: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Compute training loss L_simple = E[||noise - model(x_t, context, t)||²].
@@ -145,7 +146,7 @@ class GaussianDiffusion(nn.Module):
             x0 = (x0 - self._residual_base(context)) * 0.5
 
         x_t, noise = self.q_sample(x0, t)
-        pred = self.model(x_t, context, t)
+        pred = self._net(x_t, context, t, env)
         target = (self._v_target(x0, noise, t)
                   if self.parameterization == "v" else noise)
 
@@ -200,6 +201,11 @@ class GaussianDiffusion(nn.Module):
     #     x0  = sqrt(ab) * x_t - sqrt(1-ab) * v
     #     eps = sqrt(1-ab) * x_t + sqrt(ab) * v
 
+    def _net(self, x, context, t, env):
+        """Call the network; `env` (large-scale weather, optional) is passed only
+        when given, so networks without it keep their exact call."""
+        return self.model(x, context, t) if env is None else self.model(x, context, t, env=env)
+
     # ── residual forecasting ─────────────────────────────────────────────────
     #
     # Evaluated on the finished full-frame model: it USES its context (true
@@ -248,6 +254,7 @@ class GaussianDiffusion(nn.Module):
         shape: tuple[int, ...],
         eta: float = 0.0,
         callback=None,
+        env: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Generate a sample using DDIM (fast, deterministic when eta=0).
@@ -285,7 +292,7 @@ class GaussianDiffusion(nn.Module):
                 # predicting "no change" did not return persistence exactly.
                 alpha_prev = torch.ones_like(alpha_prev)
 
-            out = self.model(x, context, t)
+            out = self._net(x, context, t, env)
             x0_pred, noise_pred = self._to_x0_eps(out, x, t)
             x0_pred = x0_pred.clamp(-1, 1)
 
@@ -309,6 +316,7 @@ class GaussianDiffusion(nn.Module):
         context: torch.Tensor,
         n_members: int = 8,
         eta: float = 1.0,
+        env: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Generate an ensemble of n_members probabilistic forecasts.
@@ -316,5 +324,5 @@ class GaussianDiffusion(nn.Module):
         Returns (B, n_members, 1, H, W).
         """
         B, _, H, W = context.shape
-        members = [self.ddim_sample(context, (B, 1, H, W), eta=eta) for _ in range(n_members)]
+        members = [self.ddim_sample(context, (B, 1, H, W), eta=eta, env=env) for _ in range(n_members)]
         return torch.stack(members, dim=1)

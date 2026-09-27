@@ -185,6 +185,24 @@ def build_context(frames: np.ndarray, t_last: np.datetime64, log_max: float,
     return np.concatenate([time_features(t_last, x.shape[1], x.shape[2]), x], axis=0)
 
 
+ENV_PATH = ROOT / "data" / "processed" / "era5_predictors.nc"
+
+
+def load_env_table(path: Path = ENV_PATH):
+    """Hourly large-scale predictors (scripts/build_era5_predictors.py), standardised
+    with the mean/std of TRAINING-period hours only (before SPLIT_VAL_START), so no
+    validation or test information leaks into the scaling.
+    Returns (hours datetime64[h], x (n_hours, n_features) float32, names, mean, std)."""
+    ds = xr.open_dataset(path)
+    hours = ds.time.values.astype("datetime64[h]")
+    x = ds.x.values.astype(np.float32)
+    names = [str(f) for f in ds.feature.values]
+    ds.close()
+    train = hours < SPLIT_VAL_START.astype("datetime64[h]")
+    mean, std = x[train].mean(0), x[train].std(0) + 1e-6
+    return hours, (x - mean) / std, names, mean, std
+
+
 class RadarDataset(Dataset):
     """
     Parameters
@@ -196,6 +214,9 @@ class RadarDataset(Dataset):
     val_frac, test_frac : ignored -- splits are pinned by date (see
                     SPLIT_VAL_START / SPLIT_TEST_START / SPLIT_TEST_END)
     heavy_rain_oversample : factor to oversample heavy rain events (≥10 mm/hr)
+    era5_env      : also return "env", the large-scale ERA5 predictor vector for the
+                    hour at/before the last context frame (tasks/plan_era5_conditioning.md).
+                    Samples with no ERA5 hour are dropped. Default off.
     """
 
     def __init__(
@@ -209,6 +230,7 @@ class RadarDataset(Dataset):
         heavy_rain_oversample: int = 3,
         crop_size: int | None = None,
         time_channels: bool = False,
+        era5_env: bool = False,
     ):
         self.context_frames = context_frames
         self.target_offset = target_offset
@@ -282,6 +304,21 @@ class RadarDataset(Dataset):
             print(f"RadarDataset[{split}]: dropped {n_gap}/{n_before} samples "
                   f"spanning archive gaps and {n_nan} containing blank (NaN) "
                   f"frames ({len(self.indices)} remain)")
+
+        # Large-scale weather: keep only samples whose last context frame has an
+        # ERA5 hour (ERA5 lags ~6 days, so the newest radar has none).
+        self.era5_env = bool(era5_env)
+        if self.era5_env:
+            hours, x, self.env_names, self.env_mean, self.env_std = load_env_table()
+            self._env_hours, self._env_x = hours, x
+            last_hour = times.astype("datetime64[h]")
+            pos = np.searchsorted(hours, last_hour)
+            have = (pos < len(hours)) & (hours[np.minimum(pos, len(hours) - 1)] == last_hour)
+            self._env_row = np.where(have, pos, -1)
+            n0 = len(self.indices)
+            self.indices = [i for i in self.indices if self._env_row[i - 1] >= 0]
+            if n0 != len(self.indices):
+                print(f"RadarDataset[{split}]: dropped {n0 - len(self.indices)}/{n0} samples with no ERA5 hour")
 
         if heavy_rain_oversample > 1 and split == "train":
             heavy = [i for i in self.indices
@@ -419,6 +456,11 @@ class RadarDataset(Dataset):
         return build_context(self._decode(codes), self.times[t - 1],
                              self.log_max, self.time_channels)
 
+    def env_at(self, t: int) -> torch.Tensor:
+        """ERA5 predictor vector for anchor t: the hour containing the last
+        context frame (t-1), floored to the hour. Requires era5_env=True."""
+        return torch.from_numpy(self._env_x[self._env_row[t - 1]])
+
     def context_at(self, t: int) -> torch.Tensor:
         """Full-frame model input for anchor t (last observed frame t-1). For
         callers that pick their own times, e.g. flood-event scoring -- so they
@@ -483,7 +525,10 @@ class RadarDataset(Dataset):
         target_frame = self._decode(tgt_codes)    # (h, w)
         target = self._normalise(target_frame[np.newaxis, ...])  # (1, H, W)
 
-        return {
+        item = {
             "context": torch.from_numpy(context),
             "target": torch.from_numpy(target),
         }
+        if self.era5_env:
+            item["env"] = self.env_at(t)
+        return item

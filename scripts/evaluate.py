@@ -125,7 +125,11 @@ def load_model(checkpoint_path: Path, device: torch.device,
     # written since goes through train.py's single _ckpt_state().
     cf = int(state.get("context_frames", CONTEXT_FRAMES))
     tc = bool(state.get("time_channels", False))
-    unet = ConditionedUNet(context_frames=cf + (2 if tc else 0), use_checkpoint=False)
+    # Large-scale weather conditioning (tasks/plan_era5_conditioning.md): the
+    # stamp says whether the network has the env layers and how many inputs.
+    env = bool(state.get("era5_env", False))
+    env_dim = len(state.get("env_names", [])) if env else 0
+    unet = ConditionedUNet(context_frames=cf + (2 if tc else 0), use_checkpoint=False, env_dim=env_dim)
     # Never guess. This used to default an unstamped checkpoint to 'eps'; the
     # finished v-prediction model turned out to be unstamped (a save site in
     # train.py missed the field), so it was decoded as eps and scored MAE 29
@@ -153,7 +157,7 @@ def load_model(checkpoint_path: Path, device: torch.device,
     diffusion = GaussianDiffusion(unet, parameterization=param, residual=residual)
     diffusion.load_state_dict(state["model"])
     # Callers build their dataset from this so the input matches training.
-    diffusion.data_cfg = {"context_frames": cf, "time_channels": tc}
+    diffusion.data_cfg = {"context_frames": cf, "time_channels": tc, "era5_env": env}
     # Each model forecasts ONE lead. Unstamped checkpoints predate the stamp and
     # were all trained with the default target_offset of 6 (nominal 30 min).
     diffusion.target_offset = int(state.get("target_offset", 6))

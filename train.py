@@ -59,6 +59,10 @@ DEFAULTS = {
     # int, not a bool (see "residual").
     "context_frames": 6,
     "time_channels": 0,
+    # 1 = condition on the large-scale ERA5 weather vector (data/processed/
+    # era5_predictors.nc) through a zero-initialised embedding added to the
+    # timestep embedding (tasks/plan_era5_conditioning.md). Default off.
+    "era5_env": 0,
     # Loss weight added over the heavy-rain neighbourhood (>= 10 mm/hr in the
     # target or the last frame, dilated heavy_dilate px). 0 = off. See
     # GaussianDiffusion.p_losses. At 20 with a 7 px (2 km) dilation, ~1.8% of
@@ -262,6 +266,11 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
                     expected_layout: tuple | None = None) -> int:
     state = torch.load(path, map_location="cpu", weights_only=True)
     _check_compatible(state, path, parameterization, residual, expected_layout)
+    saved_env = bool(state.get("era5_env", False))
+    has_env = any(".env_mlp." in k for k in model.state_dict())
+    if saved_env != has_env:
+        raise SystemExit(f"Checkpoint {path.name} has era5_env={saved_env} but this run uses "
+                         f"era5_env={has_env}. Refusing to resume.")
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
     # Only restore the scaler when it is actually in use. Restoring a COLLAPSED
@@ -293,7 +302,15 @@ def init_weights_from(path: Path, model: nn.Module, parameterization: str | None
     state = torch.load(path, map_location="cpu", weights_only=True)
     _check_compatible(state, path, parameterization, residual, expected_layout,
                       action="warm-start")
-    model.load_state_dict(state["model"])
+    # Warm-starting a weather-conditioned model from an unconditioned one: only
+    # the new env layers may be missing (they start at zero); anything else
+    # missing or unexpected means the architectures differ, which is refused.
+    missing, unexpected = model.load_state_dict(state["model"], strict=False)
+    bad = [k for k in missing if ".env_mlp." not in k] + list(unexpected)
+    if bad:
+        raise SystemExit(f"--init-from {path.name}: incompatible weights {bad[:5]}")
+    if missing:
+        print(f"[init] {len(missing)} new env-conditioning tensors start at their zero init")
     print(f"[init] Weights from {path} (its step {state.get('step', '?')}, "
           f"target_offset {state.get('target_offset', '?')}); optimizer and step start fresh")
 
@@ -342,10 +359,13 @@ def main():
 
     train_ds = RadarDataset("train", context_frames=args.context_frames,
                             target_offset=args.target_offset,
-                            time_channels=bool(args.time_channels))
+                            time_channels=bool(args.time_channels),
+                            era5_env=bool(args.era5_env))
     val_ds = RadarDataset("val", context_frames=args.context_frames,
                           target_offset=args.target_offset,
-                          time_channels=bool(args.time_channels))
+                          time_channels=bool(args.time_channels),
+                          era5_env=bool(args.era5_env))
+    env_dim = len(train_ds.env_names) if args.era5_env else 0
 
     print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
     # 10 mm/hr in the dataset's normalised space (heavy-rain loss weighting)
@@ -377,6 +397,7 @@ def main():
         context_frames=train_ds.in_channels,
         base_ch=args.base_ch,
         use_checkpoint=True,   # always use gradient checkpointing for 8GB GPU
+        env_dim=env_dim,
     )
     diffusion = GaussianDiffusion(unet, parameterization=args.parameterization,
                                   residual=bool(args.residual),
@@ -459,7 +480,13 @@ def main():
                 "heavy_weight": float(args.heavy_weight),
                 "heavy_dilate": int(args.heavy_dilate),
                 # warm-start source, if any (provenance only)
-                "init_from": str(args.init_from or "")}
+                "init_from": str(args.init_from or ""),
+                # large-scale weather conditioning: the flag, feature order and
+                # the training-hour scaling needed to rebuild the inputs
+                "era5_env": bool(args.era5_env),
+                "env_names": list(train_ds.env_names) if args.era5_env else [],
+                "env_mean": train_ds.env_mean.tolist() if args.era5_env else [],
+                "env_std": train_ds.env_std.tolist() if args.era5_env else []}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.
@@ -503,6 +530,7 @@ def main():
 
         context = batch["context"].to(device, non_blocking=True)
         target = batch["target"].to(device, non_blocking=True)
+        env = batch["env"].to(device, non_blocking=True) if args.era5_env else None
 
         # Update learning rate
         lr = cosine_lr(step, args.lr, args.warmup_steps, args.max_steps)
@@ -516,7 +544,8 @@ def main():
                                       intensity_alpha=args.intensity_alpha,
                                       heavy_weight=args.heavy_weight,
                                       heavy_thr=heavy_thr,
-                                      heavy_dilate=args.heavy_dilate)
+                                      heavy_dilate=args.heavy_dilate,
+                                      env=env)
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -540,10 +569,11 @@ def main():
                 for vbatch in val_loader:
                     vctx = vbatch["context"].to(device)
                     vtgt = vbatch["target"].to(device)
+                    venv = vbatch["env"].to(device) if args.era5_env else None
                     # Deliberately unweighted: val_loss must stay comparable
                     # across runs with different intensity_alpha.
                     with autocast("cuda", dtype=amp_dtype):
-                        vloss = diffusion.p_losses(vtgt, vctx)
+                        vloss = diffusion.p_losses(vtgt, vctx, env=venv)
                     val_losses.append(vloss.item())
             # Aggregate only the finite batches. Validation runs under fp16
             # autocast with no GradScaler to skip overflows, so a single batch
@@ -570,7 +600,8 @@ def main():
                 probe = next(iter(val_loader))
                 pctx = probe["context"].to(device)
                 with autocast("cuda", dtype=amp_dtype):
-                    samp = diffusion.ensemble_sample(pctx, n_members=2, eta=1.0)
+                    penv = probe["env"].to(device) if args.era5_env else None
+                    samp = diffusion.ensemble_sample(pctx, n_members=2, eta=1.0, env=penv)
                 samp_mm = val_ds.denormalise(samp.float().cpu())
                 tgt_mm = val_ds.denormalise(probe["target"].float())
             max_rain = float(samp_mm.max())

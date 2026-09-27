@@ -135,9 +135,21 @@ class ConditionedUNet(nn.Module):
         ch_mults: tuple[int, ...] = (1, 2, 4, 8),
         t_emb_dim: int = 256,
         use_checkpoint: bool = True,
+        env_dim: int = 0,
     ):
         super().__init__()
         self.t_emb_dim = t_emb_dim
+        self.env_dim = env_dim
+
+        # Optional large-scale weather conditioning (tasks/plan_era5_conditioning.md):
+        # a small vector embedded and ADDED to the timestep embedding, so every
+        # block sees it. The last layer starts at zero, so a model warm-started
+        # from an unconditioned checkpoint begins exactly where that model was.
+        if env_dim > 0:
+            self.env_mlp = nn.Sequential(nn.Linear(env_dim, t_emb_dim), nn.SiLU(),
+                                         nn.Linear(t_emb_dim, t_emb_dim))
+            nn.init.zeros_(self.env_mlp[-1].weight)
+            nn.init.zeros_(self.env_mlp[-1].bias)
 
         # Time embedding MLP
         self.t_mlp = nn.Sequential(
@@ -183,10 +195,15 @@ class ConditionedUNet(nn.Module):
             nn.Conv2d(prev_ch, 1, 3, padding=1),
         )
 
-    def forward(self, x: torch.Tensor, context: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, context: torch.Tensor, t: torch.Tensor,
+                env: torch.Tensor | None = None) -> torch.Tensor:
         # Time embedding
         t_emb = sinusoidal_embedding(t, self.t_emb_dim)
         t_emb = self.t_mlp(t_emb)
+        if self.env_dim > 0:
+            if env is None:
+                raise ValueError("this model was built with env_dim > 0 and needs `env`")
+            t_emb = t_emb + self.env_mlp(env.to(t_emb.dtype))
 
         # Concatenate noisy frame with conditioning context
         h = torch.cat([x, context], dim=1)

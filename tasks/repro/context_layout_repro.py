@@ -76,8 +76,10 @@ def main():
     # 5. old checkpoint still loads and samples through the eval path
     from evaluate import load_model
     m = load_model(ROOT / "checkpoints/nowcaster/ckpt_step_300000.pt", "cuda")
-    chk("legacy checkpoint -> data_cfg (6, no time)",
-        m.data_cfg == {"context_frames": 6, "time_channels": False}, str(m.data_cfg))
+    # era5_env was added 2026-09-28 (tasks/plan_era5_conditioning.md); a legacy
+    # checkpoint must come back with it OFF, like the other legacy options.
+    chk("legacy checkpoint -> data_cfg (6, no time, no env)",
+        m.data_cfg == {"context_frames": 6, "time_channels": False, "era5_env": False}, str(m.data_cfg))
     with torch.no_grad():
         out = m.ddim_sample(leg.context_at(lt).unsqueeze(0).cuda(), (1, 1, 120, 217))
     chk("legacy checkpoint samples on a legacy context", tuple(out.shape) == (1, 1, 120, 217))
