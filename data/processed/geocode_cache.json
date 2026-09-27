@@ -301,12 +301,13 @@
     "matched_name": "CORONATION ROAD"
   },
   "Hillcrest Rd (Watten Rise to Dunearn Rd) [16:52 hours]": {
-    "lat": null,
-    "lon": null,
-    "method": "unresolved",
+    "lat": 1.331671,
+    "lon": 103.807649,
+    "lat_idx": 48,
+    "lon_idx": 93,
+    "method": "onemap",
     "simplified": "hillcrest road",
-    "matched_name": null,
-    "note": "OneMap returned no in-SG match; edit this entry by hand"
+    "matched_name": "HILLCREST ROAD"
   },
   "Junc of Queen's Rd and Lutheran Rd [16:58 hours]": {
     "lat": null,
@@ -341,12 +342,13 @@
     "note": "OneMap returned no in-SG match; edit this entry by hand"
   },
   "King's Road (from Prince Road to Lutheran Road)": {
-    "lat": null,
-    "lon": null,
-    "method": "unresolved",
+    "lat": 1.320412,
+    "lon": 103.807383,
+    "lat_idx": 52,
+    "lon_idx": 93,
+    "method": "onemap",
     "simplified": "king's road",
-    "matched_name": null,
-    "note": "OneMap returned no in-SG match; edit this entry by hand"
+    "matched_name": "KING'S ROAD"
   },
   "King's Road (from Prince Road to Lutheran Road)  [16:47 hours]": {
     "lat": 1.320412,
@@ -358,12 +360,13 @@
     "matched_name": "KING'S ROAD"
   },
   "Punggol Way (slip road to TPE) [17:08 hours]": {
-    "lat": null,
-    "lon": null,
-    "method": "unresolved",
+    "lat": 1.414553,
+    "lon": 103.908235,
+    "lat_idx": 16,
+    "lon_idx": 131,
+    "method": "onemap",
     "simplified": "punggol way",
-    "matched_name": null,
-    "note": "OneMap returned no in-SG match; edit this entry by hand"
+    "matched_name": "84 PUNGGOL WAY -  COCOA PODS BY THE COCOA TREES PUNGGOL COAST MALL"
   },
   "Watten Drive [16:46 hours]": {
     "lat": 1.328575,
