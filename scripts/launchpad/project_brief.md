@@ -17,16 +17,17 @@ request to host our training run.
 An independent research project building high-resolution, probabilistic flash-flood nowcasting for
 Singapore with generative diffusion models. Phase 1 (May–Sep 2026) is complete:
 
-- **Data:** 127 days of NEA 70 km rain-area radar (5-min, 0.29 km pixels, 34.8 × 62.9 km domain,
+- **Data:** 128 days of NEA 70 km rain-area radar (5-min, 0.29 km pixels, 34.8 × 62.9 km domain,
   losslessly decoded from NEA's 33-level colour scale and validated against geocoded flood reports),
   PUB flood alerts as ground truth (26 out-of-sample geocoded events: 9 in the test period, 17 from the 27 Sep storm), and from Sep 2026 the NEA
   240 km wide-range radar.
 - **Model:** a 25.8M-parameter v-prediction diffusion model (DDPM, 8-member ensembles), one model per
   lead time, trained on a single RTX 4060 laptop GPU.
-- **Result (held-out 12-day test period):** at 30 min it beats persistence — CRPS skill +0.38
-  (95% CI +0.25 to +0.51), neighbourhood FSS 0.83 vs 0.74 at 2 mm/hr — and flagged the
-  22 Sep 2026 King's Road flash flood 86 min before the flood report. Inference: 20 s for
-  8 members × 3 lead times.
+- **Result (held-out 12-day test period):** at 30 min it beats persistence on CRPS skill, +0.38
+  (95% CI +0.25 to +0.51), with neighbourhood FSS 0.83 vs 0.74 at 2 mm/hr (difference not yet
+  significant). Out of sample, it flagged the 27 Sep 2026 Pasir Panjang flash flood 82 min before
+  the flood report, while persistence still showed dry, and the 22 Sep King's Road flood 86 min
+  ahead. Inference: 20 s for 8 members × 3 lead times.
 - **Limitation:** heavy rain (≥10 mm/hr), which drives flash floods, is not yet predicted better than
   persistence at any lead. Radar alone cannot see storms before they form or reach the domain.
 
@@ -48,7 +49,7 @@ Phase 2 adds the information radar lacks:
 
 | Data | Coverage | Status |
 |---|---|---|
-| NEA 70 km radar | 2026-05-22 → ongoing, 5-min | 127 days collected and decoded |
+| NEA 70 km radar | 2026-05-22 → ongoing, 5-min | 128 days collected and decoded (27 Sep 2026) |
 | NEA 240 km radar | ~2026-08-28 → ongoing, 5-min, 480 × 480 | collection started 2026-09-27 (NEA keeps ~30 days, backfilled) |
 | ERA5 (Copernicus) | 2022–2023 downloaded; 2026-05-22 → present to download | pairing with radar needs matching times |
 | PUB flood alerts (Telegram) | 2026-05-22 → ongoing | geocoded, radar-matched |
