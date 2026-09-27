@@ -55,3 +55,29 @@ On the test period, versus the bilinear-ERA5 baseline:
 - 2026-09-27: full run chained to the end of the download: `scripts/corrdiff/run_spike_after_download.bat`
   → `logs/corrdiff_spike.log`, `results/corrdiff_spike.json`.
 
+## Result (2026-09-27 22:57) — **NO-GO** by the pre-set criteria
+
+`results/corrdiff_spike.json`, `results/corrdiff_spike_diagnostics.json`. Test hours 14–21 Sep (187; ERA5 lag),
+train 2,258, val 285; 6.85 M params; 3.5 min on the RTX 4060.
+
+| Check | Regression | Bilinear ERA5 | Always zero | Criterion |
+|---|---|---|---|---|
+| RMSE, mm/hr | 1.085 | 1.089 | 1.096 | diff CI [−0.016, +0.010] → **not better** |
+| FSS ≥1 mm/hr, 8 km | 0.00 | 0.05 | — | **not better** (model never reaches 1 mm/hr) |
+| FSS ≥5 mm/hr | 0.00 | 0.00 | — | neither |
+| Largest value predicted | 0.99 | 2.88 | — | observed max 41.1 mm/hr |
+| Hour-to-hour correlation of island-mean rain | **0.64** | 0.22 | — | diff +0.41, 95% CI [+0.02, +0.66] (not a pre-set criterion) |
+
+**Reading.** The verdict stands as NO-GO: no CorrDiff money now. Two caveats, stated rather than used to move the
+goalposts: (1) RMSE cannot separate anything here — an always-zero forecast scores almost the same, because error
+is dominated by rare downpours nobody predicts; (2) a regression stage outputs the *mean* field, which for rare,
+patchy rain is smooth and weak by construction (max 0.99 mm/hr) — in CorrDiff the diffusion stage restores
+intensity, so FSS at 1 mm/hr was a harsh test of stage 1 alone. The one real signal: the model tracks *when* rain
+falls over the island far better than ERA5's own precipitation (0.64 vs 0.22), though with only 10 wet test hours
+the range is wide. That timing information — the large-scale "is today a storm day" — is exactly what the radar
+nowcaster lacks.
+
+**Recommendation.** No cloud spend. Cheap local follow-ups instead: (a) give the radar nowcaster the ERA5
+environment as extra conditioning (the timing signal, where it is needed); (b) optionally a small local CorrDiff
+diffusion stage to test intensity; (c) re-run this spike once the archive covers more storms (only 10 wet test
+hours now).

@@ -1,0 +1,44 @@
+{
+  "question": "CorrDiff regression stage vs bilinear ERA5 tp, test period, hourly 2 km rain",
+  "hours": {
+    "train": 2258,
+    "val": 285,
+    "test": 187
+  },
+  "test_period": [
+    "2026-09-14T04:00",
+    "2026-09-21T23:00"
+  ],
+  "params_M": 6.85,
+  "best_epoch": 15,
+  "val_rmse": 1.1499052047729492,
+  "test": {
+    "rmse_model": 1.0852354764938354,
+    "rmse_baseline": 1.0886489152908325,
+    "rmse_diff_ci": [
+      -0.016361255198717117,
+      0.010308191180229187
+    ],
+    "fss1": {
+      "model": 0.0,
+      "baseline": 0.04578935087639868,
+      "diff_ci": [
+        -0.11295331908700597,
+        0.0
+      ]
+    },
+    "fss5": {
+      "model": 0.0,
+      "baseline": 0.0,
+      "diff_ci": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "wet_fraction_test_obs": 0.017546791443850268,
+  "wet_fraction_test_model": 0.0,
+  "wet_fraction_test_baseline": 0.0037361535523300227,
+  "verdict": "NO-GO",
+  "minutes": 3.5
+}
