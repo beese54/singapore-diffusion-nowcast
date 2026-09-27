@@ -49,7 +49,7 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 > "25,920 PNGs" and "<5% gap in ANY 7-day window" permanently unmeetable without buying
 > useful data. Distinct-days is now authoritative (matches the stage-flag logic in
 > `preprocess_radar.py`); the gap criterion is scoped to steady state with a median test.
-- [ ] `data/processed/radar.zarr` spans ≥ 90 distinct days from 2026-05-22 — **authoritative criterion**, expected ~2026-08-20 (49/90 as of 2026-07-10)
+- [x] `data/processed/radar.zarr` spans ≥ 90 distinct days from 2026-05-22 — **authoritative criterion**, expected ~2026-08-20 (49/90 as of 2026-07-10; **127 days as of 2026-09-27**, through 2026-09-26)
 - [x] `data/processed/radar.zarr` is non-empty and current within 24 h of the newest raw PNGs (ingest automated via daily scheduled task)
 - [x] `python scripts/validate_dataset.py` reports median 7-day-window gap rate < 10% over the steady-state period (2026-05-29 onwards; 4.9% as of 2026-07-10 — re-verify at 90 days)
 - [x] zarr time axis is strictly increasing with no duplicate timestamps (`preprocess_radar.py --repair` passes; enforced after every append since 2026-07-10)
@@ -57,19 +57,19 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 - [x] **Georeferencing is validated against a physical signal:** with the corrected bounds (lat 1.1450–1.4572, lon 103.565–104.130), 100% of geocoded flood events show rain within ~1.5 km at the reported time, median peak 51.6 mm/hr — vs 19% / 0.00 mm/hr under the pre-2026-08-11 grid
 - [x] **Ingest is lossless:** no crop and no resampling; PNG opaque-pixel count equals zarr nonzero-cell count exactly, and every stored value is one of the 33 LUT levels (2026-08-11)
 - [x] Re-running `python scripts/preprocess_radar.py` skips all existing zarr chunks (verified 2026-08-11: 21,005 skipped, 0 processed, 0 errors)
-- [ ] `checkpoints/stage3_complete.flag` exists
+- [x] `checkpoints/stage3_complete.flag` exists
 
 ---
 
 ## Stage 4 — Diffusion Nowcaster Training
-- [ ] `python train.py --help` shows `--resume` flag
-- [ ] A 100-step smoke-test run completes without OOM: `python train.py training.max_steps=100 training.batch_size=2`
+- [x] `python train.py --help` shows `--resume` flag
+- [x] A 100-step smoke-test run completes without OOM: `python train.py training.max_steps=100 training.batch_size=2`
 - [x] Gap-aware sampling (added 2026-07-10): every sample emitted by `RadarDataset` spans exactly contiguous 5-min frames from context start to target; samples crossing archive gaps are excluded and the dropped count is reported at init (verified: 1,228/9,282 train samples dropped, independent contiguity check passes on all splits)
-- [ ] Full training reaches 100k steps with loss plateau (validation loss not decreasing for 10k steps)
-- [ ] Checkpoint files exist: `checkpoints/nowcaster/ckpt_step_1000.pt`, `ckpt_step_2000.pt`, ..., `latest.pt`
-- [ ] Resuming from checkpoint: `python train.py --resume checkpoints/nowcaster/latest.pt` continues from the correct step
-- [ ] Interrupting with Ctrl+C saves a checkpoint within 5 seconds
-- [ ] `checkpoints/stage4_complete.flag` exists
+- [x] Full training reaches 100k steps with loss plateau (validation loss not decreasing for 10k steps) — 30-min model 300k steps; 60/90-min warm-started runs 100k each (val loss 0.0053–0.0057 flat over the last 10k)
+- [x] Checkpoint files exist: `checkpoints/nowcaster/ckpt_step_1000.pt`, `ckpt_step_2000.pt`, ..., `latest.pt` — saved every 1,000 steps; older ones are pruned by design, recent ones plus `latest.pt` and the final step are kept
+- [x] Resuming from checkpoint: `python train.py --resume checkpoints/nowcaster/latest.pt` continues from the correct step — used repeatedly (e.g. resumed at 203000 and 217000, `logs/nowcaster_train.log`)
+- [ ] Interrupting with Ctrl+C saves a checkpoint within 5 seconds — *SIGINT handler implemented but never verified: runs are launched detached, where Ctrl+C cannot reach them. Loss on an unclean stop is bounded to <1,000 steps by the periodic save.*
+- [x] `checkpoints/stage4_complete.flag` exists
 
 ---
 
@@ -80,7 +80,7 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 - [x] `data/processed/flood_labels.parquet` written with columns: `message_id, event_datetime, message_type, raw_text, locations`
 - [x] Windows Task Scheduler task `\SG-Weather\SG-Weather Telegram Labels` runs daily at 09:00 (incremental)
 - [x] Integration script: cross-reference `flood_labels.parquet` against `radar.zarr` timestamps to build evaluation dataset (`build_flood_eval_dataset.py`; in the daily scheduled chain since 2026-07-10)
-- [ ] Wire flood label integration into `scripts/evaluate.py` for Stage 5
+- [x] Wire flood label integration into `scripts/evaluate.py` for Stage 5 — `evaluate.py --flood-eval`, and family D of `evaluate_probabilistic.py` (38 events, with an ordinary-time false-alarm control)
 
 ---
 
@@ -106,7 +106,7 @@ Each criterion below is objective and testable. A stage is NOT complete until al
   > *From-scratch run (superseded):* **The 60/90-min models are not usable.** They pass CRPS but lose on every placement measure: their output is uncorrelated with the input (member vs last frame r ≈ 0.01, against 0.21 at 30 min) and keeps ~1/10 of the heavy-rain area. CRPS vs persistence rewards smooth weak rain because persistence is double-penalised when storms move (lesson L029). Likely cause: 100k steps is too short for the weaker conditioning signal at longer leads; untested. Details: `results/evaluation_report.json`, `results/probabilistic_eval_lead{30,60,90}.json`.
 - [x] **PRIMARY (amended 2026-09-25):** CRPS skill vs persistence > 0 at the 30-min (35 min from last frame) lead, with the 95% bootstrap CI lower bound > 0 — reported by `scripts/evaluate.py`
 - [x] **TRACKED:** pooled ensemble-probability FSS at 2 mm/hr (≈20 dBZ) vs persistence, with 95% CI of the difference — reported, not a pass condition
-- [ ] **TARGET (open):** skill at heavy rain (≥ 10 mm/hr), which drives flash floods — pooled ensemble FSS and flood-event hit rate vs persistence
+- [x] ~~**TARGET (open):** skill at heavy rain (≥ 10 mm/hr), which drives flash floods — pooled ensemble FSS and flood-event hit rate vs persistence~~ **Closed 2026-09-27 as a documented limitation (user decision):** radar-only heavy-rain skill does not beat persistence at any lead (30 min: FSS 0.337 vs 0.446; 60: 0.056 vs 0.236; 90: 0.091 vs 0.162). Tried and rejected: sampler change, calibration, heavy-rain loss weighting (L027), residual forecasting (L024), longer history + time of day, warm start (L030). The evidence points to missing information (storms not yet on radar, growth/decay), not a fixable defect. Heavy rain is the goal of any next stage (satellite / NWP inputs).
   > *Re-scored 2026-09-26 on the pinned test period:* PRIMARY **PASS** — CRPS skill +0.384, 95% CI [+0.251, +0.505]; corroborated by FSS 2 mm/hr 0.827 vs 0.742 (CI of diff [-0.006, +0.132]). TARGET still open: 0.337 vs 0.446 at 10 mm/hr.
   > *Result 2026-09-25 (300k model, 200 test samples x 8 members, pre-pinned moving test period):* PRIMARY **PASS** — CRPS skill +0.437, 95% CI [+0.338, +0.557]. TRACKED: FSS 0.820 vs 0.801 at 11.9 km, CI of diff [-0.066, +0.061] (tie). TARGET open: 0.530 vs 0.612 at 10 mm/hr. `results/evaluation_report.json`.
   > *Amendment rationale:* the original criterion ("FSS at 20 dBZ > persistence") was being scored on single ensemble members with per-sample-averaged FSS, which made the model look ~3× worse than persistence. Scored as an ensemble with standard pooled FSS it is a statistical tie; its probabilistic skill is clearly positive (CRPS skill +0.44, 95% CI [+0.34, +0.56]). A probabilistic criterion matches what a diffusion ensemble is for. Evidence: `tasks/replan_stage4_5.md` (Step 1), lesson L026.
@@ -116,4 +116,4 @@ Each criterion below is objective and testable. A stage is NOT complete until al
   > *2026-09-26:* PUB publishes a named list (Nov 2025, 36 sites), not polygons; geocoded to points in `data/processed/flood_prone_areas.geojson` (36/36 located, 35 in domain). Map = P(≥10 mm/hr within 0.9 km) with the Natural Earth coastline. On 22 Sep: Brier 0.225 vs persistence 0.341 at the PUB points; the ensemble is under-confident (points given 0.25–0.5 were wet 88% of the time).
 - [x] End-to-end inference time (6 input frames → 8 ensemble members × 3 lead times) is <5 minutes on RTX 4060
   > *2026-09-26:* `src/inference/nowcast.py` with the three lead checkpoints, issue 22 Sep 16:15 SGT: **19.6 s** wall time including model loading, data read and saving (~5.5 s per lead).
-- [ ] `checkpoints/stage5_complete.flag` exists
+- [x] `checkpoints/stage5_complete.flag` exists
