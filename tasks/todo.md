@@ -38,7 +38,9 @@
 - [x] Pages workflow `.github/workflows/pages.yml` (activates at publish)
 
 ### E. LinkedIn
-- [ ] E1 screenshots via Chrome extension -> docs/img/; E2 `docs/linkedin_post.md` draft (user posts)
+- [x] E1 screenshots via the Chrome extension -> docs/img/linkedin/ (hero 22 Sep peak, explorer 27 Sep first warning, noise-to-rain); GIF `27sep_nowcast.gif` built in Python (`scripts/make_social_gif.py`) — a browser GIF export would need a download
+- [ ] E1b evidence + 240 km screenshots (after B8)
+- [x] E2 post draft `content/linkedin_post_phase1.md` (gitignored): V1 short, V2 full, first comment, alt text, claim-by-claim truth check. **User posts it**; URLs filled in after publishing
 
 ### Publish
 - [ ] A5 first-push gate: re-run secret scan on final tree + history; ask user; push; verify origin/main
