@@ -43,7 +43,10 @@
 - [x] E2 post draft `content/linkedin_post_phase1.md` (gitignored): V1 short, V2 full, first comment, alt text, claim-by-claim truth check. **User posts it**; URLs filled in after publishing
 
 ### Publish
-- [ ] A5 first-push gate: re-run secret scan on final tree + history; ask user; push; verify origin/main
+- [x] A5 published 2026-09-27: https://github.com/beese54/singapore-diffusion-nowcast (public), dashboard https://beese54.github.io/singapore-diffusion-nowcast/ via GitHub Actions Pages.
+  Gate: 0/7 secret values and 0 key-format hits in 79 commits; history rewritten (user choice) to the GitHub no-reply email with the Windows username scrubbed (backup: checkpoints/pre-rewrite-2026-09-27.bundle); re-scanned the published clone: clean. Live site rendered headless: 14 canvases, correct verdict. Needed `gh auth refresh -s workflow` (done by user).
+- [ ] USER: post on LinkedIn (content/linkedin_post_phase1.md, links filled; images docs/img/linkedin/)
+- [ ] USER: apply for NVIDIA LaunchPad PhysicsNeMo lab (scripts/launchpad/project_brief.md; add the GitHub link)
 
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05-22 -> now download (background)

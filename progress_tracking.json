@@ -301,5 +301,6 @@
         }
       ]
     }
-  ]
+  ],
+  "notes_phase2": "Published 2026-09-27: https://github.com/beese54/singapore-diffusion-nowcast ; dashboard https://beese54.github.io/singapore-diffusion-nowcast/. Next: CorrDiff spike (C1-C2), 240 km georeferencing (D1e), gauge API (D2), Stage 7 plan (D3)."
 }

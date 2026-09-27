@@ -68,4 +68,4 @@ Phase 2 adds the information radar lacks:
 ## Applicant
 
 Independent researcher/developer in Singapore. NVIDIA developer account active. Code and results:
-GitHub repository (link to be added once public).
+https://github.com/beese54/singapore-diffusion-nowcast · dashboard https://beese54.github.io/singapore-diffusion-nowcast/

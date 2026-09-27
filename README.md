@@ -4,6 +4,8 @@
 ensemble of possible rain maps for the next 35–95 minutes — built to give neighbourhood-level
 warning of the sudden downpours that cause flash floods.**
 
+**Interactive dashboard: [https://beese54.github.io/singapore-diffusion-nowcast/](https://beese54.github.io/singapore-diffusion-nowcast/)** — two real flash floods, forecast by forecast, and the evidence.
+
 An independent research project, run end-to-end on one laptop GPU (RTX 4060, 8 GB): radar and
 flood-report collection since May 2026, a 25.8M-parameter diffusion nowcaster, and an evaluation
 that reports what works *and what does not*. Phase 1 is complete; Phase 2 (wide-range radar,
