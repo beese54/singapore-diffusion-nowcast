@@ -1,7 +1,7 @@
 {
   "project": "Singapore High-Resolution Generative Diffusion Weather Model",
   "version": "0.1.0",
-  "goal": "Proof-of-concept probabilistic weather forecasting at 1-2km resolution over Singapore for flash flood early warning",
+  "goal": "Proof-of-concept probabilistic radar nowcasting over Singapore for flash flood early warning: 0.29 km radar grid, 30/60/90-min leads, skill assessed at 6-24 km neighbourhoods (see docs/RESULTS.md)",
   "domain": {
     "lat_min": 1.0,
     "lat_max": 1.6,
@@ -13,6 +13,7 @@
   "tracks": {
     "track1_corrdiff_inference": {
       "description": "Zero-shot CorrDiff NIM API inference on Singapore ERA5 data",
+      "status": "Not pursued: the NIM is self-hosted only and trained on Taiwan. Stage 2 used PrecipitationAFNO instead; CorrDiff returns as a fine-tuning track in Phase 2 (tasks/plan_phase2.md, section 3).",
       "input": {
         "source": "ERA5 reanalysis",
         "resolution_km": 25,

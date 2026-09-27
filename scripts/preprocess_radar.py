@@ -361,7 +361,7 @@ def rebuild_archive(target: Path, batch_size: int = 2016) -> int:
 
     Used to re-ingest after a change to the colour mapping or georeferencing.
     Writes to `target` and never touches the live archive, so the existing
-    store stays readable and the swap stays a rename (see tasks/migration_plan.md).
+    store stays readable and the swap stays a rename (see docs/history/migration_plan.md).
     Returns the number of frames written.
     """
     if target.exists():

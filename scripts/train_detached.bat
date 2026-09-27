@@ -19,7 +19,8 @@ REM Stop it with: taskkill /PID <pid> /F   (pid is in logs\nowcaster_train.pid)
 
 setlocal
 set ROOT=%~dp0..
-set PY=C:\Users\<username>\AppData\Local\Programs\Python\Python312\python.exe
+REM Python: set PY beforehand to use a specific interpreter, else python on PATH.
+if not defined PY set PY=python
 set LOG=%ROOT%\logs\nowcaster_train.log
 
 cd /d "%ROOT%"

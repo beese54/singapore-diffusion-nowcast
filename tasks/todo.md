@@ -47,7 +47,7 @@
 > Trigger: first real FLASH_FLOOD labels since collection began (King's Road 17:11 SGT,
 > Coronation Road 17:15 SGT). Ran under Pattern AP (Observability) for the alerting and
 > Pattern N (Timeboxed Spike) for "can we predict today's flood?" —
-> see `tasks/observability_plan.md` and `tasks/spike_nowcast_today.md`.
+> see `docs/history/observability_plan.md` and `docs/history/spike_nowcast_today.md`.
 
 ### Backfill + ground truth
 - [x] Recovered 141 missing slots for 22 Sep (laptop off 06:15–17:55 SGT); coverage now 241/241
@@ -78,7 +78,7 @@
 
 > Approved scope: tasks 3.7 and 3.8. Diagnosis found 3.7 understated, 3.8's premise wrong,
 > and a third defect. Ran under Pattern L (Data Migration): expand → migrate → contract, with
-> validation queries declared before execution. Full ledger in `tasks/migration_plan.md`.
+> validation queries declared before execution. Full ledger in `docs/history/migration_plan.md`.
 
 **What was actually wrong** (all four verified by reproduction, not inspection):
 1. Crop constants written for a 480×480 composite; images are 217×120, so the guard clamped

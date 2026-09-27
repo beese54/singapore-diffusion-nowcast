@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 evaluate_probabilistic.py -- Re-score a nowcaster with metrics suited to a
-probabilistic flood tool (re-plan Step 1, tasks/replan_stage4_5.md).
+probabilistic flood tool (re-plan Step 1, docs/history/replan_stage4_5.md).
 
 The headline Stage 5 metric (evaluate.py) is FSS of individual forecasts
 against persistence, which rewards exact rain placement. The model is a
@@ -45,7 +45,6 @@ from src.data.radar_dataset import RadarDataset  # noqa: E402
 PX_KM = 0.290            # measured from radar.zarr lat/lon (see lesson L025)
 LEAD = 6                 # set from the checkpoint in main(); one model per lead
 CACHE_DIR = ROOT / "data" / "processed" / "eval_cache"
-RESULTS = ROOT / "results" / "probabilistic_eval.json"
 
 
 def km(px: int) -> str:
@@ -109,7 +108,7 @@ def main():
     ap.add_argument("--parameterization", choices=["v", "eps"], default=None)
     ap.add_argument("--n-samples", type=int, default=200)
     ap.add_argument("--members", type=int, default=8)
-    ap.add_argument("--out", default="results/probabilistic_eval.json",
+    ap.add_argument("--out", default=None,  # default: results/probabilistic_eval_lead<N>.json
                     help="Results JSON, relative to the repo root")
     ap.add_argument("--from-cache", action="store_true",
                     help="Skip generation; fail if the cache is missing")
@@ -306,7 +305,9 @@ def main():
                   f"persistence {ap_ / max(n_ctrl,1):>5.1%}  observed {ao / max(n_ctrl,1):>5.1%}")
     report["D_flood_events"] = D
 
-    out = ROOT / args.out
+    # Per-lead default: one shared file let the three lead models overwrite
+    # each other's results.
+    out = ROOT / (args.out or f"results/probabilistic_eval_lead{LEAD * 5}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
     print(f"\nSaved -> {out}")
