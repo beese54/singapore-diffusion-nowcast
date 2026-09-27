@@ -46,7 +46,7 @@
 - [x] A5 published 2026-09-27: https://github.com/beese54/singapore-diffusion-nowcast (public), dashboard https://beese54.github.io/singapore-diffusion-nowcast/ via GitHub Actions Pages.
   Gate: 0/7 secret values and 0 key-format hits in 79 commits; history rewritten (user choice) to the GitHub no-reply email with the Windows username scrubbed (backup: checkpoints/pre-rewrite-2026-09-27.bundle); re-scanned the published clone: clean. Live site rendered headless: 14 canvases, correct verdict. Needed `gh auth refresh -s workflow` (done by user).
 - [ ] USER: post on LinkedIn (content/linkedin_post_phase1.md, links filled; images docs/img/linkedin/)
-- [ ] USER: apply for NVIDIA LaunchPad PhysicsNeMo lab (scripts/launchpad/project_brief.md; add the GitHub link)
+- [x] ~~USER: apply for NVIDIA LaunchPad~~ dropped 2026-09-27: console needs an enterprise sign-in; hosted CorrDiff NIM deprecated. Spike runs locally.
 
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)

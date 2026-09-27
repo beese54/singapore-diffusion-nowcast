@@ -1,3 +1,6 @@
+> **Status 2026-09-27: not submitted.** LaunchPad's console requires an enterprise sign-in and the hosted CorrDiff
+> NIM is deprecated (see tasks/plan_phase2.md §3). Kept as the project summary for any future NVIDIA programme.
+
 # NVIDIA LaunchPad application brief — Singapore storm nowcasting and CorrDiff downscaling
 
 *Rewritten 2026-09-27. The June 2026 version (kept in `docs/history/launchpad_2026-06/`) had the

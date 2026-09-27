@@ -17,7 +17,7 @@ diffusion stage has nothing to build on, and full CorrDiff is not worth GPU mone
 | Item | Choice | Why |
 |---|---|---|
 | Target | NEA 70 km radar, **hourly mean** rain rate over (t−1h, t] — matches ERA5's hourly `tp` accumulation | the only georeferenced radar we have (240 km not yet validated) |
-| Target grid | 7 × 7 block mean of the 0.29 km grid → **2.03 km**, cropped to **16 × 32** px (32 × 65 km) | ERA5 ~28 km → ×14, inside NVIDIA's ×11–16 guidance |
+| Target grid | 7 × 7 block mean of the 0.29 km grid → **2.03 km**, cropped to **16 × 28** px (32 × 57 km; the domain is only 31 blocks wide, and both sizes must divide by 4) | ERA5 ~28 km → ×14, inside NVIDIA's ×11–16 guidance |
 | Input | ERA5 single + pressure levels (u10, v10, t2m, msl, tcwv, sp, tp; q/t/z/u/v at 1000/850/500/250 = 27 channels), bilinearly regridded onto the target grid, as CorrDiff does; standardised per channel | CorrDiff convention |
 | ERA5 window | N 3.0, W 102.0, S −0.5, E 105.5 (0.25°) | margin for regridding + later larger-context experiments |
 | Period | 2026-05-22 → latest ERA5 (≈ 5-day lag): ~3,000 hourly samples | radar and ERA5 must share times (the June brief's error) |
@@ -41,3 +41,9 @@ On the test period, versus the bilinear-ERA5 baseline:
 ## Log
 
 - 2026-09-27: brief written; ERA5 2026 download started.
+- 2026-09-27: NVIDIA LaunchPad needs an enterprise sign-in and the hosted CorrDiff NIM is deprecated — the spike
+  runs locally as designed (PhysicsNeMo 2.1.0: `CorrDiffRegressionUNet`, `RegressionLoss` import and build).
+- 2026-09-27: targets built (`scripts/corrdiff/build_targets.py` → `data/processed/corrdiff/targets_2km.nc`):
+  2,855 of 3,075 hours kept (27 May – 27 Sep; ≥10 of 12 frames, none blank), 16 × 28 at 2.03 km, 2.7% of cells
+  wet ≥0.5 mm/hr, max 63 mm/hr hourly mean. Spot check 22 Sep 09:00 UTC cell (7,12): independent mean of the 12
+  frames = 44.046 mm/hr = stored value.

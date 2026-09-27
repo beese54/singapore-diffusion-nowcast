@@ -82,6 +82,12 @@ Verification: open in Chrome, check desktop + phone width, no console errors, re
 > heavy-rain stage (Himawari-9 in place of GOES) and a candidate baseline. LaunchPad offers a
 > **PhysicsNeMo** hands-on lab — that is what to request.
 
+> **Update 2026-09-27 (checked with the user in Chrome):** LaunchPad's console (manage.launchpad.nvidia.com)
+> requires an enterprise Microsoft sign-in — it is set up for enterprise trials, not individual applications, so
+> the LaunchPad route is dropped. The hosted CorrDiff NIM on build.nvidia.com is **deprecated**. Neither matters for
+> the spike: CorrDiff's building blocks run locally from PhysicsNeMo 2.1.0. If the spike says go, the free NGC
+> PhysicsNeMo container (26.08) is the environment for a rented cloud GPU.
+
 ## 4. Workstream D — Heavy-rain stage: collect the right data now  *(Pattern N, then Stage 7 plan)*
 
 Why: every radar-only fix failed; the diagnosis is missing information — storms that are not on the 35 × 63 km radar yet, and growth/decay. Two kinds of data: things we must **collect forward** (not archived upstream), and things we can **backfill** later.
