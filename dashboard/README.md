@@ -38,6 +38,7 @@ opens on the final step; sliders remain user-driven.
 | No horizontal scroll at phone width | page in a 390 px iframe: scrollWidth = clientWidth | pass |
 | Controls: lead and case switch, denoise slider to step 50, pause stops the hero | scripted clicks in Chrome | pass |
 | Timing / idle cost | not measured: the automation tab reported `visibilityState: hidden`, which suspends rAF, so a browser timing reading there would be meaningless | code-level guarantee only (`stop()` cancels rAF) |
+| Plain-language pass (2026-09-27, after user feedback): each section says what to look at and why it matters; explorer verdict chips and key moments | headless Chrome render + DOM text check (verdict for the 10:35 forecast: model ✓ 3/8, naive ✗ 1 mm/hr, observed 11.6 mm/hr) | pass |
 | Numbers match `results/` | exporter reads the JSON directly; spot-checked against docs/RESULTS.md | pass |
 
 ## Attribution

@@ -303,15 +303,48 @@ async function explorer(D) {
     }
     Object.values(P).forEach((p) => p.setMarks(marks));
     const target = L.targets[k], issued = L.issued[k];
-    $('ex-t-out').textContent = `${target} SGT (issued ${issued})`;
+    $('ex-t-out').textContent = `${target} SGT (made at ${issued})`;
     const obsNow = c.obs_site[L.target_obs_index[k]];
+    const naiveNow = c.obs_site[L.persistence_obs_index[k]];
     const flood = c.reports.find((r) => r.type === 'FLASH_FLOOD');
     $('ex-sentence').innerHTML =
-      `Forecast issued at <b>${issued} SGT</b> for <b>${target} SGT</b> ` +
-      `(${L.minutes_after_last_frame} min after the last radar map). Near <b>${s.name}</b>: ` +
-      `chance of ≥10 mm/hr <b>${pct(L.site_p10[k])}</b> · forecast median ${L.site_median[k]} mm/hr · ` +
-      `observed ${obsNow} mm/hr` + (flood ? ` · flash flood reported ${flood.time}` : '') + '.';
+      `At <b>${issued}</b>, forecasting <b>${target}</b> SGT (${L.minutes_after_last_frame} minutes ahead), ` +
+      `for the flood site <b>${s.name}</b>` + (flood ? `, where a flash flood was reported at <b>${flood.time}</b>` : '') + ':';
+    // The verdict, in plain words: heavy rain = at least 10 mm/hr somewhere in
+    // the 2 x 2 km box; the model "warns" when 2 or more of 8 futures show it.
+    const HEAVY = 10, WARN = 0.25;
+    const real = obsNow >= HEAVY, modelWarn = L.site_p10[k] >= WARN, naiveWarn = naiveNow >= HEAVY;
+    const chip = (label, said, right) =>
+      `<span class="chip ${right ? 'ok' : 'no'}"><span class="mark">${right ? '✓' : '✗'}</span><b>${label}</b> ${said}</span>`;
+    $('verdict').innerHTML =
+      chip('AI model:', modelWarn ? `warns of heavy rain (${Math.round(L.site_p10[k] * 8)} of 8 futures)`
+                                  : `no warning (${Math.round(L.site_p10[k] * 8)} of 8 futures)`, modelWarn === real) +
+      chip('Naive forecast:', naiveWarn ? `heavy rain (it is raining ${naiveNow} mm/hr now)`
+                                        : `no heavy rain (${naiveNow} mm/hr now)`, naiveWarn === real) +
+      `<span class="chip truth"><b>What happened:</b> ${real ? `heavy rain, ${obsNow} mm/hr` : `no heavy rain (${obsNow} mm/hr)`}</span>`;
+    moments(c, L);
     chart(c, L, k);
+  }
+
+  // one-click jumps to the moments that tell the story
+  function moments(c, L) {
+    const flood = c.reports.find((r) => r.type === 'FLASH_FLOOD');
+    const obsAt = L.target_obs_index.map((i) => c.obs_site[i]);
+    const first = L.site_p10.findIndex((p) => p >= 0.25);
+    const peak = obsAt.indexOf(Math.max(...obsAt));
+    const atFlood = flood ? L.targets.findIndex((t) => toMin(t) >= toMin(flood.time)) : -1;
+    const items = [
+      [first, first >= 0 ? `First warning (made ${L.issued[first]})` : 'No warning at this lead'],
+      [peak, `Heaviest rain (${L.targets[peak]})`],
+      [atFlood, flood ? `Flood reported (${flood.time})` : ''],
+    ].filter(([i, label]) => label);
+    $('moments').replaceChildren(...items.map(([i, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.disabled = i < 0;
+      b.setAttribute('aria-pressed', String(i === state.k));
+      b.addEventListener('click', () => { player.stop(); state.k = i; render(false); });
+      return b;
+    }));
   }
   slider.addEventListener('input', () => { player.stop(); state.k = +slider.value; render(false); });
   const player = makePlayer({ fps: 2, button: $('ex-play'), visibleEl: $('ex-obs'),
@@ -324,7 +357,7 @@ async function explorer(D) {
   $('legend').innerHTML =
     `<span>Rain (mm/hr): 0.5<span class="bar">${rainBar}</span>100</span>` +
     `<span>Chance of ≥10 mm/hr: 0%<span class="bar">${probBar}</span>100%</span>` +
-    `<span>□ flood site box · <span style="color:#ff3b30">○</span> flash flood · <span style="color:#3aa9c8">○</span> PUB flood-prone</span>`;
+    `<span>□ flood site (2 × 2 km) · <span style="color:#ff3b30">○</span> flash flood reported · <span style="color:#3aa9c8">○</span> PUB flood-prone location</span>`;
 }
 
 function chart(c, L, k) {
@@ -370,22 +403,35 @@ function chart(c, L, k) {
   s.appendChild(svgEl('line', { x1: X(L.targets[k]), x2: X(L.targets[k]), y1: m.t, y2: H - m.b, stroke: 'var(--accent)', 'stroke-width': 1.5 }));
   s.appendChild(svgEl('line', { x1: X(L.issued[k]), x2: X(L.issued[k]), y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '2 4' }));
   $('ex-chart').replaceChildren(s);
-  $('ex-chart-cap').textContent = `Near ${c.site.name} (max over a 2 × 2 km box): observed (bold line), forecast median and range of 8 futures (blue band), ` +
-    `chance of ≥10 mm/hr (bars). Solid blue line: the selected forecast's target time; dotted grey: when it was issued; red dashed: flash-flood report.`;
+  $('ex-chart-cap').innerHTML = `<b>How to read this chart:</b> the bold line is the rain that actually fell at ${c.site.name}. ` +
+    `The coloured bars are the model's warning for each time: how many of its 8 futures showed heavy rain there (taller = more sure). ` +
+    `The blue line and band are the rain amounts it expected. The solid blue marker is the forecast you selected; the dotted grey one is ` +
+    `when that forecast was made; the red dashed line is the flash-flood report. <b>Look for bars that rise before the bold line does:</b> ` +
+    `that is a warning given in advance.`;
 }
 
 function evidence(D) {
   const R = D.results;
   $('ev-period').textContent = `${R.period[0].slice(0, 10)} to ${R.period[1].slice(0, 10)}`;
   const h30 = R.headline['30'];
-  $('stat-crps').textContent = fmt(h30.crps_skill, 2);
-  $('stat-crps-ci').textContent = `95% CI ${fmt(h30.crps_ci[0], 2)} to ${fmt(h30.crps_ci[1], 2)}`;
+  $('stat-crps').textContent = Math.round(h30.crps_skill * 100) + '%';
+  $('stat-crps-ci').textContent = `likely range ${Math.round(h30.crps_ci[0] * 100)}–${Math.round(h30.crps_ci[1] * 100)}% (CRPS skill)`;
   // colour by the numbers as DISPLAYED (2 dp): 0.558 vs 0.558 is a tie, not a win
   const cls = (a, b) => { const x = +(+a).toFixed(2), y = +(+b).toFixed(2); return x > y ? 'good' : x < y ? 'bad' : ''; };
-  let html = '<thead><tr><th>Lead</th><th>CRPS skill [95% CI]</th><th>Rain placement FSS ≥2 mm/hr<br>model / persistence</th><th>Heavy rain FSS ≥10 mm/hr<br>model / persistence</th></tr></thead><tbody>';
+  const h = R.headline;
+  $('ev-summary').innerHTML =
+    `<li><b>30 minutes ahead, the model beats the naive forecast overall</b>: its probability forecasts have ` +
+    `${Math.round(h['30'].crps_skill * 100)}% lower error (likely range ${Math.round(h['30'].crps_ci[0] * 100)}–${Math.round(h['30'].crps_ci[1] * 100)}%), ` +
+    `and it puts light rain in the right place more often (score ${h['30'].fss2[0].toFixed(2)} vs ${h['30'].fss2[1].toFixed(2)}).</li>` +
+    `<li><b>Heavy rain is not solved:</b> for downpours of 10 mm/hr and more, the naive forecast still places rain better at every lead ` +
+    `(${h['30'].fss10[0].toFixed(2)} vs ${h['30'].fss10[1].toFixed(2)} at 30 minutes). This is the main problem left.</li>` +
+    `<li><b>60 and 90 minutes ahead</b>, the model only matches or slightly beats the naive forecast, and only for light rain.</li>`;
+  let html = '<thead><tr><th>How far ahead</th><th>Overall accuracy<br><small>% lower error than naive (CRPS skill, 95% range)</small></th>' +
+    '<th>Light rain in the right place<br><small>score, model / naive (FSS ≥2 mm/hr)</small></th>' +
+    '<th>Heavy rain in the right place<br><small>score, model / naive (FSS ≥10 mm/hr)</small></th></tr></thead><tbody>';
   for (const L of ['30', '60', '90']) {
     const r = R.headline[L];
-    html += `<tr><td>${L} min</td><td class="${r.crps_ci[0] > 0 ? 'good' : ''}">${fmt(r.crps_skill, 2)} [${fmt(r.crps_ci[0], 2)}, ${fmt(r.crps_ci[1], 2)}]</td>` +
+    html += `<tr><td>${L} min</td><td class="${r.crps_ci[0] > 0 ? 'good' : ''}">${Math.round(r.crps_skill * 100)}% <small>(${Math.round(r.crps_ci[0] * 100)}–${Math.round(r.crps_ci[1] * 100)}%)</small></td>` +
       `<td class="${cls(r.fss2[0], r.fss2[1])}">${r.fss2[0].toFixed(2)} / ${r.fss2[1].toFixed(2)}</td>` +
       `<td class="${cls(r.fss10[0], r.fss10[1])}">${r.fss10[0].toFixed(2)} / ${r.fss10[1].toFixed(2)}</td></tr>`;
   }
@@ -401,7 +447,8 @@ function evidence(D) {
     card.innerHTML = t + '</tbody></table>';
     return card;
   }));
-  let ft = '<thead><tr><th>Lead</th><th>Test period (18 &amp; 22 Sep)<br>model / persistence</th><th>After test (27 Sep)<br>model / persistence</th><th>Alarm rate at ordinary times<br>model / persistence</th></tr></thead><tbody>';
+  let ft = '<thead><tr><th>How far ahead</th><th>Floods during the test period<br><small>18 &amp; 22 Sep: model / naive</small></th>' +
+    '<th>Floods after it<br><small>27 Sep: model / naive</small></th><th>How often it raises an alarm on ordinary days<br><small>model / naive</small></th></tr></thead><tbody>';
   for (const L of ['30', '60', '90']) {
     const f = R.flood_events[L], a = f.test, b = f.after_test;
     ft += `<tr><td>${L} min</td><td class="${cls(a.model_hits, a.persistence_hits)}">${a.model_hits}/${a.n} vs ${a.persistence_hits}/${a.n}</td>` +

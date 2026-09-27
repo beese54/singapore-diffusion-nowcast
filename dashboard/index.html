@@ -25,19 +25,33 @@
     <p class="lede">It reads the last 30 minutes of rain radar and imagines eight possible futures for the next
       35–95 minutes. Where the futures agree on heavy rain, there is a warning.</p>
     <div class="stats">
-      <div class="stat"><span class="num" id="stat-crps">+0.38</span><span class="lbl">CRPS skill vs persistence at 30 min<br><small id="stat-crps-ci"></small></span></div>
+      <div class="stat"><span class="num" id="stat-crps">38%</span><span class="lbl">lower forecast error than the naive forecast, 30 min ahead<br><small id="stat-crps-ci"></small></span></div>
       <div class="stat"><span class="num">82 min</span><span class="lbl">warning before the 27 Sep flash-flood report, out of sample</span></div>
       <div class="stat"><span class="num">20 s</span><span class="lbl">8 members × 3 lead times on a laptop GPU</span></div>
     </div>
-    <p class="caveat">Heavy rain is not yet predicted better than persistence. <a href="#limits">Read the limits</a>.</p>
+    <p class="caveat">Not solved yet: heavy downpours, where it is still no better than assuming the latest radar map stays put. <a href="#limits">Read the limits</a>.</p>
   </div>
   <figure class="hero-fig">
     <div class="panel big" id="hero-panel"></div>
     <figcaption>
       <button class="play" id="hero-play" aria-label="Pause animation">❚❚</button>
-      <span id="hero-time">—</span> SGT · 22 Sep 2026 · observed radar, flash-flood reports in red
+      <span id="hero-time">—</span> SGT · 22 Sep 2026 · the real radar during the King's Road storm
     </figcaption>
+    <p class="howto">Colours show how hard it is raining: light blue is drizzle, green moderate, yellow to red
+      heavy, purple torrential. Red rings mark where flash floods were reported.</p>
   </figure>
+</section>
+
+<section id="why" class="wrap">
+  <h2>Why this matters</h2>
+  <div class="why-grid">
+    <div><b>Flash floods start fast.</b> On 27 Sep the flood site went from dry to 100 mm/hr — the top of the
+      radar's scale — in about 25 minutes.</div>
+    <div><b>Warnings come as the rain arrives.</b> Public flood-risk alerts are issued "due to heavy rain": when
+      it is already falling. This model tries to see it coming.</div>
+    <div><b>Minutes are what count.</b> Half an hour to an hour of street-level notice is time to move a car or
+      avoid a road. This prototype shows that is within reach for moving storms; it is not reliable enough yet.</div>
+  </div>
 </section>
 
 <section id="how" class="wrap">
@@ -50,6 +64,12 @@
     <li><b>Eight futures.</b> Starting from different noise gives different, equally plausible futures.
       The share of futures with heavy rain over a place is its forecast probability.</li>
   </ol>
+  <p class="guide"><b>Watch the model draw one forecast.</b> It is given the six radar maps below (the last
+    30 minutes up to 16:15) and asked to draw the rain at 16:50. It starts from pure noise (left) and cleans it up
+    in 50 small steps; the middle panel is its best guess so far. Press play or drag the slider. The finished guess
+    puts the storm in roughly the right place but weaker than reality (right) — its known weakness.
+    <b>Why it matters:</b> start again from different noise and you get a different, equally plausible map.
+    Drawing eight of them is how the model says how sure it is.</p>
   <div class="denoise">
     <div class="denoise-ctx">
       <h3>Input: last 30 min <small id="dn-issued"></small></h3>
@@ -71,18 +91,24 @@
 </section>
 
 <section id="explore" class="wrap">
-  <h2>Explore a flash flood, forecast by forecast</h2>
+  <h2>Would it have warned us? Two real flash floods</h2>
+  <p class="guide">Pick a flood and how far ahead to forecast, then step through the forecasts made before it.
+    For each one you see what the <b>AI model</b> predicted, what a <b>naive forecast</b> would say (assume the
+    latest radar map simply stays as it is — the standard baseline) and <b>what actually happened</b>.
+    Start with the buttons below.</p>
   <div class="toolbar" role="group" aria-label="Explorer options">
     <div class="seg" id="case-seg" role="radiogroup" aria-label="Event"></div>
     <div class="seg" id="lead-seg" role="radiogroup" aria-label="Lead time"></div>
     <label class="chk"><input type="checkbox" id="show-prone" checked> PUB flood-prone areas</label>
   </div>
+  <div class="moments" id="moments" role="group" aria-label="Key moments"></div>
   <p class="context" id="ex-sentence">—</p>
+  <div class="verdict" id="verdict" aria-live="polite"></div>
   <div class="grid4">
-    <figure><div class="panel" id="ex-obs"></div><figcaption>Observed at target</figcaption></figure>
-    <figure><div class="panel" id="ex-per"></div><figcaption>Persistence: last map the model saw</figcaption></figure>
-    <figure><div class="panel" id="ex-mean"></div><figcaption>Forecast: average of 8 futures</figcaption></figure>
-    <figure><div class="panel" id="ex-p10"></div><figcaption>Forecast: chance of ≥10 mm/hr</figcaption></figure>
+    <figure><div class="panel" id="ex-obs"></div><figcaption><b>1 · What actually fell</b> at that time</figcaption></figure>
+    <figure><div class="panel" id="ex-per"></div><figcaption><b>2 · Naive forecast:</b> the latest radar map, unchanged</figcaption></figure>
+    <figure><div class="panel" id="ex-mean"></div><figcaption><b>3 · AI model:</b> the typical rain of its 8 futures</figcaption></figure>
+    <figure><div class="panel" id="ex-p10"></div><figcaption><b>4 · AI model's warning:</b> how many futures show heavy rain (≥10 mm/hr)</figcaption></figure>
   </div>
   <div class="control">
     <button class="play" id="ex-play" aria-label="Play forecasts">▶</button>
@@ -98,24 +124,28 @@
 
 <section id="evidence" class="wrap">
   <h2>The evidence</h2>
-  <p>Scored on a held-out test period (<span id="ev-period"></span>) that no model saw in training,
-    against <b>persistence</b> — assuming the latest radar map stays put, the standard baseline.</p>
+  <p>Two floods are anecdotes. The real test is 200 forecasts, each with 8 futures, spread across a 12-day period
+    (<span id="ev-period"></span>) that the model never saw in training, each compared with the naive forecast.</p>
+  <ul class="summary" id="ev-summary"></ul>
   <div class="table-wrap"><table id="ev-table"></table></div>
-  <p class="note">CRPS measures how good the whole probability forecast is (positive = better than
-    persistence). FSS measures whether rain lands in the right place within a 12 km neighbourhood.
-    At 60–90 min CRPS alone flatters a model that spreads weak rain around, which is why both are shown.</p>
-  <h3>Rain placement by scale</h3>
+  <p class="note">For researchers: overall accuracy is CRPS skill against persistence; placement is the pooled
+    fractions skill score (FSS, 0 to 1, higher is better) within a 12 km neighbourhood. At 60–90 min CRPS alone
+    flatters a model that spreads weak rain around, which is why both are shown. Full details in docs/RESULTS.md.</p>
+  <h3>Placement at different map scales <small>(score, model / naive; blue = model better, red = worse)</small></h3>
   <div id="ev-fss" class="fss-grid"></div>
-  <h3>Recorded flash floods the models never saw</h3>
+  <h3>Did it put rain on real flood sites beforehand?</h3>
   <div class="table-wrap"><table id="ev-flood"></table></div>
-  <p class="note">A hit means at least 4 of 8 futures put ≥2 mm/hr within 1.4 km of the reported location.
-    The alarm rate at ordinary times guards against a model that simply rains more often. These events
-    come from about three storms, so read them as indicative.</p>
+  <p class="note">Counts of flood reports where the forecast put rain (≥2 mm/hr in at least 4 of 8 futures) within
+    1.4 km beforehand. The last column checks the model is not simply raining everywhere: on ordinary days it raises
+    an alarm at these places rarely. Only floods the model never trained on are counted, and they come from about
+    three storms, so read these as indicative.</p>
 </section>
 
 <section id="live" class="wrap">
   <h2>A live forecast in 20 seconds</h2>
-  <p>From the newest radar frame to three lead times × eight futures, on an RTX 4060 laptop GPU.</p>
+  <p>From the newest radar map to three forecasts (30, 60 and 90 minutes ahead) × eight futures each, on an
+    ordinary laptop graphics card. <b>Why it matters:</b> the radar updates every 5 minutes, so a forecast that
+    takes 20 seconds can be refreshed with every new map, on hardware a city agency or even an individual could run.</p>
   <div class="timeline" id="live-timeline"></div>
   <pre class="cmd"><code>python src/inference/nowcast.py --checkpoint &lt;30-min&gt; &lt;60-min&gt; &lt;90-min&gt;</code></pre>
 </section>
@@ -143,7 +173,7 @@
   </div>
   <h3 id="limits">Limits, stated plainly</h3>
   <ul class="limits">
-    <li>Heavy rain (≥10 mm/hr) is not forecast better than persistence at any lead; intensities are 5–10× too weak.</li>
+    <li>Heavy rain (10 mm/hr and more) is not forecast better than the naive forecast at any lead, and the model expects it 5–10× too weak.</li>
     <li>60 and 90 minute forecasts only help with light rain.</li>
     <li>128 days of data, one monsoon season, one 12-day test period and about three flood storms.</li>
     <li>Flood labels are public alerts, not measurements; locations are geocoded points.</li>
