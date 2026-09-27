@@ -18,6 +18,20 @@ satellite and NVIDIA CorrDiff downscaling) is under way.
 radar imagery © NEA / Meteorological Service Singapore (weather.gov.sg), shown for personal,
 non-commercial, informational use only.*
 
+## The dashboard at a glance
+
+Screenshots from the [live dashboard](https://beese54.github.io/singapore-diffusion-nowcast/). Radar imagery
+© NEA / Meteorological Service Singapore (weather.gov.sg), shown for personal, non-commercial, informational use only.
+
+| | |
+|---|---|
+| ![Overview: headline numbers and why flash-flood nowcasting matters](docs/img/dashboard/1_overview.jpg) | ![Flood explorer: at 10:35 on 27 Sep the AI model warns of heavy rain, the naive forecast does not, and heavy rain fell](docs/img/dashboard/2_flood_explorer_27sep.jpg) |
+| **Overview.** What the model does, the headline numbers, and why minutes matter. | **Would it have warned us?** The 10:35 forecast for the 27 Sep flood: the model warns (3 of 8 futures), the naive forecast doesn't, heavy rain came. |
+| ![Chart: the model's warning bars rise before the observed rain at the flood site](docs/img/dashboard/3_flood_site_chart_27sep.jpg) | ![Scorecard: catch rate and precision of heavy-rain warnings by lead time](docs/img/dashboard/4_when_it_warns_is_it_right.jpg) |
+| **Warnings before the rain.** Bars (model warnings) rise before the bold line (observed rain); red dashes mark the flood report. | **The honest scorecard.** 30 min ahead: catches 29% of downpours, right 1 time in 3 (27× chance); 60/90 min: no better than the naive forecast. |
+| ![Noise to rain: the diffusion model's 50-step denoising](docs/img/dashboard/5_noise_to_rain.jpg) | ![What comes next: NEA's 240 km radar and the Phase 2 plan](docs/img/dashboard/6_whats_next_240km_radar.jpg) |
+| **How it draws a forecast.** From random noise to a rain map in 50 steps, guided by the last 30 minutes of radar. | **What comes next.** The wider 240 km radar, satellite, NVIDIA CorrDiff, and PUB's drain-sensor alerts as flood ground truth. |
+
 ## Results in one table
 
 Held-out test period (14–25 Sep 2026), 200 forecast times × 8 members, against persistence

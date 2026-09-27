@@ -167,6 +167,7 @@
         <li><b>Himawari-9 satellite</b>, following NVIDIA's Earth-2 Nowcasting model (StormScope), which
           combines satellite and radar.</li>
         <li><b>NVIDIA CorrDiff</b> (PhysicsNeMo) to downscale the ERA5 weather environment to ~2.5 km.</li>
+        <li><b>Learning which spots flood</b> at what rainfall, using PUB's drain-sensor flood-risk alerts as ground truth.</li>
         <li>Retraining once the archive covers the Northeast Monsoon (Dec–Mar).</li>
       </ul>
     </div>
@@ -182,7 +183,7 @@
     <li>Heavy rain (10 mm/hr and more) is not forecast better than the naive forecast at any lead, and the model expects it 5–10× too weak.</li>
     <li>60 and 90 minute forecasts only help with light rain.</li>
     <li>128 days of data, one monsoon season, one 12-day test period and about three flood storms.</li>
-    <li>Flood labels are public alerts, not measurements; locations are geocoded points.</li>
+    <li>It predicts rain, not floods. PUB's flood-risk alerts only tell us when a drain passes 90% full; locations are geocoded points.</li>
     <li>A research prototype — not a warning service. Follow official PUB and MSS advisories.</li>
   </ul>
 </section>

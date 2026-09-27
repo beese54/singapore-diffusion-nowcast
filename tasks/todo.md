@@ -39,7 +39,7 @@
 
 ### E. LinkedIn
 - [x] E1 screenshots via the Chrome extension -> docs/img/linkedin/ (hero 22 Sep peak, explorer 27 Sep first warning, noise-to-rain); GIF `27sep_nowcast.gif` built in Python (`scripts/make_social_gif.py`) — a browser GIF export would need a download
-- [x] E1b evidence + 240 km screenshots (4_evidence.jpg, 5_whats_next_240km.jpg)
+- [x] E1b screenshots re-taken after the plain-language rewrite -> docs/img/dashboard/1..6 (README gallery + post); outdated docs/img/linkedin/*.jpg removed; post rewritten as prose
 - [x] E2 post draft `content/linkedin_post_phase1.md` (gitignored): V1 short, V2 full, first comment, alt text, claim-by-claim truth check. **User posts it**; URLs filled in after publishing
 
 ### Publish
