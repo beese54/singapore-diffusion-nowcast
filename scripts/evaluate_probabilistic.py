@@ -40,7 +40,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from evaluate import crps_pixelwise, fss_parts, load_model  # noqa: E402
-from src.data.radar_dataset import RadarDataset  # noqa: E402
+from src.data.radar_dataset import RadarDataset, SPLIT_TEST_END, SPLIT_TEST_START  # noqa: E402
 
 PX_KM = 0.290            # measured from radar.zarr lat/lon (see lesson L025)
 LEAD = 6                 # set from the checkpoint in main(); one model per lead
@@ -144,8 +144,23 @@ def main():
     step_ok = np.diff(ds.times) == np.timedelta64(5, "m")
     okc = np.concatenate(([0], np.cumsum(step_ok)))
     cf = ds.context_frames
-    f_anchor, f_cell, f_type = [], [], []
+    # Only events the model never trained on. Scoring used to take every
+    # geocoded event in the archive: 29 of 38 fell in the train/val periods,
+    # whose radar frames the model was fitted to, which flattered it (lesson
+    # L031). "test" = inside the pinned test period; "after_test" = after it
+    # (never used for training or model selection -- a fresh holdout that grows
+    # as new floods are reported).
+    f_anchor, f_cell, f_type, f_group = [], [], [], []
+    n_in_sample = 0
     for _, r in ev.iterrows():
+        et = np.datetime64(r["matched_radar_time"], "m")
+        if SPLIT_TEST_START <= et <= SPLIT_TEST_END:
+            group = "test"
+        elif et > SPLIT_TEST_END:
+            group = "after_test"
+        else:
+            n_in_sample += 1
+            continue
         idx = int(np.searchsorted(ds.times, np.datetime64(r["matched_radar_time"])))
         t = idx - LEAD
         if t - cf < 0 or idx >= len(ds.times):
@@ -155,14 +170,15 @@ def main():
         f_anchor.append(t)
         f_cell.append((int(r["location_lat_idx"]), int(r["location_lon_idx"])))
         f_type.append(r["message_type"])
+        f_group.append(group)
 
-    # The test split is "the last 10% of the archive", and the archive grows
-    # every morning (daily preprocess). So the same code picks DIFFERENT test
-    # times on different days. A cache that stores only forecasts would then be
-    # scored against the wrong observations -- this happened once: cached
-    # forecasts from 25 Sep, re-scored on 26 Sep, read CRPS skill +0.129 instead
-    # of +0.437. The cache therefore stores the exact times it covers, and a
-    # mismatch is refused rather than silently scored.
+    # A cache that stores only forecasts can be scored against the wrong
+    # observations -- this happened once, when the test split was still "the
+    # last 10% of a growing archive": cached forecasts from 25 Sep, re-scored on
+    # 26 Sep, read CRPS skill +0.129 instead of +0.437 (L028). The split is now
+    # pinned, but the cache still stores the exact times it covers: a change in
+    # the TEST anchors is refused; a change in the flood-event list (new
+    # reports arrive daily) only regenerates the flood-event forecasts.
     a_times = ds.times[np.array(anchors)].astype("datetime64[m]")
     f_times = ds.times[np.array(f_anchor, dtype=int)].astype("datetime64[m]") \
         if f_anchor else np.array([], dtype="datetime64[m]")
@@ -171,15 +187,21 @@ def main():
         if "anchor_times" not in z.files:
             sys.exit(f"{cache.name} predates time-stamped caches, so the test "
                      f"times it covers are unknown. Delete it and regenerate.")
-        same = (np.array_equal(z["anchor_times"], a_times)
-                and np.array_equal(z["flood_times"], f_times))
-        if not same:
-            sys.exit(f"{cache.name} covers different test times than today's test "
-                     f"split (the archive has grown since it was written). Delete it "
-                     f"and regenerate; do not reuse it.")
+        if not np.array_equal(z["anchor_times"], a_times):
+            sys.exit(f"{cache.name} covers different TEST anchors than the current "
+                     f"split. Delete it and regenerate; do not reuse it.")
         ens, fens = z["ens"], z["fens"]
         print(f"Loaded cached ensembles: {cache.name} "
               f"(test times {str(a_times[0])} .. {str(a_times[-1])})")
+        if not np.array_equal(z["flood_times"], f_times):
+            if args.from_cache:
+                sys.exit(f"{cache.name}: flood-event list changed and --from-cache "
+                         f"forbids generating the new flood forecasts")
+            print(f"Flood-event list changed ({len(z['flood_times'])} -> {len(f_times)}); "
+                  f"regenerating flood-event forecasts only")
+            fens = generate(model, ds, f_anchor, args.members, device, seed0=5000)
+            np.savez_compressed(cache, ens=ens, fens=fens,
+                                anchor_times=a_times, flood_times=f_times)
     elif args.from_cache:
         sys.exit(f"--from-cache given but {cache.name} does not exist")
     else:
@@ -268,41 +290,49 @@ def main():
     report["C_boxes"] = C
 
     # ── D. recorded flood events ────────────────────────────────────────────
-    print(f"\nD. Recorded flood events ({len(f_anchor)} usable; "
-          f"forecast issued {(LEAD + 1) * 5} min before the event frame)")
-    D = {"n_events": len(f_anchor),
-         "types": {t: f_type.count(t) for t in set(f_type)}}
-    # Hits alone reward a forecaster that simply rains more often. The control
-    # is the ALARM RATE at the same flood locations at ordinary times (the
-    # regular test anchors): skill = hit rate on events well above that rate.
-    cells = sorted(set(f_cell))
-    for thr in (2.0, 10.0):
-        for rad in (5, 17):
-            am = ap_ = ao = n_ctrl = 0
-            for k in range(len(anchors)):
-                for (y, x) in cells:
+    print(f"\nD. Recorded flood events, out of sample only "
+          f"(forecast issued {(LEAD + 1) * 5} min before the event frame; "
+          f"{n_in_sample} train/val-period events excluded)")
+    D = {"excluded_in_sample": n_in_sample}
+    for group in ("test", "after_test"):
+        ks = [k for k, g in enumerate(f_group) if g == group]
+        types = [f_type[k] for k in ks]
+        G = {"n_events": len(ks), "types": {t: types.count(t) for t in set(types)},
+             "event_times": [str(f_times[k]) for k in ks]}
+        # Hits alone reward a forecaster that simply rains more often. The
+        # control is the ALARM RATE at the same flood locations at ordinary
+        # times (the regular test anchors): skill = hit rate on events well
+        # above that rate.
+        cells = sorted({f_cell[k] for k in ks})
+        print(f"  [{group}] {len(ks)} events")
+        for thr in (2.0, 10.0):
+            for rad in (5, 17):
+                am = ap_ = ao = n_ctrl = 0
+                for k in range(len(anchors)):
+                    for (y, x) in cells:
+                        sl = (slice(max(y - rad, 0), y + rad + 1), slice(max(x - rad, 0), x + rad + 1))
+                        am += int(np.mean([(m[sl] >= thr).any() for m in ens[k]]) >= 0.5)
+                        ap_ += int((per[k][sl] >= thr).any())
+                        ao += int((obs[k][sl] >= thr).any())
+                        n_ctrl += 1
+                hm = hp = ho = 0
+                for k in ks:
+                    t, (y, x) = f_anchor[k], f_cell[k]
                     sl = (slice(max(y - rad, 0), y + rad + 1), slice(max(x - rad, 0), x + rad + 1))
-                    am += int(np.mean([(m[sl] >= thr).any() for m in ens[k]]) >= 0.5)
-                    ap_ += int((per[k][sl] >= thr).any())
-                    ao += int((obs[k][sl] >= thr).any())
-                    n_ctrl += 1
-            hm = hp = ho = 0
-            for k, (t, (y, x)) in enumerate(zip(f_anchor, f_cell)):
-                sl = (slice(max(y - rad, 0), y + rad + 1), slice(max(x - rad, 0), x + rad + 1))
-                p_mod = np.mean([(m[sl] >= thr).any() for m in fens[k]])
-                hm += int(p_mod >= 0.5)
-                hp += int((dec(t - 1)[sl] >= thr).any())
-                ho += int((dec(t + LEAD)[sl] >= thr).any())
-            key = f">={thr} mm/hr within {rad * PX_KM:.1f} km"
-            n = max(len(f_anchor), 1)
-            D[key] = {"model_hits": hm, "persistence_hits": hp, "observed": ho,
-                      "n_events": len(f_anchor),
-                      "model_alarm_rate_ordinary": am / max(n_ctrl, 1),
-                      "persistence_alarm_rate_ordinary": ap_ / max(n_ctrl, 1),
-                      "observed_rate_ordinary": ao / max(n_ctrl, 1)}
-            print(f"  {key:<28} events: model {hm / n:>5.0%}  persistence {hp / n:>5.0%}  "
-                  f"observed {ho / n:>5.0%}  |  ordinary times: model {am / max(n_ctrl,1):>5.1%}  "
-                  f"persistence {ap_ / max(n_ctrl,1):>5.1%}  observed {ao / max(n_ctrl,1):>5.1%}")
+                    p_mod = np.mean([(m[sl] >= thr).any() for m in fens[k]])
+                    hm += int(p_mod >= 0.5)
+                    hp += int((dec(t - 1)[sl] >= thr).any())
+                    ho += int((dec(t + LEAD)[sl] >= thr).any())
+                key = f">={thr} mm/hr within {rad * PX_KM:.1f} km"
+                G[key] = {"model_hits": hm, "persistence_hits": hp, "observed": ho,
+                          "n_events": len(ks),
+                          "model_alarm_rate_ordinary": am / max(n_ctrl, 1),
+                          "persistence_alarm_rate_ordinary": ap_ / max(n_ctrl, 1),
+                          "observed_rate_ordinary": ao / max(n_ctrl, 1)}
+                print(f"    {key:<28} events: model {hm}/{len(ks)}  persistence {hp}/{len(ks)}  "
+                      f"observed {ho}/{len(ks)}  |  ordinary times: model {am / max(n_ctrl, 1):>5.1%}  "
+                      f"persistence {ap_ / max(n_ctrl, 1):>5.1%}  observed {ao / max(n_ctrl, 1):>5.1%}")
+        D[group] = G
     report["D_flood_events"] = D
 
     # Per-lead default: one shared file let the three lead models overwrite

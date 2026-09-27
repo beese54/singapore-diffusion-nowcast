@@ -156,46 +156,122 @@
     }
   },
   "D_flood_events": {
-    "n_events": 38,
-    "types": {
-      "FLASH_FLOOD": 2,
-      "FLOOD_RISK": 36
+    "excluded_in_sample": 29,
+    "test": {
+      "n_events": 9,
+      "types": {
+        "FLOOD_RISK": 7,
+        "FLASH_FLOOD": 2
+      },
+      "event_times": [
+        "2026-09-18T10:55",
+        "2026-09-22T07:45",
+        "2026-09-22T07:45",
+        "2026-09-22T07:50",
+        "2026-09-22T07:55",
+        "2026-09-22T08:05",
+        "2026-09-22T08:10",
+        "2026-09-22T08:10",
+        "2026-09-22T08:15"
+      ],
+      ">=2.0 mm/hr within 1.4 km": {
+        "model_hits": 6,
+        "persistence_hits": 5,
+        "observed": 9,
+        "n_events": 9,
+        "model_alarm_rate_ordinary": 0.023333333333333334,
+        "persistence_alarm_rate_ordinary": 0.12833333333333333,
+        "observed_rate_ordinary": 0.15416666666666667
+      },
+      ">=2.0 mm/hr within 4.9 km": {
+        "model_hits": 8,
+        "persistence_hits": 9,
+        "observed": 9,
+        "n_events": 9,
+        "model_alarm_rate_ordinary": 0.0625,
+        "persistence_alarm_rate_ordinary": 0.6983333333333334,
+        "observed_rate_ordinary": 0.735
+      },
+      ">=10.0 mm/hr within 1.4 km": {
+        "model_hits": 0,
+        "persistence_hits": 3,
+        "observed": 9,
+        "n_events": 9,
+        "model_alarm_rate_ordinary": 0.0,
+        "persistence_alarm_rate_ordinary": 0.020833333333333332,
+        "observed_rate_ordinary": 0.016666666666666666
+      },
+      ">=10.0 mm/hr within 4.9 km": {
+        "model_hits": 1,
+        "persistence_hits": 8,
+        "observed": 9,
+        "n_events": 9,
+        "model_alarm_rate_ordinary": 0.0008333333333333334,
+        "persistence_alarm_rate_ordinary": 0.05333333333333334,
+        "observed_rate_ordinary": 0.051666666666666666
+      }
     },
-    ">=2.0 mm/hr within 1.4 km": {
-      "model_hits": 9,
-      "persistence_hits": 8,
-      "observed": 38,
-      "n_events": 38,
-      "model_alarm_rate_ordinary": 0.019761904761904762,
-      "persistence_alarm_rate_ordinary": 0.11714285714285715,
-      "observed_rate_ordinary": 0.12904761904761905
-    },
-    ">=2.0 mm/hr within 4.9 km": {
-      "model_hits": 23,
-      "persistence_hits": 25,
-      "observed": 38,
-      "n_events": 38,
-      "model_alarm_rate_ordinary": 0.05904761904761905,
-      "persistence_alarm_rate_ordinary": 0.5845238095238096,
-      "observed_rate_ordinary": 0.6257142857142857
-    },
-    ">=10.0 mm/hr within 1.4 km": {
-      "model_hits": 0,
-      "persistence_hits": 4,
-      "observed": 37,
-      "n_events": 38,
-      "model_alarm_rate_ordinary": 0.0,
-      "persistence_alarm_rate_ordinary": 0.015,
-      "observed_rate_ordinary": 0.018333333333333333
-    },
-    ">=10.0 mm/hr within 4.9 km": {
-      "model_hits": 7,
-      "persistence_hits": 19,
-      "observed": 38,
-      "n_events": 38,
-      "model_alarm_rate_ordinary": 0.0009523809523809524,
-      "persistence_alarm_rate_ordinary": 0.04595238095238095,
-      "observed_rate_ordinary": 0.04833333333333333
+    "after_test": {
+      "n_events": 17,
+      "types": {
+        "FLOOD_RISK": 16,
+        "FLASH_FLOOD": 1
+      },
+      "event_times": [
+        "2026-09-27T02:10",
+        "2026-09-27T02:25",
+        "2026-09-27T02:25",
+        "2026-09-27T02:25",
+        "2026-09-27T02:35",
+        "2026-09-27T02:45",
+        "2026-09-27T02:50",
+        "2026-09-27T02:50",
+        "2026-09-27T02:50",
+        "2026-09-27T02:55",
+        "2026-09-27T02:55",
+        "2026-09-27T03:00",
+        "2026-09-27T03:00",
+        "2026-09-27T03:05",
+        "2026-09-27T03:05",
+        "2026-09-27T03:10",
+        "2026-09-27T03:25"
+      ],
+      ">=2.0 mm/hr within 1.4 km": {
+        "model_hits": 10,
+        "persistence_hits": 3,
+        "observed": 17,
+        "n_events": 17,
+        "model_alarm_rate_ordinary": 0.0221875,
+        "persistence_alarm_rate_ordinary": 0.125625,
+        "observed_rate_ordinary": 0.1296875
+      },
+      ">=2.0 mm/hr within 4.9 km": {
+        "model_hits": 14,
+        "persistence_hits": 16,
+        "observed": 17,
+        "n_events": 17,
+        "model_alarm_rate_ordinary": 0.0590625,
+        "persistence_alarm_rate_ordinary": 0.6040625,
+        "observed_rate_ordinary": 0.6471875
+      },
+      ">=10.0 mm/hr within 1.4 km": {
+        "model_hits": 1,
+        "persistence_hits": 1,
+        "observed": 17,
+        "n_events": 17,
+        "model_alarm_rate_ordinary": 0.0,
+        "persistence_alarm_rate_ordinary": 0.01875,
+        "observed_rate_ordinary": 0.021875
+      },
+      ">=10.0 mm/hr within 4.9 km": {
+        "model_hits": 8,
+        "persistence_hits": 5,
+        "observed": 17,
+        "n_events": 17,
+        "model_alarm_rate_ordinary": 0.0028125,
+        "persistence_alarm_rate_ordinary": 0.0478125,
+        "observed_rate_ordinary": 0.054375
+      }
     }
   }
 }

@@ -254,7 +254,7 @@
           "description": "Wire flood_eval_dataset into evaluate.py for event-based Stage 5 scoring",
           "status": "Complete",
           "completed_date": "2026-09-27",
-          "notes": "evaluate.py --flood-eval and evaluate_probabilistic.py family D (38 geocoded events + ordinary-time control)."
+          "notes": "evaluate.py --flood-eval and evaluate_probabilistic.py family D, with an ordinary-time control. Corrected 2026-09-27 to out-of-sample events only (9 test-period + after-test events); the earlier 38-event score was partly in-sample (lesson L031)."
         },
         {
           "id": "5.8",

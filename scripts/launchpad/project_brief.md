@@ -19,7 +19,7 @@ Singapore with generative diffusion models. Phase 1 (May–Sep 2026) is complete
 
 - **Data:** 127 days of NEA 70 km rain-area radar (5-min, 0.29 km pixels, 34.8 × 62.9 km domain,
   losslessly decoded from NEA's 33-level colour scale and validated against geocoded flood reports),
-  PUB flood alerts as ground truth (38 geocoded events in the test period), and from Sep 2026 the NEA
+  PUB flood alerts as ground truth (26 out-of-sample geocoded events: 9 in the test period, 17 from the 27 Sep storm), and from Sep 2026 the NEA
   240 km wide-range radar.
 - **Model:** a 25.8M-parameter v-prediction diffusion model (DDPM, 8-member ensembles), one model per
   lead time, trained on a single RTX 4060 laptop GPU.

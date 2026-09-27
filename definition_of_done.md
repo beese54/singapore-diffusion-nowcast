@@ -80,7 +80,7 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 - [x] `data/processed/flood_labels.parquet` written with columns: `message_id, event_datetime, message_type, raw_text, locations`
 - [x] Windows Task Scheduler task `\SG-Weather\SG-Weather Telegram Labels` runs daily at 09:00 (incremental)
 - [x] Integration script: cross-reference `flood_labels.parquet` against `radar.zarr` timestamps to build evaluation dataset (`build_flood_eval_dataset.py`; in the daily scheduled chain since 2026-07-10)
-- [x] Wire flood label integration into `scripts/evaluate.py` for Stage 5 — `evaluate.py --flood-eval`, and family D of `evaluate_probabilistic.py` (38 events, with an ordinary-time false-alarm control)
+- [x] Wire flood label integration into `scripts/evaluate.py` for Stage 5 — `evaluate.py --flood-eval`, and family D of `evaluate_probabilistic.py` (out-of-sample events only since 2026-09-27 — see the correction under the results table; with an ordinary-time false-alarm control)
 
 ---
 
@@ -88,18 +88,28 @@ Each criterion below is objective and testable. A stage is NOT complete until al
 - [x] `python scripts/evaluate.py` produces `results/evaluation_report.json` with FSS scores for lead times 30/60/90 min
   > *2026-09-26, pinned test period 14–25 Sep, 200 samples x 8 members, one model per lead (30 min: 300k steps; 60/90: 100k):*
   >
-  > | lead | CRPS skill [95% CI] | FSS 2 mm/hr, model vs persistence | FSS 10 mm/hr | flood events, >=2 mm/hr within 1.4 km (of 38) |
+  > | lead | CRPS skill [95% CI] | FSS 2 mm/hr, model vs persistence | FSS 10 mm/hr | flood events, >=2 mm/hr within 1.4 km — **withdrawn**, see correction |
   > |---|---|---|---|---|
-  > | 30 | +0.384 [+0.251, +0.505] | **0.827** vs 0.742 | 0.337 vs **0.446** | **33** vs 26 |
-  > | 60 | +0.414 [+0.250, +0.579] | 0.359 vs **0.558** (CI excl. 0) | 0.028 vs **0.236** | 4 vs **8** |
-  > | 90 | +0.436 [+0.301, +0.583] | 0.441 vs **0.510** | 0.041 vs **0.162** | 1 vs **4** |
+  > | 30 | +0.384 [+0.251, +0.505] | **0.827** vs 0.742 | 0.337 vs **0.446** | ~~33 vs 26~~ |
+  > | 60 | +0.414 [+0.250, +0.579] | 0.359 vs **0.558** (CI excl. 0) | 0.028 vs **0.236** | ~~4 vs 8~~ |
+  > | 90 | +0.436 [+0.301, +0.583] | 0.441 vs **0.510** | 0.041 vs **0.162** | ~~1 vs 4~~ |
+  >
+  > **Correction (2026-09-27): flood-event scores were partly in-sample.** Family D scored every geocoded flood event in the archive; 29 of the 38 fell in the train/val periods, whose radar frames the model was fitted to (lesson L031). Scoring now uses only the test period (9 events) and events after it (17, all from the 27 Sep storm). Re-scored, >=2 mm/hr within 1.4 km, model vs persistence (ordinary-time alarm rate model / persistence):
+  >
+  > | lead | test period (9 events; 18 & 22 Sep) | after test (17 events; 27 Sep) |
+  > |---|---|---|
+  > | 30 | 9/9 vs 9/9 (3.9% / 13.8%) | **17/17** vs 12/17 (3.6% / 13.2%) |
+  > | 60 warm | 6/9 vs 5/9 (2.3% / 12.8%) | **10/17** vs 3/17 (2.2% / 12.6%) |
+  > | 90 warm | 0/9 vs 2/9 | 3/17 vs 3/17 |
+  >
+  > The events come from essentially three storms, so these counts are indicative, not statistics. The CRPS and FSS results above are unaffected (their 200 test anchors were verified unchanged).
   >
   > **Warm-started re-train (2026-09-27, `--init-from` the 30-min model, 100k steps each; now the report's 60/90 entries):**
   >
   > | lead | CRPS skill [95% CI] | FSS 2 mm/hr, model vs persistence [CI of diff] | FSS 10 mm/hr | flood events >=2 mm/hr within 1.4 km | rain-area bias >=2 / >=10 |
   > |---|---|---|---|---|---|
-  > | 60 warm | +0.422 [+0.266, +0.579] | 0.558 vs 0.558 [-0.162, +0.094] (tie) | 0.056 vs **0.236** | 9 vs 8 | 0.89 / 0.50 |
-  > | 90 warm | +0.413 [+0.279, +0.555] | **0.571** vs 0.510 [-0.021, +0.125] | 0.091 vs 0.162 (n.s.) | 6 vs 4 | 1.51 / 0.93 |
+  > | 60 warm | +0.422 [+0.266, +0.579] | 0.558 vs 0.558 [-0.162, +0.094] (tie) | 0.056 vs **0.236** | ~~9 vs 8~~ | 0.89 / 0.50 |
+  > | 90 warm | +0.413 [+0.279, +0.555] | **0.571** vs 0.510 [-0.021, +0.125] | 0.091 vs 0.162 (n.s.) | ~~6 vs 4~~ | 1.51 / 0.93 |
   >
   > Warm start fixed the light-rain placement failure (60: 0.36 -> 0.56; 90: 0.44 -> 0.57), so 60/90 are now usable as *light-rain probability* forecasts, on par with or slightly better than persistence (90 over-forecasts rain area ~1.5x). Heavy rain remains well below persistence at 60 min and weak at 90, and on 22 Sep neither reached P>=0.25 at the flood site (max 0.12). Radar-only heavy-rain skill does not extend past 30 min.
   >

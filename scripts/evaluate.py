@@ -33,7 +33,8 @@ sys.path.insert(0, str(ROOT))
 
 from src.model.unet import ConditionedUNet
 from src.model.diffusion import GaussianDiffusion
-from src.data.radar_dataset import RadarDataset, load_stats, CONTEXT_FRAMES, TARGET_OFFSET
+from src.data.radar_dataset import (RadarDataset, load_stats, CONTEXT_FRAMES, TARGET_OFFSET,
+                                    SPLIT_TEST_END, SPLIT_TEST_START)
 
 RESULTS_DIR = ROOT / "results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -174,6 +175,10 @@ def score_flood_events(model, device, rds, args) -> dict:
 
     df = pd.read_parquet(parquet_path)
     events = df[(df["geocoded"] == True) & (df["is_flood_event"] == True)].copy()
+    # Test-period events only: earlier ones fall in the train/val periods,
+    # whose radar frames the model was fitted to (lesson L031).
+    et = pd.to_datetime(events["matched_radar_time"]).values.astype("datetime64[m]")
+    events = events[(et >= SPLIT_TEST_START) & (et <= SPLIT_TEST_END)]
 
     if events.empty:
         return {"n_events": 0, "note": "No geocoded flood events available yet"}
