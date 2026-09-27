@@ -99,8 +99,8 @@ is written up with the evidence in [docs/LESSONS.md](docs/LESSONS.md).
 - **Satellite (Himawari-9)**, following the design of NVIDIA's Earth-2 Nowcasting model (StormScope:
   satellite + radar).
 - **NVIDIA CorrDiff** (PhysicsNeMo): ERA5 → ~2.5 km rainfall downscaling over Singapore.
-- **An interactive dashboard** and more out-of-sample flood events; retraining once the archive covers
-  the Northeast Monsoon (Dec–Mar).
+- **More out-of-sample flood events**, and retraining once the archive covers the Northeast Monsoon
+  (Dec–Mar).
 
 Plan: [tasks/plan_phase2.md](tasks/plan_phase2.md).
 
