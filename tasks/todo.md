@@ -32,8 +32,10 @@
 - [x] A4 LICENSE (MIT, holder "beese54" — user may change to real name) + CC BY 4.0 docs note + CITATION.cff
 
 ### B. Dashboard (static, GitHub Pages)
-- [ ] B0 `scripts/build_dashboard.py` data export
-- [ ] B1-B8 sections; verify in Chrome (desktop + phone width)
+- [x] B0 `scripts/build_dashboard.py` data export (greyscale sprites, 4.7 MB; results read from results/*.json)
+- [x] B1-B7 hero loop, denoising player, explorer (27 & 22 Sep, 30/60/90, flood-prone overlay, site chart), evidence, live timeline, limits; verified in Chrome (dark/light, 390 px, controls, no console errors) — see dashboard/README.md
+- [ ] B8 re-run `python scripts/build_dashboard.py` once the 240 km backfill passes 22 Sep (adds the 240 km loop), re-check, commit
+- [x] Pages workflow `.github/workflows/pages.yml` (activates at publish)
 
 ### E. LinkedIn
 - [ ] E1 screenshots via Chrome extension -> docs/img/; E2 `docs/linkedin_post.md` draft (user posts)

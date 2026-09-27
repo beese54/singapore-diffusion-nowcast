@@ -1,0 +1,442 @@
+'use strict';
+// Singapore Rain Nowcaster dashboard. Static: everything comes from
+// data/data.json and greyscale sprite sheets written by scripts/build_dashboard.py.
+//
+// Raster budget (Pattern BB): every radar canvas has a backing store of exactly
+// 217 x 120 px, the radar's native grid, so a draw is a 1:1 putImageData with no
+// resampling; CSS scales it on the GPU. No resize handler exists on purpose.
+// Players run a requestAnimationFrame loop ONLY while playing and visible, and a
+// panel redraws only when the frame it shows actually changes.
+
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LOGMAX = Math.log1p(100);
+const LEVELS = [0.5, 1, 2, 5, 10, 20, 30, 50, 100];
+const COLORS = ['#c6e8ff', '#7cc3f5', '#2f8fd8', '#3fbf4f', '#f2e03c', '#f59a23', '#e8321e', '#9b1bb5'];
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+const $ = (id) => document.getElementById(id);
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+
+// ── colour lookup tables: byte -> RGBA ─────────────────────────────────────
+// Thresholds compare BYTES encoded with the exporter's own rounding, so a value
+// stored exactly at a level (e.g. NEA's 0.5 mm/hr) always lands in that level.
+const byteOf = (mm) => Math.round(255 * Math.log1p(mm) / LOGMAX);
+const RAIN_LUT = (() => {
+  const lut = new Uint8ClampedArray(256 * 4);
+  const thr = LEVELS.map(byteOf);
+  for (let b = 0; b < 256; b++) {
+    let k = -1;
+    for (let i = 0; i < 8; i++) if (b >= thr[i]) k = i;
+    if (k < 0) continue;                              // below 0.5 mm/hr: transparent
+    const [r, g, bl] = hex(COLORS[k]);
+    lut.set([r, g, bl, 255], b * 4);
+  }
+  return lut;
+})();
+const PROB_STOPS = [[0.0, '#fde68a'], [0.25, '#fb923c'], [0.5, '#ef4444'], [0.75, '#c026d3'], [1.0, '#6d28d9']];
+const probColor = (p) => {
+  for (let i = 1; i < PROB_STOPS.length; i++) {
+    const [p1, c1] = PROB_STOPS[i]; const [p0, c0] = PROB_STOPS[i - 1];
+    if (p <= p1) {
+      const t = (p - p0) / (p1 - p0), a = hex(c0), b = hex(c1);
+      return a.map((v, j) => Math.round(v + (b[j] - v) * t));
+    }
+  }
+  return hex(PROB_STOPS[PROB_STOPS.length - 1][1]);
+};
+const PROB_LUT = (() => {
+  const lut = new Uint8ClampedArray(256 * 4);
+  for (let b = 3; b < 256; b++) {                    // p < ~1%: transparent
+    const p = b / 255;
+    // 1 of 8 futures (p = 0.125) stays faint; agreement is what should stand out
+    lut.set([...probColor(p), Math.round(255 * Math.min(1, 0.12 + 0.88 * p))], b * 4);
+  }
+  return lut;
+})();
+
+// ── sprite sheets ──────────────────────────────────────────────────────────
+// Resolve on onload (enough for drawImage); never await img.decode() in the
+// chain -- in a background tab it may never settle (Pattern BB).
+const sheetCache = new Map();
+function loadSheet(spec) {
+  if (sheetCache.has(spec.file)) return sheetCache.get(spec.file);
+  const p = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0);
+      const rgba = ctx.getImageData(0, 0, c.width, c.height).data;
+      const grey = new Uint8Array(c.width * c.height);
+      for (let i = 0; i < grey.length; i++) grey[i] = rgba[i * 4];
+      resolve({ ...spec, sheetW: c.width, grey });
+    };
+    img.onerror = () => reject(new Error('failed to load ' + spec.file));
+    img.src = spec.file;
+  });
+  sheetCache.set(spec.file, p);
+  return p;
+}
+
+// ── a radar panel: canvas + SVG overlay in radar-pixel coordinates ─────────
+class Panel {
+  constructor(el, grid, coast) {
+    this.w = grid.w; this.h = grid.h;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.w; this.canvas.height = this.h;   // native size, see header
+    this.ctx = this.canvas.getContext('2d');
+    this.img = this.ctx.createImageData(this.w, this.h);
+    el.appendChild(this.canvas);
+    this.svg = document.createElementNS(SVGNS, 'svg');
+    this.svg.setAttribute('viewBox', `0 0 ${this.w} ${this.h}`);
+    this.svg.setAttribute('preserveAspectRatio', 'none');
+    this.svg.setAttribute('aria-hidden', 'true');
+    const g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('transform', 'translate(0.5 0.5)');         // pixel centres
+    for (const d of coast || []) {
+      const p = document.createElementNS(SVGNS, 'path');
+      p.setAttribute('d', d); p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'var(--coast)'); p.setAttribute('stroke-width', '0.6');
+      p.setAttribute('vector-effect', 'non-scaling-stroke');
+      g.appendChild(p);
+    }
+    this.marks = document.createElementNS(SVGNS, 'g');
+    g.appendChild(this.marks);
+    this.svg.appendChild(g);
+    el.appendChild(this.svg);
+    this.key = null;
+  }
+  draw(sheet, k, lut) {
+    const key = sheet.file + '#' + k + (lut === PROB_LUT ? 'p' : 'r');
+    if (key === this.key) return;                              // dirty guard
+    this.key = key;
+    const { w, h, cols, sheetW, grey } = sheet;
+    const r0 = Math.floor(k / cols) * h, c0 = (k % cols) * w;
+    const out = this.img.data;
+    for (let y = 0; y < h; y++) {
+      const src = (r0 + y) * sheetW + c0;
+      for (let x = 0; x < w; x++) {
+        const b = grey[src + x] * 4, o = (y * w + x) * 4;
+        out[o] = lut[b]; out[o + 1] = lut[b + 1]; out[o + 2] = lut[b + 2]; out[o + 3] = lut[b + 3];
+      }
+    }
+    this.ctx.putImageData(this.img, 0, 0);
+  }
+  setMarks(items) {
+    this.marks.replaceChildren(...items.map((m) => {
+      const e = document.createElementNS(SVGNS, m.shape === 'rect' ? 'rect' : 'circle');
+      if (m.shape === 'rect') {
+        e.setAttribute('x', m.x); e.setAttribute('y', m.y); e.setAttribute('width', m.w); e.setAttribute('height', m.h);
+      } else {
+        e.setAttribute('cx', m.x); e.setAttribute('cy', m.y); e.setAttribute('r', m.r || 1.6);
+      }
+      e.setAttribute('fill', m.fill || 'none');
+      e.setAttribute('stroke', m.stroke || '#fff');
+      e.setAttribute('stroke-width', m.sw || 1);
+      e.setAttribute('vector-effect', 'non-scaling-stroke');
+      if (m.title) { const t = document.createElementNS(SVGNS, 'title'); t.textContent = m.title; e.appendChild(t); }
+      return e;
+    }));
+  }
+}
+
+// ── player: a rAF loop that exists only while playing ──────────────────────
+function makePlayer({ fps, button, step, loop = true, visibleEl }) {
+  let raf = 0, last = 0, acc = 0, playing = false, onScreen = true;
+  const frame = (ts) => {
+    if (!playing) return;
+    if (last) acc += ts - last;
+    last = ts;
+    const dt = 1000 / fps;
+    while (acc >= dt) {
+      acc -= dt;
+      if (!step() && !loop) { stop(); return; }
+    }
+    raf = requestAnimationFrame(frame);
+  };
+  const start = () => {
+    if (playing) return;
+    playing = true; last = 0; acc = 0;
+    button.textContent = '❚❚'; button.setAttribute('aria-label', 'Pause');
+    raf = requestAnimationFrame(frame);
+  };
+  const stop = () => {
+    playing = false; cancelAnimationFrame(raf);
+    button.textContent = '▶'; button.setAttribute('aria-label', 'Play');
+  };
+  button.addEventListener('click', () => (playing ? stop() : start()));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  if (visibleEl && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; if (!onScreen) stop(); }).observe(visibleEl);
+  }
+  return { start, stop, get playing() { return playing; } };
+}
+
+// ── helpers ────────────────────────────────────────────────────────────────
+const fmt = (v, d = 3) => (v >= 0 ? '+' : '') + v.toFixed(d);
+const pct = (v) => Math.round(v * 100) + '%';
+function segmented(el, options, current, onPick) {
+  el.replaceChildren(...options.map(([value, label]) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(value === current));
+    b.addEventListener('click', () => {
+      for (const x of el.children) x.setAttribute('aria-checked', 'false');
+      b.setAttribute('aria-checked', 'true'); onPick(value);
+    });
+    return b;
+  }));
+}
+function svgEl(tag, attrs, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const toMin = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+
+// ── sections ───────────────────────────────────────────────────────────────
+async function hero(D) {
+  const c = D.cases['22sep'];
+  const panel = new Panel($('hero-panel'), D.grid, D.coast);
+  const sheet = await loadSheet(c.obs);
+  const flash = c.reports.filter((r) => r.type === 'FLASH_FLOOD');
+  let k = c.obs_times.indexOf('16:50');
+  const show = () => {
+    panel.draw(sheet, k, RAIN_LUT);
+    const now = toMin(c.obs_times[k]);
+    panel.setMarks(flash.filter((r) => toMin(r.time) <= now)
+      .map((r) => ({ x: r.x, y: r.y, r: 2.4, stroke: '#ff3b30', sw: 2, title: `${r.name} ${r.time}` })));
+    $('hero-time').textContent = c.obs_times[k];
+  };
+  show();
+  const btn = $('hero-play');
+  if (REDUCED) { btn.hidden = true; return; }     // static frame, no loop
+  const player = makePlayer({ fps: 6, button: btn, visibleEl: $('hero-panel'),
+    step: () => { k = (k + 1) % c.obs.n; show(); return true; } });
+  k = 0; show(); player.start();
+}
+
+async function denoise(D) {
+  const d = D.denoise;
+  $('dn-issued').textContent = `(forecast issued ${d.issued} SGT)`;
+  $('dn-target').textContent = `(${d.target} SGT)`;
+  const ctxSheet = await loadSheet(d.context);
+  const strip = $('dn-context');
+  for (let i = 0; i < d.context.n; i++) {
+    const fig = document.createElement('figure');
+    const div = document.createElement('div'); div.className = 'panel';
+    fig.appendChild(div);
+    const cap = document.createElement('figcaption');
+    const ago = (d.context.n - 1 - i) * 5;
+    cap.textContent = ago ? `−${ago} min` : 'latest'; fig.appendChild(cap);
+    strip.appendChild(fig);
+    new Panel(div, D.grid, D.coast).draw(ctxSheet, i, RAIN_LUT);
+  }
+  const [xt, x0, ob] = await Promise.all([loadSheet(d.x_t), loadSheet(d.x0), loadSheet(d.observed)]);
+  const pX = new Panel($('dn-xt'), D.grid, D.coast), p0 = new Panel($('dn-x0'), D.grid, D.coast);
+  new Panel($('dn-obs'), D.grid, D.coast).draw(ob, 0, RAIN_LUT);
+  const slider = $('dn-step'), out = $('dn-step-out');
+  const show = (s) => { pX.draw(xt, s, RAIN_LUT); p0.draw(x0, s, RAIN_LUT); out.textContent = s + 1; slider.value = s; };
+  slider.addEventListener('input', () => { player.stop(); show(+slider.value); });
+  const player = makePlayer({ fps: 8, button: $('dn-play'), loop: false, visibleEl: $('dn-xt'),
+    step: () => { const s = +slider.value; if (s >= 49) return false; show(s + 1); return true; } });
+  // capture phase: runs before the player's own toggle, so pressing play at
+  // the last step rewinds and plays again instead of stopping immediately
+  $('dn-play').addEventListener('click', () => { if (!player.playing && +slider.value >= 49) show(0); }, true);
+  show(REDUCED ? 49 : 0);
+}
+
+async function explorer(D) {
+  const state = { c: '27sep', lead: '30', k: 0 };
+  const P = {
+    obs: new Panel($('ex-obs'), D.grid, D.coast), per: new Panel($('ex-per'), D.grid, D.coast),
+    mean: new Panel($('ex-mean'), D.grid, D.coast), p10: new Panel($('ex-p10'), D.grid, D.coast),
+  };
+  const slider = $('ex-t');
+  segmented($('case-seg'), [['27sep', '27 Sep · Pasir Panjang'], ['22sep', '22 Sep · King\'s Road']], state.c,
+    (v) => { state.c = v; state.k = firstFlagOr0(); render(true); });
+  segmented($('lead-seg'), [['30', '30 min'], ['60', '60 min'], ['90', '90 min']], state.lead,
+    (v) => { state.lead = v; render(true); });
+  $('show-prone').addEventListener('change', () => render(false));
+
+  // start where the story is: the first forecast that flagged the site
+  function firstFlagOr0() {
+    const L = D.cases[state.c].leads[state.lead];
+    const i = L.site_p10.findIndex((p) => p >= 0.25);
+    return i < 0 ? 0 : i;
+  }
+  state.k = firstFlagOr0();
+
+  async function render(resetSlider) {
+    const c = D.cases[state.c], L = c.leads[state.lead];
+    const n = L.targets.length;
+    if (resetSlider) { slider.max = n - 1; state.k = Math.min(state.k, n - 1); }
+    slider.value = state.k;
+    const [obs, mean, p10] = await Promise.all([loadSheet(c.obs), loadSheet(L.mean), loadSheet(L.p10)]);
+    const k = state.k;
+    P.obs.draw(obs, L.target_obs_index[k], RAIN_LUT);
+    P.per.draw(obs, L.persistence_obs_index[k], RAIN_LUT);
+    P.mean.draw(mean, k, RAIN_LUT);
+    P.p10.draw(p10, k, PROB_LUT);
+    const s = c.site;
+    const marks = [{ shape: 'rect', x: s.j - s.r - 0.5, y: s.i - s.r - 0.5, w: 2 * s.r + 1, h: 2 * s.r + 1, stroke: '#ffffff', sw: 1.5, title: s.name }];
+    if ($('show-prone').checked) {
+      for (const f of D.flood_prone) marks.push({ x: f.x, y: f.y, r: 1.3, stroke: '#9fe7ff', sw: 1, title: `PUB flood-prone: ${f.name}` });
+    }
+    for (const r of c.reports.filter((r) => r.type === 'FLASH_FLOOD')) {
+      marks.push({ x: r.x, y: r.y, r: 2.4, stroke: '#ff3b30', sw: 2, title: `Flash flood ${r.time}: ${r.name}` });
+    }
+    Object.values(P).forEach((p) => p.setMarks(marks));
+    const target = L.targets[k], issued = L.issued[k];
+    $('ex-t-out').textContent = `${target} SGT (issued ${issued})`;
+    const obsNow = c.obs_site[L.target_obs_index[k]];
+    const flood = c.reports.find((r) => r.type === 'FLASH_FLOOD');
+    $('ex-sentence').innerHTML =
+      `Forecast issued at <b>${issued} SGT</b> for <b>${target} SGT</b> ` +
+      `(${L.minutes_after_last_frame} min after the last radar map). Near <b>${s.name}</b>: ` +
+      `chance of ≥10 mm/hr <b>${pct(L.site_p10[k])}</b> · forecast median ${L.site_median[k]} mm/hr · ` +
+      `observed ${obsNow} mm/hr` + (flood ? ` · flash flood reported ${flood.time}` : '') + '.';
+    chart(c, L, k);
+  }
+  slider.addEventListener('input', () => { player.stop(); state.k = +slider.value; render(false); });
+  const player = makePlayer({ fps: 2, button: $('ex-play'), visibleEl: $('ex-obs'),
+    step: () => { const n = +slider.max + 1; state.k = (state.k + 1) % n; render(false); return true; } });
+  await render(true);
+
+  // legend
+  const rainBar = COLORS.map((c) => `<span style="background:${c}"></span>`).join('');
+  const probBar = [0.1, 0.3, 0.5, 0.7, 0.9].map((p) => `<span style="background:rgb(${probColor(p)})"></span>`).join('');
+  $('legend').innerHTML =
+    `<span>Rain (mm/hr): 0.5<span class="bar">${rainBar}</span>100</span>` +
+    `<span>Chance of ≥10 mm/hr: 0%<span class="bar">${probBar}</span>100%</span>` +
+    `<span>□ flood site box · <span style="color:#ff3b30">○</span> flash flood · <span style="color:#3aa9c8">○</span> PUB flood-prone</span>`;
+}
+
+function chart(c, L, k) {
+  const W = 720, H = 240, m = { l: 40, r: 44, t: 26, b: 26 };
+  const t0 = toMin(c.obs_times[0]), t1 = toMin(c.obs_times[c.obs_times.length - 1]);
+  const X = (t) => m.l + (toMin(t) - t0) / (t1 - t0) * (W - m.l - m.r);
+  const ymax = Math.max(40, ...c.obs_site, ...L.site_max) * 1.08;
+  const Y = (v) => H - m.b - v / ymax * (H - m.t - m.b);
+  const YP = (p) => H - m.b - p * (H - m.t - m.b);
+  const s = svgEl('svg', { viewBox: `0 0 ${W} ${H}` });
+  // gridlines + axes
+  for (let v = 0; v <= ymax; v += 20) {
+    s.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: 'var(--line)' }));
+    s.appendChild(svgEl('text', { x: m.l - 6, y: Y(v) + 4, 'text-anchor': 'end' }, v));
+  }
+  for (const p of [0, 0.5, 1]) s.appendChild(svgEl('text', { x: W - m.r + 6, y: YP(p) + 4 }, pct(p)));
+  for (let t = Math.ceil(t0 / 60) * 60; t <= t1; t += 60) {
+    const hh = String(Math.floor(t / 60)).padStart(2, '0') + ':00';
+    s.appendChild(svgEl('text', { x: X(hh), y: H - 8, 'text-anchor': 'middle' }, hh));
+  }
+  s.appendChild(svgEl('text', { x: m.l - 6, y: 12, 'text-anchor': 'end' }, 'mm/hr'));
+  s.appendChild(svgEl('text', { x: W - m.r + 6, y: 12 }, 'P(≥10)'));
+  // probability bars
+  L.targets.forEach((t, i) => {
+    const h = YP(0) - YP(L.site_p10[i]);
+    s.appendChild(svgEl('rect', { x: X(t) - 3, y: YP(L.site_p10[i]), width: 6, height: Math.max(h, 0),
+      fill: `rgb(${probColor(L.site_p10[i])})`, opacity: i === k ? 1 : 0.55 }));
+  });
+  // ensemble band + median
+  const band = L.targets.map((t, i) => `${X(t)},${Y(L.site_max[i])}`).join(' ') + ' ' +
+    L.targets.map((t, i) => `${X(t)},${Y(L.site_min[i])}`).reverse().join(' ');
+  s.appendChild(svgEl('polygon', { points: band, fill: 'var(--accent)', opacity: 0.15 }));
+  s.appendChild(svgEl('polyline', { points: L.targets.map((t, i) => `${X(t)},${Y(L.site_median[i])}`).join(' '),
+    fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2 }));
+  // observed (step)
+  let d = '';
+  c.obs_times.forEach((t, i) => { d += (i ? ` L${X(t)},${Y(c.obs_site[i - 1])} L` : 'M') + `${X(t)},${Y(c.obs_site[i])}`; });
+  s.appendChild(svgEl('path', { d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.6 }));
+  // flash-flood reports and the cursor
+  for (const r of c.reports.filter((r) => r.type === 'FLASH_FLOOD')) {
+    s.appendChild(svgEl('line', { x1: X(r.time), x2: X(r.time), y1: m.t, y2: H - m.b, stroke: '#ff3b30', 'stroke-dasharray': '3 3' }));
+  }
+  s.appendChild(svgEl('line', { x1: X(L.targets[k]), x2: X(L.targets[k]), y1: m.t, y2: H - m.b, stroke: 'var(--accent)', 'stroke-width': 1.5 }));
+  s.appendChild(svgEl('line', { x1: X(L.issued[k]), x2: X(L.issued[k]), y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '2 4' }));
+  $('ex-chart').replaceChildren(s);
+  $('ex-chart-cap').textContent = `Near ${c.site.name} (max over a 2 × 2 km box): observed (bold line), forecast median and range of 8 futures (blue band), ` +
+    `chance of ≥10 mm/hr (bars). Solid blue line: the selected forecast's target time; dotted grey: when it was issued; red dashed: flash-flood report.`;
+}
+
+function evidence(D) {
+  const R = D.results;
+  $('ev-period').textContent = `${R.period[0].slice(0, 10)} to ${R.period[1].slice(0, 10)}`;
+  const h30 = R.headline['30'];
+  $('stat-crps').textContent = fmt(h30.crps_skill, 2);
+  $('stat-crps-ci').textContent = `95% CI ${fmt(h30.crps_ci[0], 2)} to ${fmt(h30.crps_ci[1], 2)}`;
+  const cls = (a, b) => (a > b ? 'good' : a < b ? 'bad' : '');
+  let html = '<thead><tr><th>Lead</th><th>CRPS skill [95% CI]</th><th>Rain placement FSS ≥2 mm/hr<br>model / persistence</th><th>Heavy rain FSS ≥10 mm/hr<br>model / persistence</th></tr></thead><tbody>';
+  for (const L of ['30', '60', '90']) {
+    const r = R.headline[L];
+    html += `<tr><td>${L} min</td><td class="${r.crps_ci[0] > 0 ? 'good' : ''}">${fmt(r.crps_skill, 2)} [${fmt(r.crps_ci[0], 2)}, ${fmt(r.crps_ci[1], 2)}]</td>` +
+      `<td class="${cls(r.fss2[0], r.fss2[1])}">${r.fss2[0].toFixed(2)} / ${r.fss2[1].toFixed(2)}</td>` +
+      `<td class="${cls(r.fss10[0], r.fss10[1])}">${r.fss10[0].toFixed(2)} / ${r.fss10[1].toFixed(2)}</td></tr>`;
+  }
+  $('ev-table').innerHTML = html + '</tbody>';
+  $('ev-fss').replaceChildren(...['30', '60', '90'].map((L) => {
+    const card = document.createElement('div'); card.className = 'fss-card';
+    let t = `<h4>${L} min lead</h4><table><thead><tr><th>Threshold</th><th>6 km</th><th>12 km</th><th>24 km</th></tr></thead><tbody>`;
+    for (const thr of ['0.5', '2.0', '10.0']) {
+      const f = R.fss_by_scale[L][thr];
+      t += `<tr><td>${parseFloat(thr)} mm/hr</td>` + ['6.1 km', '11.9 km', '23.5 km'].map((k) =>
+        `<td class="${cls(f.model[k], f.persistence[k])}">${f.model[k].toFixed(2)}<small> / ${f.persistence[k].toFixed(2)}</small></td>`).join('') + '</tr>';
+    }
+    card.innerHTML = t + '</tbody></table>';
+    return card;
+  }));
+  let ft = '<thead><tr><th>Lead</th><th>Test period (18 &amp; 22 Sep)<br>model / persistence</th><th>After test (27 Sep)<br>model / persistence</th><th>Alarm rate at ordinary times<br>model / persistence</th></tr></thead><tbody>';
+  for (const L of ['30', '60', '90']) {
+    const f = R.flood_events[L], a = f.test, b = f.after_test;
+    ft += `<tr><td>${L} min</td><td class="${cls(a.model_hits, a.persistence_hits)}">${a.model_hits}/${a.n} vs ${a.persistence_hits}/${a.n}</td>` +
+      `<td class="${cls(b.model_hits, b.persistence_hits)}">${b.model_hits}/${b.n} vs ${b.persistence_hits}/${b.n}</td>` +
+      `<td>${(b.model_alarm_rate_ordinary * 100).toFixed(1)}% / ${(b.persistence_alarm_rate_ordinary * 100).toFixed(1)}%</td></tr>`;
+  }
+  $('ev-flood').innerHTML = ft + '</tbody>';
+}
+
+function live() {
+  // Measured 2026-09-26 (docs/RESULTS.md §5): 19.6 s total, 1.7 s loading.
+  const parts = [['Load', 1.7, '#5b6875'], ['30-min · 8 futures', 6.1, '#0a6e8a'],
+    ['60-min', 5.4, '#1289a8'], ['90-min', 5.4, '#27a4c4'], ['Save', 19.6 - 1.7 - 6.1 - 5.4 - 5.4, '#8a97a3']];
+  $('live-timeline').replaceChildren(...parts.map(([label, s, col]) => {
+    const d = document.createElement('div');
+    d.style.flex = String(s); d.style.background = col;
+    d.textContent = `${label} ${s.toFixed(1)} s`;
+    d.title = `${label === 'Load' ? 'Load models and radar' : label}: ${s.toFixed(1)} s`;
+    return d;
+  }));
+}
+
+function radar240(D) {
+  const frames = D.radar240 || [];
+  if (!frames.length) { $('r240-fig').hidden = true; $('r240-fig').parentElement.classList.add('one'); return; }
+  const holder = $('r240');
+  const img = document.createElement('img');
+  img.alt = 'NEA 240 km rain radar, 22 Sep 2026';
+  holder.appendChild(img);
+  let k = 0;
+  const show = () => { img.src = frames[k].file; $('r240-time').textContent = frames[k].time + ' SGT ·'; };
+  show();
+  if (REDUCED) { $('r240-play').hidden = true; return; }
+  makePlayer({ fps: 3, button: $('r240-play'), visibleEl: holder,
+    step: () => { k = (k + 1) % frames.length; show(); return true; } });
+}
+
+(async function main() {
+  let D;
+  try {
+    D = await (await fetch('data/data.json')).json();
+  } catch (e) {
+    document.querySelector('main').insertAdjacentHTML('afterbegin',
+      '<p class="wrap context">Could not load data/data.json. Serve this folder over HTTP ' +
+      '(e.g. <code>python -m http.server</code>), not as a file:// page.</p>');
+    return;
+  }
+  live();
+  evidence(D);
+  await Promise.all([hero(D), denoise(D), explorer(D)]);
+  radar240(D);
+})();

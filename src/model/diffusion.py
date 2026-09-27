@@ -247,6 +247,7 @@ class GaussianDiffusion(nn.Module):
         context: torch.Tensor,
         shape: tuple[int, ...],
         eta: float = 0.0,
+        callback=None,
     ) -> torch.Tensor:
         """
         Generate a sample using DDIM (fast, deterministic when eta=0).
@@ -256,6 +257,10 @@ class GaussianDiffusion(nn.Module):
         context : (B, C, H, W) conditioning frames
         shape   : output shape, e.g. (B, 1, H, W)
         eta     : stochasticity (0 = deterministic DDIM, 1 = DDPM)
+        callback: optional f(step, x_t, x0_pred), called after every step with
+                  the new x_t and that step's clean-sample estimate. Observes
+                  only -- it draws no random numbers, so samples are unchanged.
+                  Used to visualise denoising (scripts/build_dashboard.py).
         """
         device = context.device
         B = shape[0]
@@ -290,6 +295,8 @@ class GaussianDiffusion(nn.Module):
             noise = sigma * torch.randn_like(x) if eta > 0 else 0.0
 
             x = alpha_prev.sqrt() * x0_pred + direction + noise
+            if callback is not None:
+                callback(i, x, x0_pred)
 
         if self.residual:
             # back from change-space to a rain field: persistence + 2 * change
