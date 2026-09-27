@@ -56,25 +56,12 @@
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)
 - [x] C2 CorrDiff regression spike DONE 2026-09-27: **NO-GO** (RMSE tie with ERA5 and with always-zero; never reaches 1 mm/hr). Real signal: island-rain timing correlation 0.64 vs ERA5 0.22 (diff CI [+0.02, +0.66]). No cloud spend. See tasks/spike_corrdiff.md
-- [ ] C3 ERA5 conditioning for the nowcaster — plan `tasks/plan_era5_conditioning.md` **APPROVED 2026-09-28**.
-  **RESUME HERE (paused for a laptop shutdown, no code changed yet):** step 1 = `scripts/build_era5_predictors.py`
-  (≈11 domain-averaged ERA5 predictors per hour from `data/raw/era5/era5_corrdiff_2026.zarr` →
-  `data/processed/era5_predictors.nc`), then `RadarDataset(era5_env=True)` returning an `env` vector for the hour at/before
-  the last radar frame (standardised on training hours; default off), then the zero-initialised embedding added to the
-  U-Net timestep embedding, repro tests (off = bit-identical; on at step 0 = identical to warm start), train, paired eval.
-  Read so far: RadarDataset.__init__/__getitem__ (returns dict context/target).
-
----
-
-
-## Radar gap alerting + Stage 4 launch (2026-09-22)
-
-> Trigger: first real FLASH_FLOOD labels since collection began (King's Road 17:11 SGT,
-> Coronation Road 17:15 SGT). Ran under Pattern AP (Observability) for the alerting and
-> Pattern N (Timeboxed Spike) for "can we predict today's flood?" —
-> see `docs/history/observability_plan.md` and `docs/history/spike_nowcast_today.md`.
-
-### Backfill + ground truth
+- [ ] C3 ERA5 conditioning — plan approved 2026-09-28. Steps 1-3 DONE (1c14e67): predictors, dataset option, zero-init
+  embedding, era5_env_repro 13/13, all suites pass, nowcast still bit-identical.
+  **RUNNING (started 05:52 SGT 28 Sep):** `scripts/train_era5_env.bat` — arm 1 `lead30_env` (weather input) then arm 2
+  `lead30_ctrl` (same 50k fine-tuning, no weather = control), ~2 h each → logs/train_lead30_{env,ctrl}.log. Resumable:
+  re-run the .bat after a shutdown. NEXT: `python scripts/eval_era5_conditioning.py` (paired, same seeds; smoke-tested:
+  identical checkpoints score exactly identical) → results/era5_conditioning.json, verdict per plan.
 - [x] Recovered 141 missing slots for 22 Sep (laptop off 06:15–17:55 SGT); coverage now 241/241
 - [x] Measured NEA retention: ~6.5–7 d (-156h served, -168h 404) — this is the real safe laptop-off window
 - [x] Verified no colorbar/legend leak in the decode (4 independent checks; `UNKNOWN_COLOURS` empty over 937k px + 400 random frames). The sustained 84.7–100 mm/hr was real: 22 Sep exceeded 99.98% of archive frames by area ≥60 mm/hr
