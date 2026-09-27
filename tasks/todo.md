@@ -49,8 +49,8 @@
 - [ ] USER: apply for NVIDIA LaunchPad PhysicsNeMo lab (scripts/launchpad/project_brief.md; add the GitHub link)
 
 ### C. CorrDiff
-- [ ] C1 ERA5 2026-05-22 -> now download (background)
-- [ ] C2 local regression-stage spike -> go/no-go with cost estimate
+- [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)
+- [ ] C2 regression-stage spike per `tasks/spike_corrdiff.md` (question, design and go/no-go fixed before results) -> go/no-go with cost estimate
 
 ---
 

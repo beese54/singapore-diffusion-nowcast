@@ -13,6 +13,13 @@ Usage
     python scripts/download_era5.py --year 2023         # single year
     python scripts/download_era5.py --year 2023 --month 6  # single month
     python scripts/download_era5.py --status            # show what's downloaded
+    # CorrDiff spike: 2026 over a wider window, into its own store (tasks/spike_corrdiff.md)
+    python scripts/download_era5.py --year 2026 --months 5 6 7 8 9 \
+        --area 3.0 102.0 -0.5 105.5 --store era5_corrdiff
+
+For the current month only days ERA5 has already published are requested
+(it runs ~5 days behind); such a month is stored partially and is not
+re-checked later, so re-download it once complete if needed.
 """
 
 import argparse
@@ -66,8 +73,13 @@ HOURS = [f"{h:02d}:00" for h in range(24)]
 DEFAULT_YEARS = [2022, 2023]
 
 
+# Set from the command line in main(): the default is the Stage 1 archive.
+STORE_PREFIX = "singapore"
+ERA5_LAG_DAYS = 6          # ERA5 (incl. ERA5T) is published ~5 days behind real time
+
+
 def zarr_store_path(year: int) -> Path:
-    return DATA_DIR / f"singapore_{year}.zarr"
+    return DATA_DIR / f"{STORE_PREFIX}_{year}.zarr"
 
 
 def already_downloaded(year: int, month: int) -> bool:
@@ -91,17 +103,25 @@ def already_downloaded(year: int, month: int) -> bool:
 def download_month(year: int, month: int) -> Path:
     """Download one calendar month and return path to the temporary NetCDF file."""
     days_in_month = calendar.monthrange(year, month)[1]
-    days = [f"{d:02d}" for d in range(1, days_in_month + 1)]
+    last_day = days_in_month
+    newest = datetime.utcnow().date().toordinal() - ERA5_LAG_DAYS
+    if datetime(year, month, days_in_month).date().toordinal() > newest:      # month not complete in ERA5
+        last_day = max(0, newest - datetime(year, month, 1).date().toordinal() + 1)
+        if last_day == 0:
+            raise RuntimeError(f"ERA5 has no data yet for {year}-{month:02d}")
+    days = [f"{d:02d}" for d in range(1, last_day + 1)]
+    days_in_month = last_day
 
-    tmp_surface = DATA_DIR / f"tmp_surface_{year}{month:02d}.nc"
-    tmp_pressure = DATA_DIR / f"tmp_pressure_{year}{month:02d}.nc"
+    tag = "" if STORE_PREFIX == "singapore" else f"{STORE_PREFIX}_"
+    tmp_surface = DATA_DIR / f"tmp_surface_{tag}{year}{month:02d}.nc"
+    tmp_pressure = DATA_DIR / f"tmp_pressure_{tag}{year}{month:02d}.nc"
 
     c = cdsapi.Client(quiet=True)
 
     # Surface variables
     if not tmp_surface.exists():
         console.print(f"  [cyan]Downloading surface vars {year}-{month:02d}...[/cyan]")
-        tmp_surface_raw = DATA_DIR / f"tmp_surface_{year}{month:02d}.raw"
+        tmp_surface_raw = DATA_DIR / f"tmp_surface_{tag}{year}{month:02d}.raw"
         c.retrieve(
             "reanalysis-era5-single-levels",
             {
@@ -127,7 +147,7 @@ def download_month(year: int, month: int) -> Path:
                 if not nc_names:
                     raise RuntimeError(f"No .nc file found inside zip for {year}-{month:02d}")
                 for i, name in enumerate(nc_names):
-                    dest = DATA_DIR / f"_surf_{year}{month:02d}_part{i}.nc"
+                    dest = DATA_DIR / f"_surf_{tag}{year}{month:02d}_part{i}.nc"
                     dest.write_bytes(z.read(name))
                     part_paths.append(dest)
             if len(part_paths) == 1:
@@ -152,7 +172,7 @@ def download_month(year: int, month: int) -> Path:
         mid = days_in_month // 2
         half_days = [days[:mid], days[mid:]]
         tmp_halves = [
-            DATA_DIR / f"tmp_pressure_{year}{month:02d}_h{i}.nc"
+            DATA_DIR / f"tmp_pressure_{tag}{year}{month:02d}_h{i}.nc"
             for i in range(2)
         ]
 
@@ -261,7 +281,17 @@ def main() -> None:
     parser.add_argument("--year", type=int, help="Download only this year (default: 2022 and 2023)")
     parser.add_argument("--month", type=int, help="Download only this month (requires --year)")
     parser.add_argument("--status", action="store_true", help="Show download status and exit")
+    parser.add_argument("--months", type=int, nargs="+", help="Months to download (requires --year)")
+    parser.add_argument("--area", type=float, nargs=4, metavar=("N", "W", "S", "E"),
+                        help="Bounding box (default: the Stage 1 Singapore box)")
+    parser.add_argument("--store", default="singapore",
+                        help="Store name prefix: data/raw/era5/<store>_<year>.zarr")
     args = parser.parse_args()
+
+    global SG_BBOX, STORE_PREFIX
+    if args.area:
+        SG_BBOX = list(args.area)
+    STORE_PREFIX = args.store
 
     years = [args.year] if args.year else DEFAULT_YEARS
 
@@ -276,6 +306,8 @@ def main() -> None:
     months_to_download = [(y, m) for y in years for m in range(1, 13)]
     if args.year and args.month:
         months_to_download = [(args.year, args.month)]
+    if args.year and args.months:
+        months_to_download = [(args.year, m) for m in args.months]
 
     skipped = 0
     downloaded = 0
@@ -308,8 +340,9 @@ def main() -> None:
             console.print(f"  [red]{label}: {err}[/red]")
         sys.exit(1)
 
-    # Write stage flag if all months for all years are present
-    all_done = all(already_downloaded(y, m) for y in years for m in range(1, 13))
+    # Write stage flag if all months for all years are present (Stage 1 archive only)
+    all_done = STORE_PREFIX == "singapore" and not args.months and \
+        all(already_downloaded(y, m) for y in years for m in range(1, 13))
     if all_done:
         flag = CHECKPOINT_DIR / "stage1_complete.flag"
         flag.touch()
