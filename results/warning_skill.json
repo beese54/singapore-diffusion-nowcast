@@ -1,0 +1,159 @@
+{
+  "definition": {
+    "box_km": 2.03,
+    "boxes": 527,
+    "heavy_mm_hr": 10.0,
+    "model_warns": "at least 2 of 8 futures show heavy rain in the box",
+    "naive_warns": "the last radar map shows heavy rain in the box",
+    "ci": "95% bootstrap over forecast times"
+  },
+  "by_lead": {
+    "30": {
+      "checkpoint": "checkpoints/nowcaster/ckpt_step_300000.pt",
+      "forecasts": 200,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T23:25"
+      ],
+      "heavy_rain_boxes": 1269,
+      "base_rate": 0.012039848197343453,
+      "model": {
+        "catch_rate": 0.29393223010244285,
+        "precision": 0.32322357019064124,
+        "hits": 373,
+        "false_alarms": 781,
+        "misses": 896,
+        "warnings": 1154,
+        "catch_rate_ci": [
+          0.15169543527158882,
+          0.4290092175694746
+        ],
+        "precision_ci": [
+          0.1930206779521848,
+          0.426814381270903
+        ],
+        "times_chance": 26.846149959096604
+      },
+      "naive": {
+        "catch_rate": 0.25059101654846333,
+        "precision": 0.3072463768115942,
+        "hits": 318,
+        "false_alarms": 717,
+        "misses": 951,
+        "warnings": 1035,
+        "catch_rate_ci": [
+          0.15219216451954307,
+          0.34711008804577304
+        ],
+        "precision_ci": [
+          0.20848029018533812,
+          0.3838132794101246
+        ]
+      },
+      "model_only_warnings": {
+        "warnings": 849,
+        "came_true": 200,
+        "precision": 0.23557126030624265,
+        "share_of_all_heavy_rain": 0.15760441292356187
+      }
+    },
+    "60": {
+      "checkpoint": "checkpoints/nowcaster/lead60_warm/ckpt_step_100000.pt",
+      "forecasts": 200,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T22:55"
+      ],
+      "heavy_rain_boxes": 1172,
+      "base_rate": 0.01111954459203036,
+      "model": {
+        "catch_rate": 0.033276450511945395,
+        "precision": 0.06678082191780822,
+        "hits": 39,
+        "false_alarms": 545,
+        "misses": 1133,
+        "warnings": 584,
+        "catch_rate_ci": [
+          0.00831514744558223,
+          0.0520955688832884
+        ],
+        "precision_ci": [
+          0.02260213747874666,
+          0.09914039878915504
+        ],
+        "times_chance": 6.005715554724391
+      },
+      "naive": {
+        "catch_rate": 0.12798634812286688,
+        "precision": 0.12853470437017994,
+        "hits": 150,
+        "false_alarms": 1017,
+        "misses": 1022,
+        "warnings": 1167,
+        "catch_rate_ci": [
+          0.06369228957286432,
+          0.17485557773669763
+        ],
+        "precision_ci": [
+          0.05686776274002052,
+          0.21058790691495805
+        ]
+      },
+      "model_only_warnings": {
+        "warnings": 571,
+        "came_true": 37,
+        "precision": 0.0647985989492119,
+        "share_of_all_heavy_rain": 0.031569965870307165
+      }
+    },
+    "90": {
+      "checkpoint": "checkpoints/nowcaster/lead90_warm/ckpt_step_100000.pt",
+      "forecasts": 200,
+      "test_period": [
+        "2026-09-14T03:20",
+        "2026-09-25T22:25"
+      ],
+      "heavy_rain_boxes": 1220,
+      "base_rate": 0.01157495256166983,
+      "model": {
+        "catch_rate": 0.0680327868852459,
+        "precision": 0.10024154589371981,
+        "hits": 83,
+        "false_alarms": 745,
+        "misses": 1137,
+        "warnings": 828,
+        "catch_rate_ci": [
+          0.02457908254727743,
+          0.11480881480294847
+        ],
+        "precision_ci": [
+          0.04021333773720874,
+          0.16396556972814993
+        ],
+        "times_chance": 8.660212243604972
+      },
+      "naive": {
+        "catch_rate": 0.0860655737704918,
+        "precision": 0.08764607679465776,
+        "hits": 105,
+        "false_alarms": 1093,
+        "misses": 1115,
+        "warnings": 1198,
+        "catch_rate_ci": [
+          0.024203099430054737,
+          0.164245905308892
+        ],
+        "precision_ci": [
+          0.019911229251970235,
+          0.20227243052818283
+        ]
+      },
+      "model_only_warnings": {
+        "warnings": 802,
+        "came_true": 82,
+        "precision": 0.10224438902743142,
+        "share_of_all_heavy_rain": 0.06721311475409836
+      }
+    }
+  }
+}

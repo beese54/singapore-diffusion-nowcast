@@ -127,6 +127,11 @@
   <p>Two floods are anecdotes. The real test is 200 forecasts, each with 8 futures, spread across a 12-day period
     (<span id="ev-period"></span>) that the model never saw in training, each compared with the naive forecast.</p>
   <ul class="summary" id="ev-summary"></ul>
+  <h3>When it warns of heavy rain, is it right?</h3>
+  <p>The practical question for anyone deciding whether to act: split Singapore into 2 × 2 km squares and, for every
+    forecast in the test period, check whether heavy rain (10 mm/hr or more) really came where a warning was given.</p>
+  <div class="table-wrap"><table id="ev-warn"></table></div>
+  <p class="note" id="ev-warn-note"></p>
   <div class="table-wrap"><table id="ev-table"></table></div>
   <p class="note">For researchers: overall accuracy is CRPS skill against persistence; placement is the pooled
     fractions skill score (FSS, 0 to 1, higher is better) within a 12 km neighbourhood. At 60–90 min CRPS alone

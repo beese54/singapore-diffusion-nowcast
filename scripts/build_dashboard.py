@@ -13,7 +13,7 @@ per pixel:
     probability byte = round(255 * p)
 The radar is ~97% dry, so these compress to a few KB per frame.
 
-Inputs:  data/processed/radar.zarr, data/processed/eval_cache/case_<name>_lead*.npz,
+Inputs:  data/processed/radar.zarr, data/processed/eval_cache/case_<name>_lead*.npz, results/warning_skill.json,
          data/processed/flood_eval_dataset.parquet, data/processed/flood_prone_areas.geojson,
          results/*.json, checkpoints/nowcaster/ckpt_step_300000.pt (denoising demo, GPU optional)
 Output:  dashboard/data/*.png, dashboard/data/data.json, dashboard/data/radar240/*.png
@@ -218,6 +218,8 @@ def export_results() -> dict:
         res["flood_events"][str(L)] = {g: {k: v for k, v in D[g][">=2.0 mm/hr within 1.4 km"].items()}
                                        | {"n": D[g]["n_events"]} for g in ("test", "after_test")}
         res["flood_events"][str(L)]["excluded_in_sample"] = D["excluded_in_sample"]
+    # plain-language warning skill (scripts/warning_skill.py)
+    res["warning"] = json.loads((ROOT / "results" / "warning_skill.json").read_text())["by_lead"]
     return res
 
 

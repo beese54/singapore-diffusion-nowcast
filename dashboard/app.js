@@ -456,6 +456,26 @@ function evidence(D) {
       `<td>${(b.model_alarm_rate_ordinary * 100).toFixed(1)}% / ${(b.persistence_alarm_rate_ordinary * 100).toFixed(1)}%</td></tr>`;
   }
   $('ev-flood').innerHTML = ft + '</tbody>';
+
+  // "When it warns, is it right?" -- results/warning_skill.json
+  const W = R.warning, pc = (v) => Math.round(v * 100) + '%';
+  const rng = (c) => `<small>(${pc(c[0])}–${pc(c[1])})</small>`;
+  let wt = '<thead><tr><th>How far ahead</th><th>Catches this share of downpours<br><small>AI model (95% range) · naive</small></th>' +
+    '<th>Right when it warns<br><small>AI model (95% range) · naive</small></th><th>Compared with guessing</th></tr></thead><tbody>';
+  for (const L of ['30', '60', '90']) {
+    const w = W[L];
+    wt += `<tr><td>${L} min</td><td class="${cls(w.model.catch_rate, w.naive.catch_rate)}">${pc(w.model.catch_rate)} ${rng(w.model.catch_rate_ci)} · ${pc(w.naive.catch_rate)}</td>` +
+      `<td class="${cls(w.model.precision, w.naive.precision)}">${pc(w.model.precision)} ${rng(w.model.precision_ci)} · ${pc(w.naive.precision)}</td>` +
+      `<td>${Math.round(w.model.times_chance)}× more often right than chance</td></tr>`;
+  }
+  $('ev-warn').innerHTML = wt + '</tbody>';
+  const w30 = W['30'], only = w30.model_only_warnings;
+  $('ev-warn-note').innerHTML =
+    `Heavy rain falls in only about ${(w30.base_rate * 100).toFixed(1)}% of squares at any moment, so a warning that is right ` +
+    `1 time in 3 is far better than chance. <b>The model's distinctive value</b> is warning where the radar shows no heavy rain ` +
+    `yet: at 30 minutes it gave ${only.warnings.toLocaleString()} such warnings, ${only.came_true} came true — about ` +
+    `${pc(only.share_of_all_heavy_rain)} of all downpours flagged before they arrived, which the naive forecast can never do — ` +
+    `but ${pc(1 - only.precision)} of those early warnings were false alarms. At 60 and 90 minutes it is no better than the naive forecast.`;
 }
 
 function live() {

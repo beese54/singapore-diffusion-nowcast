@@ -57,6 +57,24 @@ Other diagnostics in the same files: CRPS over all pixels (family B), catchment-
 ensembles: 30 min 0.91 at ≥2 mm/hr and **0.48 at ≥10 mm/hr** (heavy rain under-forecast);
 60 min 0.89 / 0.50; 90 min 1.51 / 0.93.
 
+## 2b. When it warns of heavy rain, is it right? (plain-language skill)
+
+`python scripts/warning_skill.py` → `results/warning_skill.json`. The domain is cut into 527 boxes of 2 × 2 km;
+for each of the 200 test forecasts, *heavy rain* = ≥10 mm/hr somewhere in the box at the target time; the model
+*warns* when ≥2 of 8 futures show it; the naive forecast warns when the last radar map shows it.
+95% ranges by bootstrap over forecast times.
+
+| Lead | Catches (share of heavy-rain boxes warned): model [95%] · naive | Right when it warns: model [95%] · naive | vs chance |
+|---|---|---|---|
+| 30 | **29%** [15, 43] · 25% | **32%** [19, 43] · 31% | 27× |
+| 60 | 3% [1, 5] · **13%** | 7% [2, 10] · **13%** | 6× |
+| 90 | 7% [2, 11] · 9% | 10% [4, 16] · 9% | 9× |
+
+Heavy rain occupies ~1.2% of boxes, so 1-in-3 precision is ~27× chance. At 30 min the model roughly matches the
+naive forecast overall; its distinctive contribution is warnings where the radar shows no heavy rain yet: 849
+such warnings, 200 verified (24%) — 16% of all heavy-rain boxes flagged before arrival, at the cost of 76% false
+alarms among those. At 60/90 min it is no better than persistence for heavy rain.
+
 ## 3. Recorded flash-flood events (out of sample only)
 
 Family D of `evaluate_probabilistic.py`. Ground truth: PUB flood alerts (Telegram), geocoded to the
