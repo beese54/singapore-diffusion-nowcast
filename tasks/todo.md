@@ -34,12 +34,12 @@
 ### B. Dashboard (static, GitHub Pages)
 - [x] B0 `scripts/build_dashboard.py` data export (greyscale sprites, 4.7 MB; results read from results/*.json)
 - [x] B1-B7 hero loop, denoising player, explorer (27 & 22 Sep, 30/60/90, flood-prone overlay, site chart), evidence, live timeline, limits; verified in Chrome (dark/light, 390 px, controls, no console errors) — see dashboard/README.md
-- [ ] B8 re-run `python scripts/build_dashboard.py` once the 240 km backfill passes 22 Sep (adds the 240 km loop), re-check, commit
+- [x] B8 240 km loop added (19 frames, 22 Sep 14:30-17:30 SGT; caption states it is not yet georeferenced); failed sprite loads now retry
 - [x] Pages workflow `.github/workflows/pages.yml` (activates at publish)
 
 ### E. LinkedIn
 - [x] E1 screenshots via the Chrome extension -> docs/img/linkedin/ (hero 22 Sep peak, explorer 27 Sep first warning, noise-to-rain); GIF `27sep_nowcast.gif` built in Python (`scripts/make_social_gif.py`) — a browser GIF export would need a download
-- [ ] E1b evidence + 240 km screenshots (after B8)
+- [x] E1b evidence + 240 km screenshots (4_evidence.jpg, 5_whats_next_240km.jpg)
 - [x] E2 post draft `content/linkedin_post_phase1.md` (gitignored): V1 short, V2 full, first comment, alt text, claim-by-claim truth check. **User posts it**; URLs filled in after publishing
 
 ### Publish

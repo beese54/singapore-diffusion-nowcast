@@ -75,7 +75,8 @@ function loadSheet(spec) {
       for (let i = 0; i < grey.length; i++) grey[i] = rgba[i * 4];
       resolve({ ...spec, sheetW: c.width, grey });
     };
-    img.onerror = () => reject(new Error('failed to load ' + spec.file));
+    // drop a failed load from the cache so the next request retries it
+    img.onerror = () => { sheetCache.delete(spec.file); reject(new Error('failed to load ' + spec.file)); };
     img.src = spec.file;
   });
   sheetCache.set(spec.file, p);
