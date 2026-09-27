@@ -94,7 +94,16 @@ Each criterion below is objective and testable. A stage is NOT complete until al
   > | 60 | +0.414 [+0.250, +0.579] | 0.359 vs **0.558** (CI excl. 0) | 0.028 vs **0.236** | 4 vs **8** |
   > | 90 | +0.436 [+0.301, +0.583] | 0.441 vs **0.510** | 0.041 vs **0.162** | 1 vs **4** |
   >
-  > **The 60/90-min models are not usable.** They pass CRPS but lose on every placement measure: their output is uncorrelated with the input (member vs last frame r ≈ 0.01, against 0.21 at 30 min) and keeps ~1/10 of the heavy-rain area. CRPS vs persistence rewards smooth weak rain because persistence is double-penalised when storms move (lesson L029). Likely cause: 100k steps is too short for the weaker conditioning signal at longer leads; untested. Details: `results/evaluation_report.json`, `results/probabilistic_eval_lead{30,60,90}.json`.
+  > **Warm-started re-train (2026-09-27, `--init-from` the 30-min model, 100k steps each; now the report's 60/90 entries):**
+  >
+  > | lead | CRPS skill [95% CI] | FSS 2 mm/hr, model vs persistence [CI of diff] | FSS 10 mm/hr | flood events >=2 mm/hr within 1.4 km | rain-area bias >=2 / >=10 |
+  > |---|---|---|---|---|---|
+  > | 60 warm | +0.422 [+0.266, +0.579] | 0.558 vs 0.558 [-0.162, +0.094] (tie) | 0.056 vs **0.236** | 9 vs 8 | 0.89 / 0.50 |
+  > | 90 warm | +0.413 [+0.279, +0.555] | **0.571** vs 0.510 [-0.021, +0.125] | 0.091 vs 0.162 (n.s.) | 6 vs 4 | 1.51 / 0.93 |
+  >
+  > Warm start fixed the light-rain placement failure (60: 0.36 -> 0.56; 90: 0.44 -> 0.57), so 60/90 are now usable as *light-rain probability* forecasts, on par with or slightly better than persistence (90 over-forecasts rain area ~1.5x). Heavy rain remains well below persistence at 60 min and weak at 90, and on 22 Sep neither reached P>=0.25 at the flood site (max 0.12). Radar-only heavy-rain skill does not extend past 30 min.
+  >
+  > *From-scratch run (superseded):* **The 60/90-min models are not usable.** They pass CRPS but lose on every placement measure: their output is uncorrelated with the input (member vs last frame r ≈ 0.01, against 0.21 at 30 min) and keeps ~1/10 of the heavy-rain area. CRPS vs persistence rewards smooth weak rain because persistence is double-penalised when storms move (lesson L029). Likely cause: 100k steps is too short for the weaker conditioning signal at longer leads; untested. Details: `results/evaluation_report.json`, `results/probabilistic_eval_lead{30,60,90}.json`.
 - [x] **PRIMARY (amended 2026-09-25):** CRPS skill vs persistence > 0 at the 30-min (35 min from last frame) lead, with the 95% bootstrap CI lower bound > 0 — reported by `scripts/evaluate.py`
 - [x] **TRACKED:** pooled ensemble-probability FSS at 2 mm/hr (≈20 dBZ) vs persistence, with 95% CI of the difference — reported, not a pass condition
 - [ ] **TARGET (open):** skill at heavy rain (≥ 10 mm/hr), which drives flash floods — pooled ensemble FSS and flood-event hit rate vs persistence
