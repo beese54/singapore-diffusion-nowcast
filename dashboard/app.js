@@ -13,6 +13,9 @@ const LOGMAX = Math.log1p(100);
 const LEVELS = [0.5, 1, 2, 5, 10, 20, 30, 50, 100];
 const COLORS = ['#c6e8ff', '#7cc3f5', '#2f8fd8', '#3fbf4f', '#f2e03c', '#f59a23', '#e8321e', '#9b1bb5'];
 const SVGNS = 'http://www.w3.org/2000/svg';
+// Deep links for sharing a moment: ?hero=17:15 (static hero frame),
+// ?case=27sep&lead=30&t=11:10 (explorer at that target time).
+const Q = new URLSearchParams(location.search);
 
 const $ = (id) => document.getElementById(id);
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -124,6 +127,8 @@ class Panel {
     this.ctx.putImageData(this.img, 0, 0);
   }
   setMarks(items) {
+    // flood markers get a white halo so they read on top of red/purple rain
+    items = items.flatMap((m) => (m.halo ? [{ ...m, stroke: '#ffffff', sw: (m.sw || 1) + 2.5, title: null }, m] : [m]));
     this.marks.replaceChildren(...items.map((m) => {
       const e = document.createElementNS(SVGNS, m.shape === 'rect' ? 'rect' : 'circle');
       if (m.shape === 'rect') {
@@ -207,7 +212,7 @@ async function hero(D) {
     panel.draw(sheet, k, RAIN_LUT);
     const now = toMin(c.obs_times[k]);
     panel.setMarks(flash.filter((r) => toMin(r.time) <= now)
-      .map((r) => ({ x: r.x, y: r.y, r: 2.4, stroke: '#ff3b30', sw: 2, title: `${r.name} ${r.time}` })));
+      .map((r) => ({ x: r.x, y: r.y, r: 2.6, stroke: '#ff2d20', sw: 2, halo: true, title: `${r.name} ${r.time}` })));
     $('hero-time').textContent = c.obs_times[k];
   };
   show();
@@ -215,6 +220,8 @@ async function hero(D) {
   if (REDUCED) { btn.hidden = true; return; }     // static frame, no loop
   const player = makePlayer({ fps: 6, button: btn, visibleEl: $('hero-panel'),
     step: () => { k = (k + 1) % c.obs.n; show(); return true; } });
+  const shared = c.obs_times.indexOf(Q.get('hero'));
+  if (shared >= 0) { k = shared; show(); player.stop(); return; }   // shared moment: hold it
   k = 0; show(); player.start();
 }
 
@@ -249,7 +256,8 @@ async function denoise(D) {
 }
 
 async function explorer(D) {
-  const state = { c: '27sep', lead: '30', k: 0 };
+  const state = { c: D.cases[Q.get('case')] ? Q.get('case') : '27sep',
+                  lead: ['30', '60', '90'].includes(Q.get('lead')) ? Q.get('lead') : '30', k: 0 };
   const P = {
     obs: new Panel($('ex-obs'), D.grid, D.coast), per: new Panel($('ex-per'), D.grid, D.coast),
     mean: new Panel($('ex-mean'), D.grid, D.coast), p10: new Panel($('ex-p10'), D.grid, D.coast),
@@ -268,6 +276,10 @@ async function explorer(D) {
     return i < 0 ? 0 : i;
   }
   state.k = firstFlagOr0();
+  if (Q.has('t')) {
+    const i = D.cases[state.c].leads[state.lead].targets.indexOf(Q.get('t'));
+    if (i >= 0) state.k = i;
+  }
 
   async function render(resetSlider) {
     const c = D.cases[state.c], L = c.leads[state.lead];
@@ -286,7 +298,7 @@ async function explorer(D) {
       for (const f of D.flood_prone) marks.push({ x: f.x, y: f.y, r: 1.3, stroke: '#9fe7ff', sw: 1, title: `PUB flood-prone: ${f.name}` });
     }
     for (const r of c.reports.filter((r) => r.type === 'FLASH_FLOOD')) {
-      marks.push({ x: r.x, y: r.y, r: 2.4, stroke: '#ff3b30', sw: 2, title: `Flash flood ${r.time}: ${r.name}` });
+      marks.push({ x: r.x, y: r.y, r: 2.6, stroke: '#ff2d20', sw: 2, halo: true, title: `Flash flood ${r.time}: ${r.name}` });
     }
     Object.values(P).forEach((p) => p.setMarks(marks));
     const target = L.targets[k], issued = L.issued[k];
@@ -367,7 +379,8 @@ function evidence(D) {
   const h30 = R.headline['30'];
   $('stat-crps').textContent = fmt(h30.crps_skill, 2);
   $('stat-crps-ci').textContent = `95% CI ${fmt(h30.crps_ci[0], 2)} to ${fmt(h30.crps_ci[1], 2)}`;
-  const cls = (a, b) => (a > b ? 'good' : a < b ? 'bad' : '');
+  // colour by the numbers as DISPLAYED (2 dp): 0.558 vs 0.558 is a tie, not a win
+  const cls = (a, b) => { const x = +(+a).toFixed(2), y = +(+b).toFixed(2); return x > y ? 'good' : x < y ? 'bad' : ''; };
   let html = '<thead><tr><th>Lead</th><th>CRPS skill [95% CI]</th><th>Rain placement FSS ≥2 mm/hr<br>model / persistence</th><th>Heavy rain FSS ≥10 mm/hr<br>model / persistence</th></tr></thead><tbody>';
   for (const L of ['30', '60', '90']) {
     const r = R.headline[L];

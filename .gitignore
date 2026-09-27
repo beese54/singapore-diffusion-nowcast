@@ -51,3 +51,6 @@ Thumbs.db
 # API keys — NEVER commit
 .env
 secrets.yaml
+
+# Personal content drafts (LinkedIn etc.), not part of the research repo
+content/
