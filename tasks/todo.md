@@ -56,7 +56,7 @@
 ### C. CorrDiff
 - [ ] C1 ERA5 2026-05..09 download RUNNING (started 2026-09-27 ~20:30 SGT): `scripts/download_era5_corrdiff.bat` -> `logs/era5_corrdiff.log`, store `data/raw/era5/era5_corrdiff_2026.zarr`; resumable (re-run the .bat after a shutdown)
 - [x] C2 CorrDiff regression spike DONE 2026-09-27: **NO-GO** (RMSE tie with ERA5 and with always-zero; never reaches 1 mm/hr). Real signal: island-rain timing correlation 0.64 vs ERA5 0.22 (diff CI [+0.02, +0.66]). No cloud spend. See tasks/spike_corrdiff.md
-- [ ] C3 (proposed, local) feed ERA5 environment into the nowcaster as conditioning; optional small local diffusion stage; re-run spike with more storms
+- [ ] C3 ERA5 conditioning for the nowcaster — plan `tasks/plan_era5_conditioning.md` written 2026-09-27, AWAITING APPROVAL (upper-bound experiment: ERA5 is not real-time)
 
 ---
 
