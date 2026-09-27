@@ -9,6 +9,12 @@
 - 240 km backfill (one-off, ~3 h from 11:52 SGT 27 Sep): `scripts/backfill_240km.bat` -> `logs/backfill_240km.log`. Safe to re-run after a shutdown (skips existing); only the oldest day is lost per day missed.
 - 240 km ongoing: added to `SG-Weather Radar Continuous` (every 30 min, --hours 2) and `SG-Weather Radar Scraper` (daily 08:00, --hours 120). Task XML backups: `logs/task_backup_20260927/`.
 
+### New event — 27 Sep 2026 flash flood (out of sample: after the pinned test period)
+- [x] Collected: Neo Pee Teck Lane / Pasir Panjang Rd junction, FLASH_FLOOD 11:57 SGT (subsided 12:08), amid 29 flood-risk warnings from 11:05. Site is PUB flood-prone #26. Geocode hand-fixed to the layer's point, cell (63,78)
+- [x] Observed (7x7 box): dry to 11:05, 61 mm/hr 11:20, 100 mm/hr 11:30-11:40
+- [x] Forecasts `data/processed/eval_cache/case_27sep_lead{30,60,90}.npz`. **30 min: first flag issued 10:35 SGT (P>=10 0.38, persistence dry) = 35 min before rain reached the site, 30 min before PUB's first warning anywhere (11:05), 82 min before the flood report.** Median intensity ~10x low (8-10 vs 61-100). 60 min: one flag (P 0.50) issued 10:35 for 11:40. 90 min: none
+- [ ] Add as second case study (notebook 02 section, dashboard, docs/RESULTS.md). No retraining: one event does not change the training data materially; retrain when months more radar exist (e.g. NE monsoon)
+
 ### D. Heavy-rain data
 - [x] D1a Probe NEA 240 km product: 5-min, 480x480 RGBA PNG ~45 KB, **served ~30 days back** (70 km: ~7 d). ~13 MB/day.
 - [x] D1b `scrape_radar.py --product 240km` -> `data/raw/radar_240km/` (70 km default unchanged)

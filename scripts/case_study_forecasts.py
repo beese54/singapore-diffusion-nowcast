@@ -19,6 +19,8 @@ target_offset), i.e. forecasts are issued `lead` minutes earlier. Output:
 Usage:
     python scripts/case_study_forecasts.py --checkpoint checkpoints/nowcaster/ckpt_step_300000.pt
     python scripts/case_study_forecasts.py --checkpoint checkpoints/nowcaster/lead60/ckpt_step_100000.pt
+    # any other event (UTC window, name used in the output file):
+    python scripts/case_study_forecasts.py --checkpoint ... --start 2026-09-27T02:30 --end 2026-09-27T04:30 --name 27sep
 """
 
 import argparse
@@ -45,7 +47,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--members", type=int, default=8)
+    ap.add_argument("--start", default=str(START), help="first target, UTC (default: 22 Sep case)")
+    ap.add_argument("--end", default=str(END), help="last target, UTC")
+    ap.add_argument("--name", default="22sep", help="case name in the output file")
     args = ap.parse_args()
+    start, end = np.datetime64(args.start, "m"), np.datetime64(args.end, "m")
 
     model = load_model(ROOT / args.checkpoint, "cuda" if torch.cuda.is_available() else "cpu")
     off = model.target_offset
@@ -56,7 +62,7 @@ def main():
     # RAM), through the same build_context() the training dataset uses.
     da = xr.open_zarr(ZARR_PATH, consolidated=True)["rain_rate"]
     times = da.time.values.astype("datetime64[m]")
-    targets = np.arange(START, END + np.timedelta64(1, "m"), np.timedelta64(10, "m"))
+    targets = np.arange(start, end + np.timedelta64(1, "m"), np.timedelta64(10, "m"))
     idx = [int(np.searchsorted(times, t)) for t in targets]
     if not all(times[i] == t for i, t in zip(idx, targets)):
         sys.exit("a target frame is missing from the archive")
@@ -81,7 +87,7 @@ def main():
                                       n_members=args.members, eta=1.0)
         ens[k] = denormalise_rain(e.cpu().float()[0, :, 0], log_max).numpy()
 
-    out = ROOT / "data" / "processed" / "eval_cache" / f"case_22sep_lead{off * 5}.npz"
+    out = ROOT / "data" / "processed" / "eval_cache" / f"case_{args.name}_lead{off * 5}.npz"
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out, ens=ens, target_times=targets.astype("datetime64[m]"),
                         anchor_idx=np.array(anchors), lead_steps=off)
