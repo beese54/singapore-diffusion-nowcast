@@ -112,3 +112,5 @@ uncertain futures rarely puts 2 of 8 members above 10 mm/hr in the same box.
 - **What would combine them:** a hybrid, with extrapolation for the heavy-rain warning and the model for everything else. So would a model trained to keep intensity, for example calibrating the ensemble's heavy-rain probability after the fact, rather than a new input.
 
 The model of record is unchanged. The option stays in the code, default off and tested.
+
+*Deviations from the plan:* the control run was named `lead60_mctrl` (not `lead60_ctrl`), and the optional 60-min drain-alert re-run was skipped because the model was not kept.
