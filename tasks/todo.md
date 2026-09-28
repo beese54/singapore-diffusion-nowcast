@@ -19,10 +19,10 @@
 - [x] D1a Probe NEA 240 km product: 5-min, 480x480 RGBA PNG ~45 KB, **served ~30 days back** (70 km: ~7 d). ~13 MB/day.
 - [x] D1b `scrape_radar.py --product 240km` -> `data/raw/radar_240km/` (70 km default unchanged)
 - [x] D1c Scheduled collection + verified a task run under the conda env (result 0, 12 files for its 2 h window)
-- [ ] D1d Backfill complete — check `logs/backfill_240km.log` for "backfill exited"; expect ~8.6k images from ~2026-08-28
+- [x] D1d Backfill complete (27 Sep 15:08: 8,735 saved; 169 slots never published upstream)
 - [x] D1e (2026-09-28) 240 km gap alert in `check_radar_gaps.py` (own 29-d retention, upstream probe, flags gaps older than the 120 h catch-up); colour legend = same 33 colours; georeferenced by `scripts/georef_240km.py`: 480x480 km, 1 km px, lon 101.818-106.130, lat -0.835-3.506 (corr 0.95, basemap cross-check) -> constants in preprocess_radar.py
 - [ ] D2 Rain-gauge API history depth (data.gov.sg)
-- [ ] D3 Stage 7 heavy-rain plan after 2-4 weeks of 240 km data
+- [ ] D3 Stage 7 heavy-rain plan written (`tasks/plan_stage7_heavy_rain.md`, 2026-09-28) — AWAITING APPROVAL. Step 1 = no-training spike: does wide-view extrapolation catch incoming heavy rain that a 70 km-only forecast cannot (60/90 min)?
 
 ### A. Repo hygiene & docs
 - [x] A1 cleanup: portable launchers, results/ablations/ (+README), docs/history/, spec wording, per-lead eval output (5c1a431). ERA5 tmp files KEPT: they are download_era5.py's cache (17 MB, gitignored)
