@@ -34,6 +34,15 @@
 - Model checkpoints (`checkpoints/`): large; trained on NEA data. Available on request for research.
 - API keys (`.env`), which have never been committed (checked across the full git history).
 
+## Where the 240 km image sits
+
+NEA publishes no bounds for the 240 km product, so they were measured (`scripts/georef_240km.py`,
+`results/georef_240km.json`). The image is **480 × 480 km at 1 km per pixel, centred on Singapore**:
+"240 km" is the radius. Its edges are 101.818–106.130°E and 0.835°S–3.506°N.
+- **How it was measured:** the rain inside the 70 km domain matches the 240 km image with a correlation of 0.95. Fitting NEA's own coastline basemap to real coastlines gives the same scale to within 1% and the same position to within about 3 km.
+- **Uncertainty:** about ±0.25 km near Singapore and about ±2.5 km at the image edges.
+- **Colours:** the product uses the same 33 colours as the 70 km product, so the same mm/hr conversion applies.
+
 ## Rebuilding the data yourself
 
 NEA keeps about **7 days** of the 70 km product and about **30 days** of the 240 km product. The

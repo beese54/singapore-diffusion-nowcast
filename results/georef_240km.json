@@ -1,0 +1,19 @@
+{
+  "pairs": 150,
+  "correlation": 0.9479290246963501,
+  "x0_px": 194.5,
+  "y0_px": 226.5,
+  "km_per_px": 1.0,
+  "bounds": {
+    "lat_top": 3.505601975147865,
+    "lat_bottom": -0.8353823430462857,
+    "lon_left": 101.81778476464247,
+    "lon_right": 106.12967840459935
+  },
+  "centre": {
+    "lat": 1.3351098160507897,
+    "lon": 103.97373158462091
+  },
+  "uncertainty": "position +/-0.25 px near Singapore; scale +/-1% -> +/-2.5 px at the image edges",
+  "colour_legend": "identical 33-colour ramp to the 70 km product"
+}

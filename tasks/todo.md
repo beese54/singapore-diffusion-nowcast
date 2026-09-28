@@ -20,7 +20,7 @@
 - [x] D1b `scrape_radar.py --product 240km` -> `data/raw/radar_240km/` (70 km default unchanged)
 - [x] D1c Scheduled collection + verified a task run under the conda env (result 0, 12 files for its 2 h window)
 - [ ] D1d Backfill complete — check `logs/backfill_240km.log` for "backfill exited"; expect ~8.6k images from ~2026-08-28
-- [ ] D1e 240 km gap alert (extend `check_radar_gaps.py` or a `--status` check) + colour-legend/georeference check of the 240 km PNG before any modelling
+- [x] D1e (2026-09-28) 240 km gap alert in `check_radar_gaps.py` (own 29-d retention, upstream probe, flags gaps older than the 120 h catch-up); colour legend = same 33 colours; georeferenced by `scripts/georef_240km.py`: 480x480 km, 1 km px, lon 101.818-106.130, lat -0.835-3.506 (corr 0.95, basemap cross-check) -> constants in preprocess_radar.py
 - [ ] D2 Rain-gauge API history depth (data.gov.sg)
 - [ ] D3 Stage 7 heavy-rain plan after 2-4 weeks of 240 km data
 

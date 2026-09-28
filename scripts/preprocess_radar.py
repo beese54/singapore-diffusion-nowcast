@@ -136,6 +136,20 @@ _DLON = (RADAR_LON_RIGHT - RADAR_LON_LEFT) / RADAR_SHAPE[1]
 RADAR_LATS = RADAR_LAT_TOP - _DLAT * (np.arange(RADAR_SHAPE[0]) + 0.5)   # descending
 RADAR_LONS = RADAR_LON_LEFT + _DLON * (np.arange(RADAR_SHAPE[1]) + 0.5)  # ascending
 
+# The 240 km wide-range product (480 x 480 PNG, data/raw/radar_240km) has no
+# published bounds; they are MEASURED by scripts/georef_240km.py (results/
+# georef_240km.json): the 70 km domain's rain matches the 240 km image at
+# correlation 0.95 with square 1 km pixels, i.e. 480 x 480 km centred on
+# Singapore ("240 km" is the radius). Cross-checked against NEA's coastline
+# basemap (same scale to 1 %, position to ~3 km). Uncertainty: +/-0.25 km near
+# Singapore, +/-2.5 km at the image edges. Same 33-colour legend as the 70 km
+# product, so rgba_to_rain_rate() applies unchanged.
+RADAR240_LAT_TOP = 3.5056
+RADAR240_LAT_BOTTOM = -0.8354
+RADAR240_LON_LEFT = 101.8178
+RADAR240_LON_RIGHT = 106.1297
+RADAR240_SHAPE = (480, 480)
+
 
 def rgba_to_rain_rate(img_array: np.ndarray) -> np.ndarray:
     """Convert an RGBA NEA radar frame to mm/hr via exact colour matching.
