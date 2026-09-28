@@ -30,6 +30,10 @@ So severity is keyed to recoverability, not to existence:
 Recoverability of an in-window gap is VERIFIED against NEA, not assumed - see
 probe_upstream(). Use --no-probe to skip that network check.
 
+The 240 km wide-range archive (data/raw/radar_240km, heavy-rain stage) is checked
+too, with its own, longer retention (~30 days) and no flood-label logic: it is
+model input, not ground truth. Its alert ids are prefixed "240km:".
+
 - writes checkpoints/RADAR_GAP_ALERT.flag with details (durable, survives
   missed toasts while travelling)
 - fires a Windows toast notification (best-effort)
@@ -56,6 +60,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 RADAR_DIR = ROOT / "data" / "raw" / "radar"
+RADAR240_DIR = ROOT / "data" / "raw" / "radar_240km"
 ZARR_PATH = ROOT / "data" / "processed" / "radar.zarr"
 LABELS_PATH = ROOT / "data" / "processed" / "flood_labels.parquet"
 STATE_PATH = ROOT / "data" / "raw" / "radar_gap_alert_state.json"
@@ -80,6 +85,13 @@ FLOOD_SPAN_MIN = 30
 REALERT_H = 24
 # The zarr is only stale if the DAILY preprocess did not run: 24h cadence + grace.
 ZARR_STALE_H = 26
+# 240 km product: NEA served -30 d but not -32 d (measured 2026-09-27); stay
+# conservative, and page when a gap has a week of recovery left.
+RETENTION_240_H = 29 * 24
+AGING_240_H = RETENTION_240_H - 7 * 24
+# The daily 'Radar Scraper' task re-requests the last 120 h of both products;
+# an older gap will not heal by itself.
+CATCHUP_H = 120
 # Upstream probe: how many slots to sample per in-window gap, and the rate limit
 # (matches scrape_radar.py's REQUEST_INTERVAL_S).
 PROBE_SAMPLES = 4
@@ -90,6 +102,10 @@ RADAR_URL_TEMPLATE = (
     "dpsri_70km_{ts}0000dBR.dpsri.png"
 )
 RADAR_REFERER = "https://www.weather.gov.sg/weather-rain-area-50km/"
+RADAR240_URL_TEMPLATE = (
+    "https://www.weather.gov.sg/files/rainarea/240km/"
+    "dpsri_240km_{ts}0000dBR.dpsri.png"
+)
 
 SEV_ORDER = {"CRITICAL": 0, "WARN": 1, "INFO": 2}
 
@@ -148,9 +164,9 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification($xml)
 
 # ── gap detection ─────────────────────────────────────────────────────────────
 
-def archived_timestamps() -> list[datetime]:
+def archived_timestamps(radar_dir: Path = RADAR_DIR) -> list[datetime]:
     out = []
-    for f in RADAR_DIR.glob("*.png"):
+    for f in radar_dir.glob("*.png"):
         try:
             out.append(datetime.strptime(f.stem, "%Y%m%d_%H%M"))
         except ValueError:
@@ -158,7 +174,8 @@ def archived_timestamps() -> list[datetime]:
     return sorted(out)
 
 
-def find_gaps(present: list[datetime], now: datetime) -> list[dict]:
+def find_gaps(present: list[datetime], now: datetime,
+              retention_h: float = RETENTION_H) -> list[dict]:
     """Contiguous runs of absent 5-minute slots, oldest first."""
     if not present:
         return []
@@ -185,7 +202,7 @@ def find_gaps(present: list[datetime], now: datetime) -> list[dict]:
         span = g["end"] - g["start"]
         g["slots"] = int(span / step) + 1
         g["age_h"] = (now - g["end"]).total_seconds() / 3600
-        g["recoverable"] = g["age_h"] < RETENTION_H
+        g["recoverable"] = g["age_h"] < retention_h
         g["id"] = g["start"].strftime("%Y%m%d_%H%M")
     return gaps
 
@@ -206,7 +223,7 @@ def flood_times() -> list[datetime]:
     return [t.tz_convert(None).to_pydatetime() for t in ts]
 
 
-def probe_upstream(g: dict, session) -> bool:
+def probe_upstream(g: dict, session, url_template: str = RADAR_URL_TEMPLATE) -> bool:
     """Is any frame in this gap actually still served by NEA?
 
     Being inside the retention window is not the same as being available: NEA
@@ -228,7 +245,7 @@ def probe_upstream(g: dict, session) -> bool:
     for dt in slots:
         ts = (dt + timedelta(hours=8)).strftime("%Y%m%d%H%M")  # NEA serves SGT
         try:
-            r = session.get(RADAR_URL_TEMPLATE.format(ts=ts), timeout=15)
+            r = session.get(url_template.format(ts=ts), timeout=15)
             if r.status_code == 200 and r.content[:8] == b"\x89PNG\r\n\x1a\n":
                 return True
         except Exception:
@@ -272,11 +289,47 @@ def classify(gaps: list[dict], floods: list[datetime], probe: bool = True) -> No
 
 def runbook(g: dict) -> str:
     hours = int(g["age_h"]) + 6
+    if g["id"].startswith("240km:"):
+        return f"python scripts/scrape_radar.py --product 240km --hours {hours}"
     return (
         f"python scripts/scrape_radar.py --hours {hours}"
         "  ->  python scripts/preprocess_radar.py"
         "  ->  python scripts/build_flood_eval_dataset.py"
     )
+
+
+def gaps_240km(now: datetime, probe: bool = True) -> tuple[list[dict], int]:
+    """Gaps in the 240 km archive, classified by recoverability.
+
+    No flood overlap: a wide-range gap costs model input, not ground truth, and
+    the month-long retention leaves time for the catch-up scraper to heal it.
+    Upstream availability is probed as for the 70 km product (NEA skips slots).
+    """
+    present = archived_timestamps(RADAR240_DIR) if RADAR240_DIR.exists() else []
+    gaps = find_gaps(present, now, RETENTION_240_H)
+    session = None
+    if probe and any(g["recoverable"] for g in gaps):
+        session = requests.Session()
+        session.headers.update({"User-Agent": "Mozilla/5.0",
+                                "Referer": "https://www.weather.gov.sg/weather-rain-area-240km/"})
+    for g in gaps:
+        g["id"] = "240km:" + g["id"]
+        g["floods"] = []
+        g["upstream"] = (probe_upstream(g, session, RADAR240_URL_TEMPLATE)
+                         if g["recoverable"] and session is not None else None)
+        if not g["recoverable"]:
+            g["severity"], g["reason"] = "INFO", "older than retention - unrecoverable"
+        elif g["upstream"] is False:
+            g["severity"], g["reason"] = "INFO", "upstream 404 - never published"
+        elif g["age_h"] > AGING_240_H:
+            left = RETENTION_240_H - g["age_h"]
+            g["severity"], g["reason"] = "CRITICAL", f"240 km: recoverable for only ~{left / 24:.1f}d more"
+        elif g["age_h"] > CATCHUP_H:
+            g["severity"], g["reason"] = "WARN", "240 km: older than the daily catch-up - run the fix"
+            g["manual"] = True
+        else:
+            g["severity"], g["reason"] = "WARN", "240 km: recent - catch-up scraper should heal"
+    return gaps, len(present)
 
 
 # ── the other questions (Q4, Q5) ──────────────────────────────────────────────
@@ -336,6 +389,16 @@ def task_health() -> list[tuple[str, str, str]]:
 
 
 # ── reporting ─────────────────────────────────────────────────────────────────
+
+def report_240km(gaps: list[dict], n_png: int) -> None:
+    live = [g for g in gaps if g["severity"] != "INFO"]
+    lost = sum(g["slots"] for g in gaps if g["severity"] == "INFO")
+    print(f"\n240 km archive: {n_png:,} PNGs | retention {RETENTION_240_H / 24:.0f}d | "
+          f"{len(live)} actionable gap(s)" + (f", {lost} frames unrecoverable (never published or past retention)" if lost else ""))
+    for g in sorted(live, key=lambda x: (SEV_ORDER[x["severity"]], -x["age_h"])):
+        print(f"  {g['severity']:<9}{g['start']:%Y-%m-%d %H:%M}  {g['slots']:>6}"
+              f"{g['age_h']:>7.1f}h  {g['reason']}")
+
 
 def report(gaps: list[dict], zl: dict | None, tasks, n_png: int) -> None:
     print(f"Radar archive: {n_png:,} PNGs | retention {RETENTION_H}h "
@@ -433,6 +496,9 @@ def main() -> None:
     tasks = task_health()
 
     report(gaps, zl, tasks, len(present))
+    gaps240, n240 = gaps_240km(now, probe=not args.no_probe)
+    report_240km(gaps240, n240)
+    gaps += gaps240          # same alert/suppression machinery; ids are prefixed
 
     if args.status:
         return
@@ -481,7 +547,7 @@ def main() -> None:
         lines.append(f"{g['severity']}  gap {g['start']:%Y-%m-%d %H:%M} -> "
                      f"{g['end']:%Y-%m-%d %H:%M}  ({g['slots']} slots, "
                      f"{g['age_h']:.1f}h old) - {g['reason']}")
-        if g["severity"] == "CRITICAL":
+        if g["severity"] == "CRITICAL" or g.get("manual"):
             lines.append(f"    fix: {runbook(g)}")
         alerted[g["id"]] = now.isoformat()
     if stale_zarr:
