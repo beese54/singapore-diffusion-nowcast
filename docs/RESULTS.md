@@ -99,6 +99,35 @@ earlier version of this table included them).
 30-min model hitting as many or more events than persistence while raising alarms about 4× less
 often at ordinary times.
 
+## 3b. Minutes ahead of PUB's drain sensors (out of sample only)
+
+`python scripts/drain_alert_benchmark.py [--seed N]` → `results/drain_alert_benchmark.json` (seed 7000;
+`_seed8000.json` is an independent re-draw). PUB's "Risk of Flash Floods" alert fires when a drain reaches
+90% of its depth, so each alert is a drain-sensor reading with a time and place. For each out-of-sample
+alert (first per site per storm), 30-min forecasts were issued every 5 min over the 2 hours before it.
+**Model warns** = ≥2 of 8 futures show ≥10 mm/hr in the ~2×2 km box around the site. **Radar shows** =
+the observed radar already has ≥10 mm/hr there (what someone watching the radar would see). Lead =
+minutes from the first warning to the alert. Definitions were fixed before the results were seen.
+
+| Drain alerts (FLOOD_RISK) | 18 Sep (1 site) | 22 Sep (6 sites) | 27 Sep (16 sites) |
+|---|---|---|---|
+| Sites the model warned for | 1/1 | 6/6 | 16/16 |
+| Median model lead, seed 7000 / 8000 | 53 / 63 min | 78 / 68 min | 58 / 69 min |
+| Median radar lead (heavy rain already visible) | 43 min | 53 min | 28 min |
+| **Median head start over the radar**, seed 7000 / 8000 | **10 / 20 min** | **20 / 13 min** | **28 / 43 min** |
+
+- **Over all 23 drain alerts:** the model warned before every one, with a median lead of 63–68 min. Heavy rain was already visible on radar a median of 32 min before the alert. The model's median head start over the radar was positive in all 3 storms and in both draws.
+- **The warnings mostly held.** Once the model first warned, it kept warning at a median of 81% of the later issue times (minimum 50%).
+- **Warnings are rare at other times.** At the same sites, it warned in only 0.5–2.5% of 200 random test forecasts, so these warnings are not "always on".
+- **The same pattern holds for flash-flood reports:** 3/3 warned, with a median lead of 86–96 min.
+
+**Limits.**
+- **This is 3 storms, not 23 independent trials.**
+- **The exact first-warning time depends on the random draw.** The median difference between the two draws is 10 min and the worst case is 40 min. For example, Neo Pee Teck Lane gets a first warning at 10:35 in one draw and 10:45 in the other, i.e. 59 or 49 min before its 11:34 drain alert.
+- **Hits do not show that the warnings are specific.** This benchmark counts warnings before alerts. It does not count warnings on storm days at sites that never flooded; §2b does, and there the model is right about 1 in 3 times.
+- **Location is approximate.** The site is the geocoded road name, not the sensor itself.
+- **Real leads are a few minutes shorter,** because NEA publishes radar frames a few minutes late.
+
 ## 4. Case studies
 
 Reproduce with `python scripts/case_study_forecasts.py --checkpoint <ckpt> [--start --end --name]`,
@@ -113,7 +142,9 @@ too low; handled the decay far better than persistence. 60/90 min: no flag.
 sample).** Dry until 11:05 SGT, 100 mm/hr (top of NEA's scale) 11:30–11:40, flash flood 11:57.
 30-min model: first flag issued **10:35 SGT (P≥10 = 0.38) while persistence was still dry** —
 35 min before rain reached the site, 30 min before PUB's first alert anywhere, **59 min before the
-drain-sensor flood-risk alert at that junction (11:34)**, 82 min before the flash-flood report. Intensity ~10× too low. 60 min: one flag (P = 0.50) issued 10:35; 90 min: none.
+drain-sensor flood-risk alert at that junction (11:34)**, 82 min before the flash-flood report (an
+independent re-draw in §3b first warns at 10:45, 49 min before the alert: the exact minute depends on the
+random draw). Intensity ~10× too low. 60 min: one flag (P = 0.50) issued 10:35; 90 min: none.
 
 ## 5. Inference speed
 

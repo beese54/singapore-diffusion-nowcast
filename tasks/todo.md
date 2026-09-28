@@ -49,7 +49,7 @@
 - [x] ~~USER: apply for NVIDIA LaunchPad~~ dropped 2026-09-27: console needs an enterprise sign-in; hosted CorrDiff NIM deprecated. Spike runs locally.
 
 ### F. Flood-response layer (from the user, 2026-09-27)
-- [ ] F1 "minutes ahead of PUB's drain sensor" benchmark over all out-of-sample drain alerts
+- [x] F1 "minutes ahead of PUB's drain sensor" benchmark (2026-09-28): `scripts/drain_alert_benchmark.py` -> 23/23 out-of-sample drain alerts warned, median lead 63-68 min, median head start over the radar positive in 3/3 storms (10-43 min, 2 seeds); first-warning minute varies ~10 min by seed. docs/RESULTS.md §3b
 - [ ] F2 per-location P(drain alert | forecast rain) once enough alerts accumulate (months)
 - [ ] F3 check whether PUB's public water-level page can be used for continuous levels
 
