@@ -80,7 +80,8 @@ def main():
     ens = np.empty((len(anchors), args.members, *block.shape[1:]), np.float16)
     dev = next(model.parameters()).device
     for k, t in enumerate(anchors):
-        ctx = build_context(block[t - cf - lo: t - lo], times[t - 1], log_max, tc)
+        ctx = build_context(block[t - cf - lo: t - lo], times[t - 1], log_max, tc,
+                            model.data_cfg.get("motion_minutes", 0))
         torch.manual_seed(9000 + k)
         with torch.no_grad():
             e = model.ensemble_sample(torch.from_numpy(ctx).unsqueeze(0).to(dev),

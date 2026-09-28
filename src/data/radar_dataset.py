@@ -174,12 +174,21 @@ def time_features(t_last: np.datetime64, h: int, w: int) -> np.ndarray:
 
 
 def build_context(frames: np.ndarray, t_last: np.datetime64, log_max: float,
-                  time_channels: bool) -> np.ndarray:
+                  time_channels: bool, motion_minutes: int = 0) -> np.ndarray:
     """The model's input from raw mm/hr frames (CF, h, w), oldest first: the
-    normalised frames, with time channels PREPENDED when the model uses them.
+    normalised frames, PREPENDED with (outermost first) the time channels and
+    the motion channel when the model uses them: [time?, motion?, frames].
     Order matters: context[-1] must stay the last radar frame, because the
-    residual base and the persistence baseline both read it from there."""
+    residual base and the persistence baseline both read it from there.
+
+    motion_minutes > 0 adds the last frame extrapolated that far ahead along its
+    optical-flow motion (src/data/motion.py, tasks/plan_motion_input.md). It is
+    computed from the context frames only, so it carries no future information."""
     x = normalise_rain(frames, log_max)
+    if motion_minutes:
+        from src.data.motion import motion_forecast
+        m = normalise_rain(motion_forecast(frames, motion_minutes), log_max)
+        x = np.concatenate([m[np.newaxis], x], axis=0)
     if not time_channels:
         return x
     return np.concatenate([time_features(t_last, x.shape[1], x.shape[2]), x], axis=0)
@@ -217,6 +226,9 @@ class RadarDataset(Dataset):
     era5_env      : also return "env", the large-scale ERA5 predictor vector for the
                     hour at/before the last context frame (tasks/plan_era5_conditioning.md).
                     Samples with no ERA5 hour are dropped. Default off.
+    motion_minutes: > 0 adds one context channel, the last frame extrapolated this
+                    many minutes along its optical-flow motion (build_context).
+                    Default 0 (off). Full frames only (no crops).
     """
 
     def __init__(
@@ -231,6 +243,7 @@ class RadarDataset(Dataset):
         crop_size: int | None = None,
         time_channels: bool = False,
         era5_env: bool = False,
+        motion_minutes: int = 0,
     ):
         self.context_frames = context_frames
         self.target_offset = target_offset
@@ -241,6 +254,9 @@ class RadarDataset(Dataset):
         self.crop_size = crop_size if split == "train" else None
         self.split = split
         self._rng = np.random.default_rng(1234)
+        self.motion_minutes = int(motion_minutes)
+        if self.motion_minutes and self.crop_size is not None:
+            raise ValueError("motion_minutes needs full frames: motion near a crop edge is unknown")
 
         ds = xr.open_zarr(zarr_path, consolidated=True)
         times = ds["time"].values  # datetime64, sorted (enforced at ingest)
@@ -437,7 +453,7 @@ class RadarDataset(Dataset):
     @property
     def in_channels(self) -> int:
         """Channels of the context tensor the model receives."""
-        return self.context_frames + (2 if self.time_channels else 0)
+        return self.context_frames + (2 if self.time_channels else 0) + (1 if self.motion_minutes else 0)
 
     def _time_features(self, i_last: int, h: int, w: int) -> np.ndarray:
         """See time_features(); i_last is the archive index of the last observed frame."""
@@ -454,7 +470,7 @@ class RadarDataset(Dataset):
         else:
             codes = self.codes[t - self.context_frames: t, y0:y0 + c, x0:x0 + c]
         return build_context(self._decode(codes), self.times[t - 1],
-                             self.log_max, self.time_channels)
+                             self.log_max, self.time_channels, self.motion_minutes)
 
     def env_at(self, t: int) -> torch.Tensor:
         """ERA5 predictor vector for anchor t: the hour containing the last

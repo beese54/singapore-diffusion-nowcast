@@ -164,7 +164,7 @@ def main() -> None:
     for ckpt, m in models:
         ts = time.perf_counter()
         cf, tc = m.data_cfg["context_frames"], m.data_cfg["time_channels"]
-        ctx = build_context(frames[-cf:], issue, log_max, tc)
+        ctx = build_context(frames[-cf:], issue, log_max, tc, m.data_cfg.get("motion_minutes", 0))
         if args.seed is not None:
             torch.manual_seed(args.seed)
         with torch.no_grad():

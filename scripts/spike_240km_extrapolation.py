@@ -46,6 +46,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT))
+from src.data import motion  # noqa: E402
 from preprocess_radar import (RADAR_LAT_BOTTOM, RADAR_LAT_TOP,  # noqa: E402
                               RADAR_LON_LEFT, RADAR_LON_RIGHT, ZARR_PATH, rgba_to_rain_rate)
 
@@ -78,33 +80,9 @@ def to70(f):
     return cv2.remap(f, MAP_X, MAP_Y, cv2.INTER_NEAREST, borderValue=0)
 
 
-def u8(f):
-    return np.clip(np.log1p(f) / np.log1p(100.0) * 255, 0, 255).astype(np.uint8)
-
-
 def advect(prev, now, minutes):
-    """Latest frame moved forward along the motion estimated prev -> now.
-
-    DIS optical flow (Farneback under-read a known synthetic 10 px shift as 0.6-5 px;
-    DIS recovers it exactly). Backward mapping reads the motion at the DESTINATION,
-    where it is often dry and the raw flow ~0, which would stall rain at its edge, so
-    the flow is smoothed by rain-weighted normalised convolution (sigma ~20 km) and
-    falls back to the median rainy-pixel motion far from any rain.
-    """
-    a, b = u8(prev), u8(now)
-    flow = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM).calc(a, b, None)
-    w = ((prev > 0) | (now > 0)).astype(np.float32)
-    if w.sum() < 20:
-        return now.copy()
-    den = cv2.GaussianBlur(w, (0, 0), SMOOTH_KM)
-    med = np.median(flow[w > 0], axis=0)
-    sm = np.empty_like(flow)
-    for c in range(2):
-        num = cv2.GaussianBlur(flow[..., c] * w, (0, 0), SMOOTH_KM)
-        sm[..., c] = np.where(den > 1e-3, num / np.maximum(den, 1e-3), med[c])
-    k = minutes / FLOW_MIN
-    gx, gy = np.meshgrid(np.arange(480, dtype=np.float32), np.arange(480, dtype=np.float32))
-    return cv2.remap(now, gx - k * sm[..., 0], gy - k * sm[..., 1], cv2.INTER_NEAREST, borderValue=0)
+    """Shared implementation (src/data/motion.py): DIS flow, smoothed ~20 km."""
+    return motion.advect(prev, now, minutes / FLOW_MIN, SMOOTH_KM)
 
 
 def boxes(a):

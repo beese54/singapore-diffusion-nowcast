@@ -94,7 +94,8 @@ def forecasts_for_day(model, da, times, day, issue, seed):
     dev = next(model.parameters()).device
     ens = np.empty((len(anchors), MEMBERS, *block.shape[1:]), np.float16)
     for k, a in enumerate(anchors):
-        ctx = build_context(block[a - cf - lo:a - lo], times[a - 1], log_max, tc)
+        ctx = build_context(block[a - cf - lo:a - lo], times[a - 1], log_max, tc,
+                            model.data_cfg.get("motion_minutes", 0))
         torch.manual_seed(seed + k)
         with torch.no_grad():
             e = model.ensemble_sample(torch.from_numpy(ctx).unsqueeze(0).to(dev),

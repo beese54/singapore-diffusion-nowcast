@@ -63,6 +63,11 @@ DEFAULTS = {
     # era5_predictors.nc) through a zero-initialised embedding added to the
     # timestep embedding (tasks/plan_era5_conditioning.md). Default off.
     "era5_env": 0,
+    # 1 = one extra input channel: the last frame extrapolated along its optical-
+    # flow motion to the forecast time ((target_offset + 1) x 5 min), built from
+    # the context frames only (src/data/motion.py, tasks/plan_motion_input.md).
+    # Warm-starting from a model without it adds a zero-initialised stem slice.
+    "motion_input": 0,
     # Loss weight added over the heavy-rain neighbourhood (>= 10 mm/hr in the
     # target or the last frame, dilated heavy_dilate px). 0 = off. See
     # GaussianDiffusion.p_losses. At 20 with a 7 px (2 km) dilation, ~1.8% of
@@ -263,7 +268,7 @@ def _check_compatible(state: dict, path: Path, parameterization: str | None,
 def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
                     parameterization: str | None = None,
                     residual: bool | None = None,
-                    expected_layout: tuple | None = None) -> int:
+                    expected_layout: tuple | None = None, motion_minutes: int = 0) -> int:
     state = torch.load(path, map_location="cpu", weights_only=True)
     _check_compatible(state, path, parameterization, residual, expected_layout)
     saved_env = bool(state.get("era5_env", False))
@@ -271,6 +276,9 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
     if saved_env != has_env:
         raise SystemExit(f"Checkpoint {path.name} has era5_env={saved_env} but this run uses "
                          f"era5_env={has_env}. Refusing to resume.")
+    if int(state.get("motion_minutes", 0)) != motion_minutes:
+        raise SystemExit(f"Checkpoint {path.name} has motion_minutes={state.get('motion_minutes', 0)} "
+                         f"but this run uses {motion_minutes}. Refusing to resume.")
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
     # Only restore the scaler when it is actually in use. Restoring a COLLAPSED
@@ -291,7 +299,8 @@ def load_checkpoint(path: Path, model: nn.Module, optimizer, scaler,
 
 
 def init_weights_from(path: Path, model: nn.Module, parameterization: str | None,
-                      residual: bool | None, expected_layout: tuple | None) -> None:
+                      residual: bool | None, expected_layout: tuple | None,
+                      motion_minutes: int = 0) -> None:
     """Warm start: copy another run's WEIGHTS only. Step, optimizer state and
     LR schedule start fresh, and the lead (target_offset) may differ -- that is
     the point: a 60/90-min model starts from the 30-min model, which already
@@ -302,10 +311,25 @@ def init_weights_from(path: Path, model: nn.Module, parameterization: str | None
     state = torch.load(path, map_location="cpu", weights_only=True)
     _check_compatible(state, path, parameterization, residual, expected_layout,
                       action="warm-start")
+    # Motion input: a model WITH it may start from one WITHOUT it -- the new
+    # channel's stem weights are inserted as zeros, so the model starts exactly
+    # as the source model. Its position: stem input = [noisy x, time?, motion,
+    # frames] (build_context). Any other change of the option is refused.
+    saved_motion = int(state.get("motion_minutes", 0))
+    weights = dict(state["model"])
+    if saved_motion != motion_minutes:
+        if saved_motion != 0:
+            raise SystemExit(f"--init-from {path.name}: motion_minutes={saved_motion}, this run "
+                             f"{motion_minutes}; only 0 -> N is supported")
+        key = next(k for k in weights if k.endswith("stem.weight"))
+        w = weights[key]
+        pos = 1 + (2 if expected_layout and expected_layout[1] else 0)
+        weights[key] = torch.cat([w[:, :pos], torch.zeros_like(w[:, :1]), w[:, pos:]], dim=1)
+        print(f"[init] motion channel added at stem input {pos}, zero-initialised")
     # Warm-starting a weather-conditioned model from an unconditioned one: only
     # the new env layers may be missing (they start at zero); anything else
     # missing or unexpected means the architectures differ, which is refused.
-    missing, unexpected = model.load_state_dict(state["model"], strict=False)
+    missing, unexpected = model.load_state_dict(weights, strict=False)
     bad = [k for k in missing if ".env_mlp." not in k] + list(unexpected)
     if bad:
         raise SystemExit(f"--init-from {path.name}: incompatible weights {bad[:5]}")
@@ -357,14 +381,17 @@ def main():
         print("Computing dataset statistics...")
         compute_stats(zarr_path, stats_path)
 
+    motion_minutes = (int(args.target_offset) + 1) * 5 if args.motion_input else 0
     train_ds = RadarDataset("train", context_frames=args.context_frames,
                             target_offset=args.target_offset,
                             time_channels=bool(args.time_channels),
-                            era5_env=bool(args.era5_env))
+                            era5_env=bool(args.era5_env),
+                            motion_minutes=motion_minutes)
     val_ds = RadarDataset("val", context_frames=args.context_frames,
                           target_offset=args.target_offset,
                           time_channels=bool(args.time_channels),
-                          era5_env=bool(args.era5_env))
+                          era5_env=bool(args.era5_env),
+                          motion_minutes=motion_minutes)
     env_dim = len(train_ds.env_names) if args.era5_env else 0
 
     print(f"Train samples: {len(train_ds):,}  |  Val samples: {len(val_ds):,}")
@@ -440,7 +467,7 @@ def main():
             start_step = load_checkpoint(ckpt_path, diffusion, optimizer, scaler,
                                          args.parameterization, bool(args.residual),
                                          (int(args.context_frames),
-                                          bool(args.time_channels)))
+                                          bool(args.time_channels)), motion_minutes)
         else:
             print(f"[warn] Checkpoint not found: {ckpt_path}. Starting fresh.")
     if start_step == 0 and args.init_from:
@@ -450,7 +477,7 @@ def main():
         if not init_path.exists():
             raise SystemExit(f"--init-from {init_path} not found")
         init_weights_from(init_path, diffusion, args.parameterization, bool(args.residual),
-                          (int(args.context_frames), bool(args.time_channels)))
+                          (int(args.context_frames), bool(args.time_channels)), motion_minutes)
 
     def _ckpt_state(step: int) -> dict:
         """The one place a checkpoint's contents are defined.
@@ -486,7 +513,10 @@ def main():
                 "era5_env": bool(args.era5_env),
                 "env_names": list(train_ds.env_names) if args.era5_env else [],
                 "env_mean": train_ds.env_mean.tolist() if args.era5_env else [],
-                "env_std": train_ds.env_std.tolist() if args.era5_env else []}
+                "env_std": train_ds.env_std.tolist() if args.era5_env else [],
+                # motion input: minutes of extrapolation (0 = off); rebuilds the
+                # extra channel at evaluation and inference
+                "motion_minutes": motion_minutes}
 
     # Consecutive validations at which the model produced no rain at all.
     # Used to refuse the stage flag rather than certify a collapsed model.

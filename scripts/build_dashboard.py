@@ -179,7 +179,8 @@ def export_denoise(da: xr.DataArray, target: str) -> dict:
     frames = da.sel(time=slice(issue - np.timedelta64((cf - 1) * 5, "m"), issue)).values.astype(np.float32)
     assert frames.shape[0] == cf, frames.shape
     log_max = max(load_stats()["log_max"], 1e-6)
-    ctx = torch.from_numpy(build_context(frames, issue, log_max, model.data_cfg["time_channels"]))
+    ctx = torch.from_numpy(build_context(frames, issue, log_max, model.data_cfg["time_channels"],
+                                         model.data_cfg.get("motion_minutes", 0)))
     xs, x0s = [], []
 
     def cb(i, x, x0):
