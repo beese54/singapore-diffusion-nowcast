@@ -113,8 +113,10 @@ is written up with the evidence in [docs/LESSONS.md](docs/LESSONS.md).
   - NVIDIA CorrDiff (PhysicsNeMo) ERA5 → 2 km downscaling;
   - ERA5 weather input to the 30-min model;
   - the 240 km wide-range radar, extrapolated (collected, gap-watched and georeferenced from Sep 2026).
-- **Next: motion-aware input.** A simple optical-flow extrapolation beats the 60-min model on heavy rain, so the
-  next test gives the model the extrapolated field as an extra input.
+- **Motion forecast as an extra input (done):** the 60-min model placed light rain better but still smoothed
+  away heavy rain. For 60-min heavy-rain warnings, plain optical-flow extrapolation is better than any
+  diffusion model tried (catches 17% vs 7%). **Next:** a hybrid (extrapolation for heavy-rain warnings, the model
+  for probabilities) or calibrating the ensemble's heavy-rain probability.
 - **Satellite (Himawari-9)**, to see clouds growing before they rain, following NVIDIA's Earth-2 Nowcasting design
   (StormScope: satellite + radar).
 - **Drain-alert benchmark:** done ([Results §3b](docs/RESULTS.md)); per-location flood model once alerts accumulate.

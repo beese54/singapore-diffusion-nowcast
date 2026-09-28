@@ -223,3 +223,9 @@ This file is updated after every correction or unexpected finding. Read at sessi
 **Rule:** Any motion-based baseline gets a synthetic check (known shift → recovered flow → advected centroid lands where expected) before its numbers are used, and the advection fills motion into dry areas.
 **How to apply:** `scripts/spike_240km_extrapolation.py` uses DIS + normalised-convolution smoothing; the synthetic check is described in its `advect()` docstring.
 **Repeat slip (same day):** the motion-input smoke run was launched without `--smoke`, so it touched `stage4_complete.flag` (an empty marker; only its timestamp changed) and wrote checkpoints under the run name, removed by hand. Smoke runs always take `--smoke` (L-early: smoke-test self-certification).
+
+### L035 — Giving a model the information is not the same as it using it
+**Observation:** The 60-min model was given, as an extra input channel, a motion forecast that on its own catches 17% of heavy-rain boxes (FSS ≥10 0.32). After 50k steps of fine-tuning it placed light rain better (FSS ≥2 +0.057) but caught *fewer* heavy-rain boxes than its control (6.7% vs 8.1%). It learned what the loss rewards, which is getting the typical field right, and still smoothed intensity away.
+**Rule:** When a model lags a simple baseline on one target, check whether the baseline's advantage is information or calibration before adding inputs. Here the baseline's information was handed over and not used, so the limit is intensity and calibration.
+**How to apply:** Next heavy-rain work compares the ensemble's heavy-rain probability after calibration, and a hybrid warning (extrapolation for heavy rain), against plain extrapolation, not another input. Always include the simple baseline as a fourth arm (`eval_motion_input.py` pattern).
+

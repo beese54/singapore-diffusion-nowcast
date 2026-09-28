@@ -72,3 +72,43 @@ precision. If it does not, the honest recommendation is "use extrapolation at 60
 2. Tests (above) pass; one short smoke run.
 3. Train both arms, detached (`scripts/train_motion_input.bat`), resumable after a shutdown.
 4. `scripts/eval_motion_input.py` → `results/motion_input.json`; verdict recorded here; docs, dashboard and post updated only if the verdict changes a published claim.
+
+## Result (2026-09-29 02:43) — **DO NOT KEEP**; at 60 min, plain extrapolation is the better heavy-rain warning
+
+`scripts/eval_motion_input.py` → `results/motion_input.json`. The four forecasters were scored on the same 200
+paired test forecasts (14–25 Sep), and the three models used the same seeds.
+
+| 60 min | base (model of record) | ctrl (+50k, lr 2e-5) | motion (+50k, lr 2e-5) | extrapolation alone |
+|---|---|---|---|---|
+| CRPS skill | **0.425** | 0.411 | 0.422 | 0.090 |
+| FSS ≥2 mm/hr, 11.9 km | 0.523 | 0.522 | 0.579 | **0.596** |
+| FSS ≥10 mm/hr | 0.120 | 0.120 | 0.106 | **0.319** |
+| Heavy-rain catch rate | 7.3% | 8.1% | 6.7% | **17.3%** |
+| Heavy-rain precision | 16.4% | 13.3% | 13.9% | **19.0%** |
+| Incoming heavy rain caught | 8.0% | 8.9% | 7.4% | **13.1%** |
+
+**The effect of the motion input (motion − ctrl).**
+- **Better for light rain:** FSS ≥2 +0.057 [+0.005, +0.090]; CRPS +0.011 [+0.002, +0.019].
+- **Worse for heavy rain:** FSS ≥10 −0.014 [−0.024, −0.001]; catch rate −0.014 [−0.026, −0.004].
+
+The rule needs better heavy-rain skill, so the verdict is **do not keep**.
+
+**Against extrapolation alone (motion − extrap).**
+- **Heavy rain, extrapolation wins:** catch rate −0.106 [−0.178, −0.029]; FSS ≥10 −0.213 [−0.319, −0.003].
+- **Overall, the model wins:** CRPS +0.332 [+0.190, +0.469], because a single deterministic map is penalised heavily when it is wrong.
+
+**The low learning rate fixed the fine-tuning harm (L032).** ctrl − base ties on every placement and warning score;
+only CRPS dipped, by −0.013 [−0.021, −0.006].
+
+**What this means.** The model was *given* a map showing where the heavy rain is heading, and it still did not
+forecast heavy rain there. It used the map to place light rain better, and it smoothed the downpours away. At 60
+minutes the bottleneck is therefore not missing information. It is the model's tendency to under-forecast
+intensity. Its heavy-rain area is about half the observed area (RESULTS §2), and an ensemble averaged over
+uncertain futures rarely puts 2 of 8 members above 10 mm/hr in the same box.
+
+**Practical conclusion.**
+- **Heavy-rain warnings at 60 min:** plain optical-flow extrapolation is better than every diffusion model tried. It catches 17% of heavy-rain boxes and is right 19% of the time, against about 13% and 13% for the naive forecast (`warning_skill.json`, same boxes; indicative, not a paired test).
+- **Probabilities and overall rain:** the diffusion model remains the better forecast.
+- **What would combine them:** a hybrid, with extrapolation for the heavy-rain warning and the model for everything else. So would a model trained to keep intensity, for example calibrating the ensemble's heavy-rain probability after the fact, rather than a new input.
+
+The model of record is unchanged. The option stays in the code, default off and tested.
