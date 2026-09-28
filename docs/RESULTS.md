@@ -166,3 +166,6 @@ Recorded in `results/ablations/` and `tasks/lessons.md`:
 | Deterministic sampler, calibration | Fragile or no gain | — |
 | 60/90-min models from scratch | Right amount of rain, wrong places | L029 |
 | Warm start from the 30-min model | **Fixed** light-rain placement at 60/90 | L030 |
+| NVIDIA CorrDiff (regression stage) ERA5 → 2 km hourly rain | NO-GO: never predicts ≥1 mm/hr; RMSE 1.085 vs always-zero 1.096. It does track *when* rain falls (timing correlation 0.64 vs 0.22) | `tasks/spike_corrdiff.md`, `results/corrdiff_spike.json` |
+| ERA5 weather vector fed to the 30-min model | Did not help: FSS ≥10 −0.076 [−0.095, −0.031] vs a same-budget control; the control itself was worse than the base (fine-tuning LR restart) | L032, L033, `results/era5_conditioning.json` |
+| Wide 240 km radar, extrapolated, as the missing heavy-rain information | NO-GO: catches no more incoming heavy rain than the same method on the 70 km footprint (60 min: −0.010 [−0.027, +0.008]). Incoming heavy rain mostly forms, not arrives. Side finding: that simple extrapolation beats the 60-min model on heavy rain | `tasks/plan_stage7_heavy_rain.md`, `results/spike_240km.json`, L034 |

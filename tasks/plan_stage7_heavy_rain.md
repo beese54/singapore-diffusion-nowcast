@@ -58,3 +58,36 @@ the information. That check needs no training.
 - Collection of both radar products continues, with the gap alert watching both.
 - ERA5 downloads continue.
 - D2 (rain-gauge history depth) remains open.
+
+## Result, Step 1 (2026-09-28): **NO-GO** for the wide view as the missing information
+
+`scripts/spike_240km_extrapolation.py` → `results/spike_240km.json`. 200 test forecasts per lead. The 240 km and
+70 km timestamps are aligned (correlation 0.94 at zero shift).
+
+| Incoming heavy rain (≥10 mm/hr, 2 × 2 km boxes) | 30 min | 60 min | 90 min |
+|---|---|---|---|
+| Share of heavy boxes that are "incoming" (not heavy at issue time) | 75% | 87% | 91% |
+| Caught by W (wide view extrapolated) | 12.1% | 7.5% | 9.3% |
+| Caught by S (same method, 70 km footprint only) | 13.1% | 8.5% | 8.7% |
+| **W − S** | −0.011 [−0.046, +0.019] | −0.010 [−0.027, +0.008] | +0.006 [−0.033, +0.038] |
+| New-warning precision, W − S | −0.037 [−0.099, +0.029] | −0.081 [−0.172, −0.002] | −0.079 [−0.200, +0.009] |
+
+**Answer.** Seeing 480 km instead of 63 km adds nothing a motion forecast can use: W catches no more incoming heavy
+rain than S, and its extra warnings are less often right. The heavy rain that appears on the domain 1–1.5 h later is
+mostly **not** rain that already exists upwind and moves in. It forms or intensifies, which is convective initiation.
+Per the rule, the Stage 7 wide-radar model is not built on this evidence, and heavy-rain effort moves to satellite
+data, which can see clouds growing before they rain.
+
+**Two further findings.**
+1. **The 240 km product sees only part of the heavy rain.** Even at the target time itself (the "ceiling" row), the 1 km product
+   marks only 51–59% of the boxes the 70 km product calls heavy (93% precision). Any wide-radar model inherits this.
+2. **Simple motion extrapolation beats our diffusion model at 60 min for heavy rain.** W − model: catch
+   +0.072 [+0.014, +0.149], precision +0.089 [+0.010, +0.163], incoming catch +0.039 [+0.003, +0.077]. At 90 min it
+   ties, and at 30 min it is more precise but catches less incoming rain. This matches L034: the earlier
+   optical-flow spike used a method that under-read motion. **Motion is a missing ingredient at 60 min after all**, and
+   it can be tested with the 70 km archive we already have (months of data), for example by giving the model the
+   extrapolated field as an extra input. That is the next candidate, and it needs its own plan.
+
+**Limits.** The test covers about 12 days and a few storms. Extrapolation is one simple method; a learned model might
+still extract something from the wide view (storm organisation, outflow boundaries) that advection cannot. That idea
+can be revisited once months of 240 km data exist, but this spike gives no evidence for it.

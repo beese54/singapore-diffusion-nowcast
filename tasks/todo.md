@@ -22,7 +22,7 @@
 - [x] D1d Backfill complete (27 Sep 15:08: 8,735 saved; 169 slots never published upstream)
 - [x] D1e (2026-09-28) 240 km gap alert in `check_radar_gaps.py` (own 29-d retention, upstream probe, flags gaps older than the 120 h catch-up); colour legend = same 33 colours; georeferenced by `scripts/georef_240km.py`: 480x480 km, 1 km px, lon 101.818-106.130, lat -0.835-3.506 (corr 0.95, basemap cross-check) -> constants in preprocess_radar.py
 - [ ] D2 Rain-gauge API history depth (data.gov.sg)
-- [ ] D3 Stage 7 heavy-rain plan written (`tasks/plan_stage7_heavy_rain.md`, 2026-09-28) — AWAITING APPROVAL. Step 1 = no-training spike: does wide-view extrapolation catch incoming heavy rain that a 70 km-only forecast cannot (60/90 min)?
+- [x] D3 Stage 7 Step 1 spike (2026-09-28): **NO-GO** — wide-view extrapolation catches no more incoming heavy rain than the 70 km footprint (results/spike_240km.json). Side finding: DIS extrapolation beats the 60-min model on heavy rain -> next candidate: motion-aware input (needs a plan). Satellite next for initiation.
 
 ### A. Repo hygiene & docs
 - [x] A1 cleanup: portable launchers, results/ablations/ (+README), docs/history/, spec wording, per-lead eval output (5c1a431). ERA5 tmp files KEPT: they are download_era5.py's cache (17 MB, gitignored)

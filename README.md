@@ -8,8 +8,9 @@ warning of the sudden downpours that cause flash floods.**
 
 An independent research project, run end-to-end on one laptop GPU (RTX 4060, 8 GB): radar and
 flood-report collection since May 2026, a 25.8M-parameter diffusion nowcaster, and an evaluation
-that reports what works *and what does not*. Phase 1 is complete; Phase 2 (wide-range radar,
-satellite and NVIDIA CorrDiff downscaling) is under way.
+that reports what works *and what does not*. Phase 1 is complete. Phase 2 has so far tested three ways of
+seeing heavy rain earlier: NVIDIA CorrDiff downscaling, ERA5 weather input, and the wide-range radar. None helped
+as tried (see [Results §6](docs/RESULTS.md)); the next candidates are motion-aware inputs and satellite.
 
 ![Rain at the King's Road flood site on 22 Sep 2026: observed (black), forecasts at 30/60/90 min, and the ensemble's probability of heavy rain](docs/img/case22sep_flood_cell_all_leads.png)
 
@@ -108,11 +109,15 @@ is written up with the evidence in [docs/LESSONS.md](docs/LESSONS.md).
 
 ## Roadmap (Phase 2)
 
-- **Wide-range radar (240 km)** — collected from Sep 2026 — to see storms before they reach the
-  domain, the information the heavy-rain limitation points to.
-- **Satellite (Himawari-9)**, following the design of NVIDIA's Earth-2 Nowcasting model (StormScope:
-  satellite + radar).
-- **NVIDIA CorrDiff** (PhysicsNeMo): ERA5 → ~2.5 km rainfall downscaling over Singapore.
+- **Done, did not help (as tried):**
+  - NVIDIA CorrDiff (PhysicsNeMo) ERA5 → 2 km downscaling;
+  - ERA5 weather input to the 30-min model;
+  - the 240 km wide-range radar, extrapolated (collected, gap-watched and georeferenced from Sep 2026).
+- **Next: motion-aware input.** A simple optical-flow extrapolation beats the 60-min model on heavy rain, so the
+  next test gives the model the extrapolated field as an extra input.
+- **Satellite (Himawari-9)**, to see clouds growing before they rain, following NVIDIA's Earth-2 Nowcasting design
+  (StormScope: satellite + radar).
+- **Drain-alert benchmark:** done ([Results §3b](docs/RESULTS.md)); per-location flood model once alerts accumulate.
 - **More out-of-sample flood events**, and retraining once the archive covers the Northeast Monsoon
   (Dec–Mar).
 

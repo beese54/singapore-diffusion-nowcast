@@ -1,0 +1,266 @@
+{
+  "alignment_corr": {
+    "-10": 0.8002466084319841,
+    "-5": 0.8862834574182686,
+    "0": 0.9380886322789885,
+    "5": 0.8997291142739388,
+    "10": 0.8162853875931091
+  },
+  "shift_min": 0,
+  "by_lead": {
+    "30": {
+      "forecasts": 200,
+      "minutes_after_last_frame": 35,
+      "incoming_heavy_boxes": 951,
+      "incoming_share_of_heavy": 0.7494089834515366,
+      "scores": {
+        "W": {
+          "incoming_catch": 0.12092534174553102,
+          "new_warning_precision": 0.38079470198675497,
+          "catch": 0.24507486209613868,
+          "precision": 0.4405099150141643
+        },
+        "S": {
+          "incoming_catch": 0.13144058885383805,
+          "new_warning_precision": 0.4180602006688963,
+          "catch": 0.23404255319148937,
+          "precision": 0.4520547945205479
+        },
+        "naive": {
+          "incoming_catch": 0.0,
+          "new_warning_precision": 0.0,
+          "catch": 0.25059101654846333,
+          "precision": 0.3072463768115942
+        },
+        "model": {
+          "incoming_catch": 0.2103049421661409,
+          "new_warning_precision": 0.23557126030624265,
+          "catch": 0.29393223010244285,
+          "precision": 0.32322357019064124
+        },
+        "ceiling": {
+          "incoming_catch": 0.5352260778128286,
+          "new_warning_precision": 0.9154676258992805,
+          "catch": 0.5886524822695035,
+          "precision": 0.9291044776119403
+        }
+      },
+      "W_minus_S": {
+        "incoming_catch": {
+          "diff": -0.010515247108307035,
+          "ci": [
+            -0.04603378505552419,
+            0.018802047262715147
+          ]
+        },
+        "new_warning_precision": {
+          "diff": -0.03726549868214135,
+          "ci": [
+            -0.09871100116150813,
+            0.029098701604242137
+          ]
+        }
+      },
+      "W_minus_model": {
+        "incoming_catch": {
+          "diff": -0.08937960042060988,
+          "ci": [
+            -0.16317755327048128,
+            -0.00865113927988183
+          ]
+        },
+        "new_warning_precision": {
+          "diff": 0.14522344168051232,
+          "ci": [
+            0.05321609532393846,
+            0.22682589626820127
+          ]
+        },
+        "catch": {
+          "diff": -0.048857368006304164,
+          "ci": [
+            -0.12314229688760328,
+            0.03916672183238441
+          ]
+        },
+        "precision": {
+          "diff": 0.11728634482352307,
+          "ci": [
+            0.04880760608542036,
+            0.16724098598526518
+          ]
+        }
+      }
+    },
+    "60": {
+      "forecasts": 200,
+      "minutes_after_last_frame": 65,
+      "incoming_heavy_boxes": 1022,
+      "incoming_share_of_heavy": 0.8720136518771331,
+      "scores": {
+        "W": {
+          "incoming_catch": 0.07534246575342465,
+          "new_warning_precision": 0.17579908675799086,
+          "catch": 0.10494880546075085,
+          "precision": 0.15609137055837563
+        },
+        "S": {
+          "incoming_catch": 0.08512720156555773,
+          "new_warning_precision": 0.25663716814159293,
+          "catch": 0.13054607508532423,
+          "precision": 0.2318181818181818
+        },
+        "naive": {
+          "incoming_catch": 0.0,
+          "new_warning_precision": 0.0,
+          "catch": 0.12798634812286688,
+          "precision": 0.12853470437017994
+        },
+        "model": {
+          "incoming_catch": 0.036203522504892366,
+          "new_warning_precision": 0.0647985989492119,
+          "catch": 0.033276450511945395,
+          "precision": 0.06678082191780822
+        },
+        "ceiling": {
+          "incoming_catch": 0.5107632093933464,
+          "new_warning_precision": 0.9371633752244165,
+          "catch": 0.5196245733788396,
+          "precision": 0.9441860465116279
+        }
+      },
+      "W_minus_S": {
+        "incoming_catch": {
+          "diff": -0.009784735812133072,
+          "ci": [
+            -0.027471797301565824,
+            0.008074401468136668
+          ]
+        },
+        "new_warning_precision": {
+          "diff": -0.08083808138360207,
+          "ci": [
+            -0.1717607822804288,
+            -0.002275552854370583
+          ]
+        }
+      },
+      "W_minus_model": {
+        "incoming_catch": {
+          "diff": 0.03913894324853229,
+          "ci": [
+            0.0029400408812173483,
+            0.07686322090321622
+          ]
+        },
+        "new_warning_precision": {
+          "diff": 0.11100048780877896,
+          "ci": [
+            0.021942956425057978,
+            0.19670068635604407
+          ]
+        },
+        "catch": {
+          "diff": 0.07167235494880544,
+          "ci": [
+            0.013786971843621933,
+            0.14859708294254864
+          ]
+        },
+        "precision": {
+          "diff": 0.08931054864056741,
+          "ci": [
+            0.01036135890176807,
+            0.1634091445567079
+          ]
+        }
+      }
+    },
+    "90": {
+      "forecasts": 200,
+      "minutes_after_last_frame": 95,
+      "incoming_heavy_boxes": 1115,
+      "incoming_share_of_heavy": 0.9139344262295082,
+      "scores": {
+        "W": {
+          "incoming_catch": 0.09327354260089686,
+          "new_warning_precision": 0.15204678362573099,
+          "catch": 0.11065573770491803,
+          "precision": 0.13677811550151975
+        },
+        "S": {
+          "incoming_catch": 0.08699551569506726,
+          "new_warning_precision": 0.2315035799522673,
+          "catch": 0.10655737704918032,
+          "precision": 0.2
+        },
+        "naive": {
+          "incoming_catch": 0.0,
+          "new_warning_precision": 0.0,
+          "catch": 0.0860655737704918,
+          "precision": 0.08764607679465776
+        },
+        "model": {
+          "incoming_catch": 0.07354260089686099,
+          "new_warning_precision": 0.10224438902743142,
+          "catch": 0.0680327868852459,
+          "precision": 0.10024154589371981
+        },
+        "ceiling": {
+          "incoming_catch": 0.5829596412556054,
+          "new_warning_precision": 0.9339080459770115,
+          "catch": 0.5885245901639344,
+          "precision": 0.9361147327249022
+        }
+      },
+      "W_minus_S": {
+        "incoming_catch": {
+          "diff": 0.006278026905829598,
+          "ci": [
+            -0.033217394374900684,
+            0.037825980508300557
+          ]
+        },
+        "new_warning_precision": {
+          "diff": -0.07945679632653632,
+          "ci": [
+            -0.19969690865243372,
+            0.009161477499886347
+          ]
+        }
+      },
+      "W_minus_model": {
+        "incoming_catch": {
+          "diff": 0.019730941704035873,
+          "ci": [
+            -0.06541292916795548,
+            0.125026114206128
+          ]
+        },
+        "new_warning_precision": {
+          "diff": 0.04980239459829956,
+          "ci": [
+            -0.07380009439583152,
+            0.21800188427860118
+          ]
+        },
+        "catch": {
+          "diff": 0.04262295081967213,
+          "ci": [
+            -0.05818535292168343,
+            0.1591847237269771
+          ]
+        },
+        "precision": {
+          "diff": 0.03653656960779994,
+          "ci": [
+            -0.0795266522983695,
+            0.2138357986171817
+          ]
+        }
+      }
+    }
+  },
+  "verdict": "NO-GO",
+  "verdict_rule": "at 60 or 90 min: W - S incoming catch CI > 0 and W - S new-warning precision CI not entirely below 0"
+}
