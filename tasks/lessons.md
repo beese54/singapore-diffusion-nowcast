@@ -207,3 +207,13 @@ This file is updated after every correction or unexpected finding. Read at sessi
 **How it was caught:** Only incidentally, while verifying a "results reproduce from cache" claim for the public docs: a new flood report changed the event list, the cache guard (L028) refused, and asking *why the event list covered June* exposed the leak.
 **Rule:** Every evaluation family inherits the split boundary explicitly, and the results file records how many candidates were excluded as in-sample. A flood report is also only as independent as its storm: count storms, not reports, before calling a hit rate evidence.
 **How to apply:** `evaluate_probabilistic.py` scores D separately for `test` and `after_test` events and records `excluded_in_sample`; `evaluate.py --flood-eval` keeps test-period events only. Out-of-sample: 9 events (3 storms incl. the 27 Sep holdout 17), stated as indicative.
+
+### L032 — Fine-tuning a converged model with a fresh warm-up to the peak learning rate can make it worse; always train a control
+**Observation:** In the ERA5-conditioning experiment both arms were warm-started from the 300k-step 30-min model and trained 50k more steps with the standard schedule (warm-up to lr 2e-4, cosine decay). The *control* — identical but without the new input — came out worse than the model it started from (FSS ≥10 mm/hr 0.389 vs 0.428, catch rate 21.9% vs 25.1%, CIs below 0). Without that control, the whole drop would have been attributed to the new input.
+**Rule:** Any "add X and fine-tune" experiment needs a same-budget control without X, compared paired on the same forecasts and seeds. When fine-tuning a converged model, use a small learning rate (e.g. 10× lower) or no fresh warm-up.
+**How to apply:** `scripts/train_era5_env.bat` + `scripts/eval_era5_conditioning.py` are the template (two arms, paired seeds, bootstrap CIs). Next fine-tune: pass `--lr 2e-5`.
+
+### L033 — A signal that is real at one time scale can be redundant at another
+**Observation:** The CorrDiff spike showed ERA5 tracks *when* rain falls over the island (hourly correlation 0.64 vs 0.22). Fed to the 30-min nowcaster as a day-level weather vector it did not help heavy-rain skill (−0.076 FSS ≥10 vs control): 35 minutes ahead the radar already shows the storm, and ~94 distinct training days let the model memorise days instead.
+**Rule:** Before adding a predictor, ask at which lead time it carries information the existing inputs do not; test it where the current model is weakest, and count independent units (days), not samples, when judging whether it can be learned.
+**How to apply:** Any retry of the ERA5 input targets 60/90-min leads and waits for many more weather days (after the Northeast Monsoon).

@@ -43,3 +43,33 @@ the difference not below 0). Otherwise the environment signal is not usable this
 4. Train (detached, resumable), then paired evaluation → `results/era5_conditioning.json`, verdict recorded here.
 
 Estimated effort: ~½ day of code and tests, ~3 h training, ~½ h evaluation. No cloud spend.
+
+## Result (2026-09-28 11:26) — **DO NOT KEEP**
+
+`scripts/eval_era5_conditioning.py` → `results/era5_conditioning.json`. 200 paired test forecasts (14–22 Sep; test
+limited to hours with ERA5), same seeds for all three models. Both arms: warm start from the 30-min model, 50k steps.
+
+| | base (model of record) | ctrl (+50k, no weather) | env (+50k, weather) |
+|---|---|---|---|
+| CRPS skill | 0.415 | 0.410 | 0.409 |
+| FSS ≥2 mm/hr, 11.9 km | **0.700** | 0.642 | 0.618 |
+| FSS ≥10 mm/hr | **0.428** | 0.389 | 0.313 |
+| Heavy-rain catch rate | **25.1%** | 21.9% | 19.0% |
+| Heavy-rain precision | 33.9% | 35.2% | 37.2% |
+
+env − ctrl (the effect of the weather input alone): FSS ≥10 −0.076 [−0.095, −0.031]; catch rate −0.029
+[−0.047, −0.002]; CRPS −0.001 [−0.005, +0.006]; precision +0.020 [−0.017, +0.049]. Heavy-rain skill is *worse*, so the
+rule's first condition fails.
+
+**Also found — the control mattered:** ctrl − base is itself negative (FSS ≥2 −0.059, FSS ≥10 −0.039, catch −0.032,
+all CIs below 0). Re-starting training on a converged model at the peak learning rate (warm-up to 2e-4) degraded it.
+Without the control, the whole drop would have been blamed on the weather input.
+
+**Why (best explanation):** at 30 minutes the radar already shows the storm, so a day-level "storm day" signal is
+redundant; with ~94 training days the model can use it to memorise days, and it became more conservative (fewer
+warnings, slightly more precise, more misses). The ERA5 environment may matter at longer leads, but that needs far
+more weather days.
+
+**Decision:** the 30-min model of record is unchanged. The option stays in the code (default off, tested) for a
+future retry with more data or at longer leads. Priority returns to the wide-range radar and satellite (Workstream D)
+and to data collection.
