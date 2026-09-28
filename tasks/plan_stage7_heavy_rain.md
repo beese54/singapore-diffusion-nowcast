@@ -26,7 +26,7 @@ the information. That check needs no training.
 
 0. **Time alignment.** Correlate 240 km and 70 km rain at shifts of −10…+10 min, and use the best shift. The two products may be timestamped differently.
 1. **Wide-view extrapolation forecaster (W).**
-   - At each test issue time, estimate motion from the last 30 min of 240 km frames using optical flow (Farneback, as in `docs/history/spike_optical_flow.md`).
+   - At each test issue time, estimate motion from the last 30 min of 240 km frames using optical flow (planned: Farneback; **changed to DIS** before any results, because Farneback failed a synthetic known-shift check, L034).
    - Advect the rain forward by the lead time.
    - Resample onto the 70 km grid using the measured bounds.
 2. **Same method, 70 km only (S).** This isolates the value of the *wider view* from the value of extrapolation itself. Rain that starts outside the 70 km box is invisible to S.
