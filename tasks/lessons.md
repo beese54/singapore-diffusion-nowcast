@@ -229,3 +229,8 @@ This file is updated after every correction or unexpected finding. Read at sessi
 **Rule:** When a model lags a simple baseline on one target, check whether the baseline's advantage is information or calibration before adding inputs. Here the baseline's information was handed over and not used, so the limit is intensity and calibration.
 **How to apply:** Next heavy-rain work compares the ensemble's heavy-rain probability after calibration, and a hybrid warning (extrapolation for heavy rain), against plain extrapolation, not another input. Always include the simple baseline as a fourth arm (`eval_motion_input.py` pattern).
 
+
+### L036 — A "catches more" go/no-go must carry a precision floor, or a wide-area warning passes it
+**Observation:** The satellite spike's GO rule was "the hybrid catches more incoming heavy rain (CI > 0) and CSI is not significantly worse". A satellite rule that warns wherever deep cold cloud exists within 10 km passed it at 60 min: incoming catch +28 points, but 5× more warnings and precision 18% → 9%. CSI tolerated the halving because heavy rain is rare (1.2% of boxes) and CSI moves slowly at low base rates.
+**Rule:** When a go/no-go asks for more catch, also require precision not to fall by more than a stated margin (or compare at equal warning volume). Report the warning count beside every catch rate.
+**How to apply:** Step 2 of `tasks/plan_satellite.md` states its KEEP rule at matched warning volume, or with a precision floor, fixed before training.

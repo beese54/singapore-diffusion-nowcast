@@ -177,14 +177,16 @@ def figure(V, rc, shift, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    i = int(np.argmax(V["P"].sum((1, 2))))                         # the heaviest validation frame
+    frac = V["P"].mean((1, 2))                                     # a mid-sized storm, not a domain-filling one
+    i = int(np.argmin(np.where(frac > 0, np.abs(frac - 0.06), np.inf)))
     st, sbt = V["sat_frames"]
     t = V["issue"][i]
     k = int(np.searchsorted(st, t - np.timedelta64(5, "m")))
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.6))
     for a, s, title in ((ax[0], (0, 0), "no shift"), (ax[1], shift, f"parallax shift {shift} px")):
-        a.imshow(sample(sbt[k], rc, *s), cmap="gray_r", vmin=190, vmax=300)
+        im = a.imshow(sample(sbt[k], rc, *s), cmap="gray", vmin=190, vmax=300)   # cold cloud tops dark
         a.contour(V["P"][i], levels=[0.5], colors="red", linewidths=1.2)
+        fig.colorbar(im, ax=a, shrink=0.8, label="cloud-top temperature (K)")
         a.set_title(f"B13 {str(st[k])[:16]} UTC vs radar >= 10 mm/hr (red) {str(t)[11:16]}\n{title}", fontsize=9)
         a.set_xticks([]), a.set_yticks([])
     fig.tight_layout()

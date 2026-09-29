@@ -83,3 +83,32 @@ A scheduled collector (every 10 min, strip 5, crop only). Its dependencies go in
    raw strips as it goes. `scripts/download_himawari.py --start --end`.
 3. `scripts/satellite_spike.py` → `results/satellite_spike.json` + a georeference/parallax figure.
 4. Verdict recorded here and in `tasks/todo.md`. Step 2 gets its own detailed plan only on GO.
+
+## Step 1 verdict (2026-09-29): **GO** by the rule fixed above, but a weak GO (`results/satellite_spike.json`)
+
+Validation 2–14 Sep, test 14–25 Sep; 1,659 test issue times over 12 days; satellite usable 98.4%.
+Parallax: (dy, dx) = (+3, −8) px ≈ 6 km S, 16 km W. Cold-cloud/heavy-rain CSI 0.086 → 0.115 (947 validation
+frames). The westward part matches the geometry (≈ 11 km for a 12 km top; deep tropical tops reach ~16 km). The
+southward part is not explained by geometry. It may be storm motion during the scan or anvil spread, and a fixed shift
+cannot tell which. Figure: `results/satellite_spike_georef.png`.
+
+Chosen rule (validation CSI): cloud top ≤ 220 K and cooling ≥ 4 K in 20 min, for every lead. Both values sit at the
+edge of the grid (coldest T, smallest C). **So the rule mostly flags existing deep storms, not growing ones.**
+
+| 60 min (test) | catch | precision | CSI | incoming catch | initiation catch |
+|---|---|---|---|---|---|
+| satellite S | 38.0% | 8.3% | 0.073 | 34.6% | 0.8% |
+| extrapolation E | 16.1% | 18.0% | 0.093 | 12.1% | 0.0% |
+| E ∪ S | 44.1% | 8.9% | 0.080 | 39.9% | 0.8% |
+| naive | 12.5% | 12.5% | 0.067 | 0% | 0% |
+
+(E ∪ S) − E, bootstrap over days: incoming catch **+0.278 [+0.068, +0.447]** (above 0), CSI **−0.013 [−0.031, +0.018]**
+(not entirely below 0) → **GO**. At 90 min, CSI is +0.010 [−0.018, +0.044] and initiation catch is +0.039 [+0.007, +0.156].
+At 30 min the satellite hurts: CSI −0.097, CI below 0.
+
+**Reading.** The satellite carries real information about where heavy rain will fall 1–1.5 h ahead: precision 8.3% is
+~7× the 1.2% base rate, and it reaches rain that is not yet heavy. **But this simple rule gets its catch by warning over a
+wide area:** 44k warnings vs 8.7k for extrapolation, and precision halves. The GO criterion allows exactly that. Rain
+that truly forms from nothing (132 boxes at 60 min) is barely caught (0.8%). The GO justifies Step 2 as an experiment,
+not as evidence that a model will separate growing storms from mature ones. Step 2 needs its own plan, with
+a precision requirement and the initiation subset as a named target.

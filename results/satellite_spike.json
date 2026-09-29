@@ -1,0 +1,873 @@
+{
+  "definitions": "the 17 x 31 grid of 2 x 2 km boxes (7 x 7 radar px) used by every warning score.\nForecasts are issued every 10 min (issue time = the last radar frame the forecast sees).\n\n    heavy        observed >= 10 mm/hr in the box at the target time (issue + lead + 5 min)\n    incoming     heavy at the target, not heavy at issue\n    initiation   heavy at the target, and NO radar rain >= 1 mm/hr within ~10 km of the box at issue\n    E            DIS optical-flow extrapolation shows >= 10 mm/hr in the box (src/data/motion.py)\n    S            satellite: somewhere within ~10 km of the box, band-13 cloud-top temperature <= T K\n                 AND it cooled by >= C K over the last 20 min, using only the newest scan that was\n                 available at issue (scan start <= issue - 20 min; src/data/satellite.py)\n    E u S        either warns\n\nParallax: cloud tops appear displaced away from the satellite (140.7 E). The shift (whole\nsatellite pixels) that best aligns cold cloud (<= 235 K) with heavy radar rain is measured on\nVALIDATION storms and applied to every satellite sample.\nT in {220, 230, 240} K and C in {4, 8, 12} K are chosen per lead by CSI of S on VALIDATION only.\n\nScored on TEST: catch rate, precision, CSI, incoming catch, initiation catch; 95% CIs by a\nbootstrap over DAYS (storms are the independent units, L031), 2,000 resamples.\n\nGO (fixed in the plan), at 60 min: (E u S) - E incoming catch CI entirely above 0, AND\nCSI(E u S) - CSI(E) CI not entirely below 0. 30 and 90 min are reported as context.",
+  "validation_period": [
+    "2026-09-02T06:50",
+    "2026-09-14T01:40"
+  ],
+  "test_period": [
+    "2026-09-14T03:20",
+    "2026-09-25T22:20"
+  ],
+  "test_days": 12,
+  "issue_times": {
+    "val": 1649,
+    "test": 1659
+  },
+  "satellite_usable": {
+    "val": 0.9842328684050939,
+    "test": 0.9837251356238698
+  },
+  "parallax": {
+    "shift_px_dy_dx": [
+      3,
+      -8
+    ],
+    "shift_km": [
+      6,
+      -16
+    ],
+    "csi_cold_vs_heavy": {
+      "no_shift": 0.08589411329137357,
+      "shifted": 0.11522665336045752
+    },
+    "frames": 947
+  },
+  "by_lead": {
+    "30": {
+      "chosen": {
+        "T": 220.0,
+        "C": 4.0,
+        "validation_csi": 0.1049552649690296
+      },
+      "validation_grid": [
+        {
+          "T": 220.0,
+          "C": 4.0,
+          "catch_rate": 0.31622602384655263,
+          "precision": 0.13576674827509458,
+          "csi": 0.1049552649690296,
+          "incoming_catch": 0.2523933855526545,
+          "initiation_catch": 0.029411764705882353,
+          "hits": 1830,
+          "false_alarms": 11649,
+          "misses": 3957,
+          "warnings": 13479,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 220.0,
+          "C": 8.0,
+          "catch_rate": 0.23034387420079488,
+          "precision": 0.12336881073577048,
+          "csi": 0.08735828035913232,
+          "incoming_catch": 0.17667536988685814,
+          "initiation_catch": 0.024509803921568627,
+          "hits": 1333,
+          "false_alarms": 9472,
+          "misses": 4454,
+          "warnings": 10805,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 220.0,
+          "C": 12.0,
+          "catch_rate": 0.18662519440124417,
+          "precision": 0.12416647505173603,
+          "csi": 0.08056695262961582,
+          "incoming_catch": 0.14120974760661445,
+          "initiation_catch": 0.0196078431372549,
+          "hits": 1080,
+          "false_alarms": 7618,
+          "misses": 4707,
+          "warnings": 8698,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 230.0,
+          "C": 4.0,
+          "catch_rate": 0.4637981683082772,
+          "precision": 0.07313750068123603,
+          "csi": 0.06743549157056355,
+          "incoming_catch": 0.3901218450826806,
+          "initiation_catch": 0.14215686274509803,
+          "hits": 2684,
+          "false_alarms": 34014,
+          "misses": 3103,
+          "warnings": 36698,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 230.0,
+          "C": 8.0,
+          "catch_rate": 0.39364091930188355,
+          "precision": 0.07444687734893297,
+          "csi": 0.06678785035768735,
+          "incoming_catch": 0.322236727589208,
+          "initiation_catch": 0.11274509803921569,
+          "hits": 2278,
+          "false_alarms": 28321,
+          "misses": 3509,
+          "warnings": 30599,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 230.0,
+          "C": 12.0,
+          "catch_rate": 0.3341973388629687,
+          "precision": 0.07738166686672268,
+          "csi": 0.06704569091035152,
+          "incoming_catch": 0.2717580504786771,
+          "initiation_catch": 0.0784313725490196,
+          "hits": 1934,
+          "false_alarms": 23059,
+          "misses": 3853,
+          "warnings": 24993,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 240.0,
+          "C": 4.0,
+          "catch_rate": 0.4987039917055469,
+          "precision": 0.052259887005649715,
+          "csi": 0.049651612903225804,
+          "incoming_catch": 0.4231940818102698,
+          "initiation_catch": 0.1715686274509804,
+          "hits": 2886,
+          "false_alarms": 52338,
+          "misses": 2901,
+          "warnings": 55224,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 240.0,
+          "C": 8.0,
+          "catch_rate": 0.4261275272161742,
+          "precision": 0.0516851106639839,
+          "csi": 0.04832167421080477,
+          "incoming_catch": 0.35204525674499565,
+          "initiation_catch": 0.13725490196078433,
+          "hits": 2466,
+          "false_alarms": 45246,
+          "misses": 3321,
+          "warnings": 47712,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        },
+        {
+          "T": 240.0,
+          "C": 12.0,
+          "catch_rate": 0.3642647312942803,
+          "precision": 0.05288111782856283,
+          "csi": 0.04841302650314639,
+          "incoming_catch": 0.2983028720626632,
+          "initiation_catch": 0.08333333333333333,
+          "hits": 2108,
+          "false_alarms": 37755,
+          "misses": 3679,
+          "warnings": 39863,
+          "incoming_boxes": 4596,
+          "initiation_boxes": 204
+        }
+      ],
+      "scores": {
+        "S": {
+          "catch_rate": 0.46382189239332094,
+          "precision": 0.10176851056130988,
+          "csi": 0.09105625252934035,
+          "incoming_catch": 0.3791208791208791,
+          "initiation_catch": 0.018867924528301886,
+          "hits": 4500,
+          "false_alarms": 39718,
+          "misses": 5202,
+          "warnings": 44218,
+          "incoming_boxes": 6734,
+          "initiation_boxes": 53
+        },
+        "E": {
+          "catch_rate": 0.3308596165739023,
+          "precision": 0.3474401991557528,
+          "csi": 0.20405568622465195,
+          "incoming_catch": 0.173002673002673,
+          "initiation_catch": 0.0,
+          "hits": 3210,
+          "false_alarms": 6029,
+          "misses": 6492,
+          "warnings": 9239,
+          "incoming_boxes": 6734,
+          "initiation_boxes": 53
+        },
+        "EuS": {
+          "catch_rate": 0.580292723149866,
+          "precision": 0.11639927224611313,
+          "csi": 0.10736079328756674,
+          "incoming_catch": 0.45262845262845264,
+          "initiation_catch": 0.018867924528301886,
+          "hits": 5630,
+          "false_alarms": 42738,
+          "misses": 4072,
+          "warnings": 48368,
+          "incoming_boxes": 6734,
+          "initiation_boxes": 53
+        },
+        "naive": {
+          "catch_rate": 0.3059163059163059,
+          "precision": 0.3052555795536357,
+          "csi": 0.18034878774989366,
+          "incoming_catch": 0.0,
+          "initiation_catch": 0.0,
+          "hits": 2968,
+          "false_alarms": 6755,
+          "misses": 6734,
+          "warnings": 9723,
+          "incoming_boxes": 6734,
+          "initiation_boxes": 53
+        }
+      },
+      "differences": {
+        "EuS_minus_E": {
+          "catch_rate": {
+            "diff": 0.24943310657596374,
+            "ci": [
+              0.10356666994259152,
+              0.3377732193905556
+            ]
+          },
+          "precision": {
+            "diff": -0.23104092690963968,
+            "ci": [
+              -0.2583264778771721,
+              -0.13005066348842567
+            ]
+          },
+          "csi": {
+            "diff": -0.0966948929370852,
+            "ci": [
+              -0.10818613296092465,
+              -0.05232016169962499
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.2796257796257796,
+            "ci": [
+              0.09121956670467503,
+              0.42625676220336617
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.018867924528301886,
+            "ci": [
+              0.0,
+              0.03896103896103896
+            ]
+          }
+        },
+        "S_minus_E": {
+          "catch_rate": {
+            "diff": 0.13296227581941866,
+            "ci": [
+              0.010421731957869752,
+              0.22704309550164078
+            ]
+          },
+          "precision": {
+            "diff": -0.24567168859444294,
+            "ci": [
+              -0.272148774270264,
+              -0.14032340176772828
+            ]
+          },
+          "csi": {
+            "diff": -0.1129994336953116,
+            "ci": [
+              -0.12483235390412441,
+              -0.0615731883535527
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.2061182061182061,
+            "ci": [
+              0.04019352099630702,
+              0.35877124029723484
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.018867924528301886,
+            "ci": [
+              0.0,
+              0.03896103896103896
+            ]
+          }
+        }
+      },
+      "go_criteria": {
+        "incoming_catch_ci_above_0": true,
+        "csi_not_entirely_below_0": false
+      }
+    },
+    "60": {
+      "chosen": {
+        "T": 220.0,
+        "C": 4.0,
+        "validation_csi": 0.08157879961821346
+      },
+      "validation_grid": [
+        {
+          "T": 220.0,
+          "C": 4.0,
+          "catch_rate": 0.2511668107173725,
+          "precision": 0.10779731434082647,
+          "csi": 0.08157879961821346,
+          "incoming_catch": 0.2173494902865936,
+          "initiation_catch": 0.025210084033613446,
+          "hits": 1453,
+          "false_alarms": 12026,
+          "misses": 4332,
+          "warnings": 13479,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 220.0,
+          "C": 8.0,
+          "catch_rate": 0.19101123595505617,
+          "precision": 0.1022674687644609,
+          "csi": 0.07135938004520503,
+          "incoming_catch": 0.16483939219080593,
+          "initiation_catch": 0.025210084033613446,
+          "hits": 1105,
+          "false_alarms": 9700,
+          "misses": 4680,
+          "warnings": 10805,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 220.0,
+          "C": 12.0,
+          "catch_rate": 0.15937770095073467,
+          "precision": 0.10600137962750057,
+          "csi": 0.06798908635056412,
+          "incoming_catch": 0.13848817080207732,
+          "initiation_catch": 0.025210084033613446,
+          "hits": 922,
+          "false_alarms": 7776,
+          "misses": 4863,
+          "warnings": 8698,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 230.0,
+          "C": 4.0,
+          "catch_rate": 0.383923941227312,
+          "precision": 0.060521009319308955,
+          "csi": 0.05516367790969152,
+          "incoming_catch": 0.3462204270051933,
+          "initiation_catch": 0.19047619047619047,
+          "hits": 2221,
+          "false_alarms": 34477,
+          "misses": 3564,
+          "warnings": 36698,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 230.0,
+          "C": 8.0,
+          "catch_rate": 0.33120138288677614,
+          "precision": 0.06261642537337822,
+          "csi": 0.05558779157479401,
+          "incoming_catch": 0.296980188497788,
+          "initiation_catch": 0.17366946778711484,
+          "hits": 1916,
+          "false_alarms": 28683,
+          "misses": 3869,
+          "warnings": 30599,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 230.0,
+          "C": 12.0,
+          "catch_rate": 0.2812445980985307,
+          "precision": 0.06509822750370103,
+          "csi": 0.05581283660937875,
+          "incoming_catch": 0.25389497980380843,
+          "initiation_catch": 0.16526610644257703,
+          "hits": 1627,
+          "false_alarms": 23366,
+          "misses": 4158,
+          "warnings": 24993,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 240.0,
+          "C": 4.0,
+          "catch_rate": 0.44753673292999135,
+          "precision": 0.04688179052585832,
+          "csi": 0.04431701472098597,
+          "incoming_catch": 0.4125793421811887,
+          "initiation_catch": 0.3137254901960784,
+          "hits": 2589,
+          "false_alarms": 52635,
+          "misses": 3196,
+          "warnings": 55224,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 240.0,
+          "C": 8.0,
+          "catch_rate": 0.3865168539325843,
+          "precision": 0.04686452045606975,
+          "csi": 0.04361990597140126,
+          "incoming_catch": 0.3539142142719754,
+          "initiation_catch": 0.26330532212885155,
+          "hits": 2236,
+          "false_alarms": 45476,
+          "misses": 3549,
+          "warnings": 47712,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        },
+        {
+          "T": 240.0,
+          "C": 12.0,
+          "catch_rate": 0.32497839239412274,
+          "precision": 0.047161528234202145,
+          "csi": 0.042953756168890515,
+          "incoming_catch": 0.2983266012694749,
+          "initiation_catch": 0.21288515406162464,
+          "hits": 1880,
+          "false_alarms": 37983,
+          "misses": 3905,
+          "warnings": 39863,
+          "incoming_boxes": 5199,
+          "initiation_boxes": 357
+        }
+      ],
+      "scores": {
+        "S": {
+          "catch_rate": 0.3795131008871467,
+          "precision": 0.08320141119001312,
+          "csi": 0.07323870762247925,
+          "incoming_catch": 0.3461493100601486,
+          "initiation_catch": 0.007575757575757576,
+          "hits": 3679,
+          "false_alarms": 40539,
+          "misses": 6015,
+          "warnings": 44218,
+          "incoming_boxes": 8479,
+          "initiation_boxes": 132
+        },
+        "E": {
+          "catch_rate": 0.16082112646998142,
+          "precision": 0.17969110189027201,
+          "csi": 0.0927368984593421,
+          "incoming_catch": 0.12088689703974526,
+          "initiation_catch": 0.0,
+          "hits": 1559,
+          "false_alarms": 7117,
+          "misses": 8135,
+          "warnings": 8676,
+          "incoming_boxes": 8479,
+          "initiation_boxes": 132
+        },
+        "EuS": {
+          "catch_rate": 0.440581803177223,
+          "precision": 0.08865226145256035,
+          "csi": 0.07968283582089553,
+          "incoming_catch": 0.39910366788536383,
+          "initiation_catch": 0.007575757575757576,
+          "hits": 4271,
+          "false_alarms": 43906,
+          "misses": 5423,
+          "warnings": 48177,
+          "incoming_boxes": 8479,
+          "initiation_boxes": 132
+        },
+        "naive": {
+          "catch_rate": 0.12533525892304517,
+          "precision": 0.12496143165689602,
+          "csi": 0.0667509064937919,
+          "incoming_catch": 0.0,
+          "initiation_catch": 0.0,
+          "hits": 1215,
+          "false_alarms": 8508,
+          "misses": 8479,
+          "warnings": 9723,
+          "incoming_boxes": 8479,
+          "initiation_boxes": 132
+        }
+      },
+      "differences": {
+        "EuS_minus_E": {
+          "catch_rate": {
+            "diff": 0.2797606767072416,
+            "ci": [
+              0.07761470909292947,
+              0.4324483570340575
+            ]
+          },
+          "precision": {
+            "diff": -0.09103884043771167,
+            "ci": [
+              -0.1019940535326633,
+              -0.04553874168301183
+            ]
+          },
+          "csi": {
+            "diff": -0.013054062638446579,
+            "ci": [
+              -0.030755332040006217,
+              0.018479058583289427
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.2782167708456186,
+            "ci": [
+              0.06766975199643313,
+              0.44682086920099684
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.007575757575757576,
+            "ci": [
+              0.0,
+              0.04840692755155991
+            ]
+          }
+        },
+        "S_minus_E": {
+          "catch_rate": {
+            "diff": 0.21869197441716526,
+            "ci": [
+              0.021088620678324045,
+              0.37684589331186236
+            ]
+          },
+          "precision": {
+            "diff": -0.0964896907002589,
+            "ci": [
+              -0.11015458010197687,
+              -0.04812751925312855
+            ]
+          },
+          "csi": {
+            "diff": -0.019498190836862855,
+            "ci": [
+              -0.042085325326797145,
+              0.014729614150767645
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.22526241302040334,
+            "ci": [
+              0.017871462952238983,
+              0.398125539621901
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.007575757575757576,
+            "ci": [
+              0.0,
+              0.04840692755155991
+            ]
+          }
+        }
+      },
+      "go_criteria": {
+        "incoming_catch_ci_above_0": true,
+        "csi_not_entirely_below_0": true
+      }
+    },
+    "90": {
+      "chosen": {
+        "T": 220.0,
+        "C": 4.0,
+        "validation_csi": 0.06096486397180306
+      },
+      "validation_grid": [
+        {
+          "T": 220.0,
+          "C": 4.0,
+          "catch_rate": 0.19132388524023505,
+          "precision": 0.08212775428444247,
+          "csi": 0.06096486397180306,
+          "incoming_catch": 0.16623520710059173,
+          "initiation_catch": 0.04219409282700422,
+          "hits": 1107,
+          "false_alarms": 12372,
+          "misses": 4679,
+          "warnings": 13479,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 220.0,
+          "C": 8.0,
+          "catch_rate": 0.14915312824058072,
+          "precision": 0.07987043035631652,
+          "csi": 0.05487029501525941,
+          "incoming_catch": 0.1290680473372781,
+          "initiation_catch": 0.04219409282700422,
+          "hits": 863,
+          "false_alarms": 9942,
+          "misses": 4923,
+          "warnings": 10805,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 220.0,
+          "C": 12.0,
+          "catch_rate": 0.126512270998963,
+          "precision": 0.08415727753506554,
+          "csi": 0.053228621291448515,
+          "incoming_catch": 0.11390532544378698,
+          "initiation_catch": 0.04008438818565401,
+          "hits": 732,
+          "false_alarms": 7966,
+          "misses": 5054,
+          "warnings": 8698,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 230.0,
+          "C": 4.0,
+          "catch_rate": 0.2920843415139993,
+          "precision": 0.046051555943103166,
+          "csi": 0.041427660930529,
+          "incoming_catch": 0.26849112426035504,
+          "initiation_catch": 0.20253164556962025,
+          "hits": 1690,
+          "false_alarms": 35008,
+          "misses": 4096,
+          "warnings": 36698,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 230.0,
+          "C": 8.0,
+          "catch_rate": 0.24628413411683373,
+          "precision": 0.04657014935128599,
+          "csi": 0.04076086956521739,
+          "incoming_catch": 0.22633136094674555,
+          "initiation_catch": 0.18354430379746836,
+          "hits": 1425,
+          "false_alarms": 29174,
+          "misses": 4361,
+          "warnings": 30599,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 230.0,
+          "C": 12.0,
+          "catch_rate": 0.208779813342551,
+          "precision": 0.048333533389349016,
+          "csi": 0.0408508335869602,
+          "incoming_catch": 0.19600591715976332,
+          "initiation_catch": 0.16033755274261605,
+          "hits": 1208,
+          "false_alarms": 23785,
+          "misses": 4578,
+          "warnings": 24993,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 240.0,
+          "C": 4.0,
+          "catch_rate": 0.38835119253370204,
+          "precision": 0.04068883094306823,
+          "csi": 0.03823834725932985,
+          "incoming_catch": 0.3666789940828402,
+          "initiation_catch": 0.4451476793248945,
+          "hits": 2247,
+          "false_alarms": 52977,
+          "misses": 3539,
+          "warnings": 55224,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 240.0,
+          "C": 8.0,
+          "catch_rate": 0.3335637746284134,
+          "precision": 0.04045103957075788,
+          "csi": 0.03742631089047471,
+          "incoming_catch": 0.3147189349112426,
+          "initiation_catch": 0.3924050632911392,
+          "hits": 1930,
+          "false_alarms": 45782,
+          "misses": 3856,
+          "warnings": 47712,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        },
+        {
+          "T": 240.0,
+          "C": 12.0,
+          "catch_rate": 0.27393708952644313,
+          "precision": 0.03976118204851617,
+          "csi": 0.035970406681190996,
+          "incoming_catch": 0.26072485207100593,
+          "initiation_catch": 0.2890295358649789,
+          "hits": 1585,
+          "false_alarms": 38278,
+          "misses": 4201,
+          "warnings": 39863,
+          "incoming_boxes": 5408,
+          "initiation_boxes": 474
+        }
+      ],
+      "scores": {
+        "S": {
+          "catch_rate": 0.3061540047417792,
+          "precision": 0.06716721697046452,
+          "csi": 0.05829358770535241,
+          "incoming_catch": 0.28286410995344713,
+          "initiation_catch": 0.0392156862745098,
+          "hits": 2970,
+          "false_alarms": 41248,
+          "misses": 6731,
+          "warnings": 44218,
+          "incoming_boxes": 9022,
+          "initiation_boxes": 204
+        },
+        "E": {
+          "catch_rate": 0.08514586125141738,
+          "precision": 0.10395167379813743,
+          "csi": 0.04910528506034124,
+          "incoming_catch": 0.07492795389048991,
+          "initiation_catch": 0.0,
+          "hits": 826,
+          "false_alarms": 7120,
+          "misses": 8875,
+          "warnings": 7946,
+          "incoming_boxes": 9022,
+          "initiation_boxes": 204
+        },
+        "EuS": {
+          "catch_rate": 0.3334707762086383,
+          "precision": 0.06747455364592024,
+          "csi": 0.059455982356184524,
+          "incoming_catch": 0.3094657503879406,
+          "initiation_catch": 0.0392156862745098,
+          "hits": 3235,
+          "false_alarms": 44709,
+          "misses": 6466,
+          "warnings": 47944,
+          "incoming_boxes": 9022,
+          "initiation_boxes": 204
+        },
+        "naive": {
+          "catch_rate": 0.0699927842490465,
+          "precision": 0.06983441324694024,
+          "csi": 0.03622299279807949,
+          "incoming_catch": 0.0,
+          "initiation_catch": 0.0,
+          "hits": 679,
+          "false_alarms": 9044,
+          "misses": 9022,
+          "warnings": 9723,
+          "incoming_boxes": 9022,
+          "initiation_boxes": 204
+        }
+      },
+      "differences": {
+        "EuS_minus_E": {
+          "catch_rate": {
+            "diff": 0.24832491495722092,
+            "ci": [
+              0.03552278168724149,
+              0.40549203593719146
+            ]
+          },
+          "precision": {
+            "diff": -0.036477120152217185,
+            "ci": [
+              -0.05739757105021469,
+              0.001233501440567262
+            ]
+          },
+          "csi": {
+            "diff": 0.010350697295843286,
+            "ci": [
+              -0.018044842645488654,
+              0.043675280931056465
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.2345377964974507,
+            "ci": [
+              0.03065447264820996,
+              0.38845725449378765
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0392156862745098,
+            "ci": [
+              0.0065136038286792534,
+              0.15625941265060236
+            ]
+          }
+        },
+        "S_minus_E": {
+          "catch_rate": {
+            "diff": 0.2210081434903618,
+            "ci": [
+              0.002616905665284131,
+              0.38510712522366225
+            ]
+          },
+          "precision": {
+            "diff": -0.03678445682767291,
+            "ci": [
+              -0.0629358873961452,
+              0.0008096287864531347
+            ]
+          },
+          "csi": {
+            "diff": 0.009188302645011172,
+            "ci": [
+              -0.024138371807010384,
+              0.04656946794678711
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.20793615606295723,
+            "ci": [
+              0.0015556419521302865,
+              0.3667376792456058
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0392156862745098,
+            "ci": [
+              0.0065136038286792534,
+              0.15625941265060236
+            ]
+          }
+        }
+      },
+      "go_criteria": {
+        "incoming_catch_ci_above_0": true,
+        "csi_not_entirely_below_0": true
+      }
+    }
+  },
+  "verdict": "GO",
+  "verdict_rule": "GO at 60 min: (E u S) - E incoming catch CI entirely above 0 AND CSI difference CI not entirely below 0 (bootstrap over days)"
+}
