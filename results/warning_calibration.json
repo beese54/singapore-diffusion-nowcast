@@ -1,0 +1,1306 @@
+{
+  "definition": {
+    "box_km": 2.03,
+    "boxes": 527,
+    "heavy_mm_hr": 10.0,
+    "rule": "warn a box when >= k of 8 futures show >= X mm/hr in it",
+    "candidates": {
+      "X_mm_hr": [
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        10.0
+      ],
+      "k": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "uncalibrated": {
+      "X": 10.0,
+      "k": 2
+    },
+    "chosen_by": "max CSI on validation (2-14 Sep); ties -> closest to X=10, k=2",
+    "adopt_if": "test CSI (calibrated - uncalibrated) 95% paired-bootstrap CI entirely above 0",
+    "validation_seeds": "3000+k"
+  },
+  "by_lead": {
+    "30": {
+      "checkpoint": "checkpoints/nowcaster/ckpt_step_300000.pt",
+      "test_cache": "ens_nowcaster_ckpt_step_300000_s300000_n200_m8.npz",
+      "validation": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-02T06:50",
+          "2026-09-14T02:45"
+        ],
+        "heavy_rain_boxes": 699,
+        "grid": [
+          {
+            "X": 3.0,
+            "k": 1,
+            "catch_rate": 0.5879828326180258,
+            "precision": 0.07486338797814207,
+            "csi": 0.0711318795430945,
+            "incoming_catch": 0.5071428571428571,
+            "hits": 411,
+            "false_alarms": 5079,
+            "misses": 288,
+            "warnings": 5490
+          },
+          {
+            "X": 3.0,
+            "k": 2,
+            "catch_rate": 0.4263233190271817,
+            "precision": 0.16364634816035145,
+            "csi": 0.1341134113411341,
+            "incoming_catch": 0.3357142857142857,
+            "hits": 298,
+            "false_alarms": 1523,
+            "misses": 401,
+            "warnings": 1821
+          },
+          {
+            "X": 3.0,
+            "k": 3,
+            "catch_rate": 0.3133047210300429,
+            "precision": 0.20857142857142857,
+            "csi": 0.14313725490196078,
+            "incoming_catch": 0.20892857142857144,
+            "hits": 219,
+            "false_alarms": 831,
+            "misses": 480,
+            "warnings": 1050
+          },
+          {
+            "X": 3.0,
+            "k": 4,
+            "catch_rate": 0.26180257510729615,
+            "precision": 0.2764350453172205,
+            "csi": 0.15534804753820033,
+            "incoming_catch": 0.16785714285714284,
+            "hits": 183,
+            "false_alarms": 479,
+            "misses": 516,
+            "warnings": 662
+          },
+          {
+            "X": 4.0,
+            "k": 1,
+            "catch_rate": 0.5579399141630901,
+            "precision": 0.08709245198749442,
+            "csi": 0.08147064967620639,
+            "incoming_catch": 0.4732142857142857,
+            "hits": 390,
+            "false_alarms": 4088,
+            "misses": 309,
+            "warnings": 4478
+          },
+          {
+            "X": 4.0,
+            "k": 2,
+            "catch_rate": 0.3876967095851216,
+            "precision": 0.1768929503916449,
+            "csi": 0.13826530612244897,
+            "incoming_catch": 0.2910714285714286,
+            "hits": 271,
+            "false_alarms": 1261,
+            "misses": 428,
+            "warnings": 1532
+          },
+          {
+            "X": 4.0,
+            "k": 3,
+            "catch_rate": 0.290414878397711,
+            "precision": 0.23854289071680376,
+            "csi": 0.15070527097253156,
+            "incoming_catch": 0.18928571428571428,
+            "hits": 203,
+            "false_alarms": 648,
+            "misses": 496,
+            "warnings": 851
+          },
+          {
+            "X": 4.0,
+            "k": 4,
+            "catch_rate": 0.24034334763948498,
+            "precision": 0.31758034026465026,
+            "csi": 0.15849056603773584,
+            "incoming_catch": 0.14642857142857144,
+            "hits": 168,
+            "false_alarms": 361,
+            "misses": 531,
+            "warnings": 529
+          },
+          {
+            "X": 5.0,
+            "k": 1,
+            "catch_rate": 0.5393419170243204,
+            "precision": 0.09794751883606131,
+            "csi": 0.09038599856149604,
+            "incoming_catch": 0.4517857142857143,
+            "hits": 377,
+            "false_alarms": 3472,
+            "misses": 322,
+            "warnings": 3849
+          },
+          {
+            "X": 5.0,
+            "k": 2,
+            "catch_rate": 0.3648068669527897,
+            "precision": 0.19158527422990232,
+            "csi": 0.14366197183098592,
+            "incoming_catch": 0.26785714285714285,
+            "hits": 255,
+            "false_alarms": 1076,
+            "misses": 444,
+            "warnings": 1331
+          },
+          {
+            "X": 5.0,
+            "k": 3,
+            "catch_rate": 0.26895565092989987,
+            "precision": 0.25718194254445964,
+            "csi": 0.15136876006441224,
+            "incoming_catch": 0.17142857142857143,
+            "hits": 188,
+            "false_alarms": 543,
+            "misses": 511,
+            "warnings": 731
+          },
+          {
+            "X": 5.0,
+            "k": 4,
+            "catch_rate": 0.2217453505007153,
+            "precision": 0.36384976525821594,
+            "csi": 0.15979381443298968,
+            "incoming_catch": 0.13392857142857142,
+            "hits": 155,
+            "false_alarms": 271,
+            "misses": 544,
+            "warnings": 426
+          },
+          {
+            "X": 6.0,
+            "k": 1,
+            "catch_rate": 0.5164520743919886,
+            "precision": 0.10409457900807381,
+            "csi": 0.09485023646873358,
+            "incoming_catch": 0.42678571428571427,
+            "hits": 361,
+            "false_alarms": 3107,
+            "misses": 338,
+            "warnings": 3468
+          },
+          {
+            "X": 6.0,
+            "k": 2,
+            "catch_rate": 0.33905579399141633,
+            "precision": 0.19766472060050042,
+            "csi": 0.14268512944009631,
+            "incoming_catch": 0.24107142857142858,
+            "hits": 237,
+            "false_alarms": 962,
+            "misses": 462,
+            "warnings": 1199
+          },
+          {
+            "X": 6.0,
+            "k": 3,
+            "catch_rate": 0.25608011444921314,
+            "precision": 0.2796875,
+            "csi": 0.1543103448275862,
+            "incoming_catch": 0.15892857142857142,
+            "hits": 179,
+            "false_alarms": 461,
+            "misses": 520,
+            "warnings": 640
+          },
+          {
+            "X": 6.0,
+            "k": 4,
+            "catch_rate": 0.20600858369098712,
+            "precision": 0.4067796610169492,
+            "csi": 0.15841584158415842,
+            "incoming_catch": 0.12678571428571428,
+            "hits": 144,
+            "false_alarms": 210,
+            "misses": 555,
+            "warnings": 354
+          },
+          {
+            "X": 7.0,
+            "k": 1,
+            "catch_rate": 0.49928469241773965,
+            "precision": 0.10971392643822697,
+            "csi": 0.09883885584820164,
+            "incoming_catch": 0.4107142857142857,
+            "hits": 349,
+            "false_alarms": 2832,
+            "misses": 350,
+            "warnings": 3181
+          },
+          {
+            "X": 7.0,
+            "k": 2,
+            "catch_rate": 0.32474964234620884,
+            "precision": 0.20999074930619796,
+            "csi": 0.14616870573084353,
+            "incoming_catch": 0.22678571428571428,
+            "hits": 227,
+            "false_alarms": 854,
+            "misses": 472,
+            "warnings": 1081
+          },
+          {
+            "X": 7.0,
+            "k": 3,
+            "catch_rate": 0.24177396280400573,
+            "precision": 0.29858657243816256,
+            "csi": 0.1541970802919708,
+            "incoming_catch": 0.15,
+            "hits": 169,
+            "false_alarms": 397,
+            "misses": 530,
+            "warnings": 566
+          },
+          {
+            "X": 7.0,
+            "k": 4,
+            "catch_rate": 0.18741058655221746,
+            "precision": 0.43234323432343236,
+            "csi": 0.15040183696900114,
+            "incoming_catch": 0.11428571428571428,
+            "hits": 131,
+            "false_alarms": 172,
+            "misses": 568,
+            "warnings": 303
+          },
+          {
+            "X": 8.0,
+            "k": 1,
+            "catch_rate": 0.48068669527896996,
+            "precision": 0.11487179487179487,
+            "csi": 0.10218978102189781,
+            "incoming_catch": 0.3875,
+            "hits": 336,
+            "false_alarms": 2589,
+            "misses": 363,
+            "warnings": 2925
+          },
+          {
+            "X": 8.0,
+            "k": 2,
+            "catch_rate": 0.3090128755364807,
+            "precision": 0.219959266802444,
+            "csi": 0.14744027303754267,
+            "incoming_catch": 0.21071428571428572,
+            "hits": 216,
+            "false_alarms": 766,
+            "misses": 483,
+            "warnings": 982
+          },
+          {
+            "X": 8.0,
+            "k": 3,
+            "catch_rate": 0.23319027181688126,
+            "precision": 0.32086614173228345,
+            "csi": 0.15613026819923373,
+            "incoming_catch": 0.14464285714285716,
+            "hits": 163,
+            "false_alarms": 345,
+            "misses": 536,
+            "warnings": 508
+          },
+          {
+            "X": 8.0,
+            "k": 4,
+            "catch_rate": 0.17739628040057226,
+            "precision": 0.4696969696969697,
+            "csi": 0.14779499404052443,
+            "incoming_catch": 0.10178571428571428,
+            "hits": 124,
+            "false_alarms": 140,
+            "misses": 575,
+            "warnings": 264
+          },
+          {
+            "X": 10.0,
+            "k": 1,
+            "catch_rate": 0.4520743919885551,
+            "precision": 0.12276612276612277,
+            "csi": 0.10686506594521475,
+            "incoming_catch": 0.35892857142857143,
+            "hits": 316,
+            "false_alarms": 2258,
+            "misses": 383,
+            "warnings": 2574
+          },
+          {
+            "X": 10.0,
+            "k": 2,
+            "catch_rate": 0.27753934191702434,
+            "precision": 0.23178016726403824,
+            "csi": 0.14456035767511177,
+            "incoming_catch": 0.18392857142857144,
+            "hits": 194,
+            "false_alarms": 643,
+            "misses": 505,
+            "warnings": 837
+          },
+          {
+            "X": 10.0,
+            "k": 3,
+            "catch_rate": 0.2145922746781116,
+            "precision": 0.351288056206089,
+            "csi": 0.15368852459016394,
+            "incoming_catch": 0.13392857142857142,
+            "hits": 150,
+            "false_alarms": 277,
+            "misses": 549,
+            "warnings": 427
+          },
+          {
+            "X": 10.0,
+            "k": 4,
+            "catch_rate": 0.14163090128755365,
+            "precision": 0.46261682242990654,
+            "csi": 0.12162162162162163,
+            "incoming_catch": 0.08392857142857142,
+            "hits": 99,
+            "false_alarms": 115,
+            "misses": 600,
+            "warnings": 214
+          }
+        ]
+      },
+      "chosen": {
+        "X": 5.0,
+        "k": 4,
+        "validation_csi": 0.15979381443298968
+      },
+      "test": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-14T03:20",
+          "2026-09-25T23:25"
+        ],
+        "heavy_rain_boxes": 1269,
+        "calibrated": {
+          "catch_rate": 0.26635145784081954,
+          "precision": 0.5232198142414861,
+          "csi": 0.21433100824350032,
+          "incoming_catch": 0.17139852786540483,
+          "hits": 338,
+          "false_alarms": 308,
+          "misses": 931,
+          "warnings": 646
+        },
+        "uncalibrated": {
+          "catch_rate": 0.29393223010244285,
+          "precision": 0.32322357019064124,
+          "csi": 0.18195121951219512,
+          "incoming_catch": 0.2103049421661409,
+          "hits": 373,
+          "false_alarms": 781,
+          "misses": 896,
+          "warnings": 1154
+        },
+        "naive": {
+          "catch_rate": 0.25059101654846333,
+          "precision": 0.3072463768115942,
+          "csi": 0.16012084592145015,
+          "incoming_catch": 0.0,
+          "hits": 318,
+          "false_alarms": 717,
+          "misses": 951,
+          "warnings": 1035
+        }
+      },
+      "calibrated_minus_uncalibrated": {
+        "catch_rate": {
+          "diff": -0.02758077226162331,
+          "ci": [
+            -0.10432427186004499,
+            0.042457389969724334
+          ]
+        },
+        "precision": {
+          "diff": 0.19999624405084487,
+          "ci": [
+            0.11711703746874391,
+            0.2958292936752799
+          ]
+        },
+        "csi": {
+          "diff": 0.032379788731305204,
+          "ci": [
+            -0.02516645599203934,
+            0.07877443139511156
+          ]
+        },
+        "incoming_catch": {
+          "diff": -0.038906414300736075,
+          "ci": [
+            -0.10785217949433497,
+            0.02680456181961423
+          ]
+        }
+      },
+      "verdict": "DO NOT ADOPT"
+    },
+    "60": {
+      "checkpoint": "checkpoints/nowcaster/lead60_warm/ckpt_step_100000.pt",
+      "test_cache": "ens_lead60_warm_ckpt_step_100000_s100000_n200_m8.npz",
+      "validation": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-02T06:50",
+          "2026-09-14T02:15"
+        ],
+        "heavy_rain_boxes": 717,
+        "grid": [
+          {
+            "X": 3.0,
+            "k": 1,
+            "catch_rate": 0.42398884239888424,
+            "precision": 0.04020100502512563,
+            "csi": 0.038119122257053294,
+            "incoming_catch": 0.41690962099125367,
+            "hits": 304,
+            "false_alarms": 7258,
+            "misses": 413,
+            "warnings": 7562
+          },
+          {
+            "X": 3.0,
+            "k": 2,
+            "catch_rate": 0.19665271966527198,
+            "precision": 0.08703703703703704,
+            "csi": 0.06420765027322405,
+            "incoming_catch": 0.18658892128279883,
+            "hits": 141,
+            "false_alarms": 1479,
+            "misses": 576,
+            "warnings": 1620
+          },
+          {
+            "X": 3.0,
+            "k": 3,
+            "catch_rate": 0.06415620641562064,
+            "precision": 0.08303249097472924,
+            "csi": 0.037551020408163265,
+            "incoming_catch": 0.0597667638483965,
+            "hits": 46,
+            "false_alarms": 508,
+            "misses": 671,
+            "warnings": 554
+          },
+          {
+            "X": 3.0,
+            "k": 4,
+            "catch_rate": 0.043235704323570434,
+            "precision": 0.1099290780141844,
+            "csi": 0.03202479338842975,
+            "incoming_catch": 0.04081632653061224,
+            "hits": 31,
+            "false_alarms": 251,
+            "misses": 686,
+            "warnings": 282
+          },
+          {
+            "X": 4.0,
+            "k": 1,
+            "catch_rate": 0.38493723849372385,
+            "precision": 0.045061224489795916,
+            "csi": 0.04203472433749619,
+            "incoming_catch": 0.3848396501457726,
+            "hits": 276,
+            "false_alarms": 5849,
+            "misses": 441,
+            "warnings": 6125
+          },
+          {
+            "X": 4.0,
+            "k": 2,
+            "catch_rate": 0.1506276150627615,
+            "precision": 0.09334485738980121,
+            "csi": 0.061155152887882216,
+            "incoming_catch": 0.14285714285714285,
+            "hits": 108,
+            "false_alarms": 1049,
+            "misses": 609,
+            "warnings": 1157
+          },
+          {
+            "X": 4.0,
+            "k": 3,
+            "catch_rate": 0.05299860529986053,
+            "precision": 0.09844559585492228,
+            "csi": 0.03568075117370892,
+            "incoming_catch": 0.04956268221574344,
+            "hits": 38,
+            "false_alarms": 348,
+            "misses": 679,
+            "warnings": 386
+          },
+          {
+            "X": 4.0,
+            "k": 4,
+            "catch_rate": 0.03486750348675035,
+            "precision": 0.13297872340425532,
+            "csi": 0.028409090909090908,
+            "incoming_catch": 0.033527696793002916,
+            "hits": 25,
+            "false_alarms": 163,
+            "misses": 692,
+            "warnings": 188
+          },
+          {
+            "X": 5.0,
+            "k": 1,
+            "catch_rate": 0.3403068340306834,
+            "precision": 0.04670750382848392,
+            "csi": 0.042829559417237144,
+            "incoming_catch": 0.3396501457725947,
+            "hits": 244,
+            "false_alarms": 4980,
+            "misses": 473,
+            "warnings": 5224
+          },
+          {
+            "X": 5.0,
+            "k": 2,
+            "catch_rate": 0.12133891213389121,
+            "precision": 0.09466811751904244,
+            "csi": 0.05616526791478373,
+            "incoming_catch": 0.11661807580174927,
+            "hits": 87,
+            "false_alarms": 832,
+            "misses": 630,
+            "warnings": 919
+          },
+          {
+            "X": 5.0,
+            "k": 3,
+            "catch_rate": 0.040446304044630406,
+            "precision": 0.10431654676258993,
+            "csi": 0.030020703933747412,
+            "incoming_catch": 0.04081632653061224,
+            "hits": 29,
+            "false_alarms": 249,
+            "misses": 688,
+            "warnings": 278
+          },
+          {
+            "X": 5.0,
+            "k": 4,
+            "catch_rate": 0.022315202231520222,
+            "precision": 0.1095890410958904,
+            "csi": 0.018890200708382526,
+            "incoming_catch": 0.023323615160349854,
+            "hits": 16,
+            "false_alarms": 130,
+            "misses": 701,
+            "warnings": 146
+          },
+          {
+            "X": 6.0,
+            "k": 1,
+            "catch_rate": 0.3068340306834031,
+            "precision": 0.048224462954844366,
+            "csi": 0.04348685510970548,
+            "incoming_catch": 0.30903790087463556,
+            "hits": 220,
+            "false_alarms": 4342,
+            "misses": 497,
+            "warnings": 4562
+          },
+          {
+            "X": 6.0,
+            "k": 2,
+            "catch_rate": 0.08786610878661087,
+            "precision": 0.08456375838926175,
+            "csi": 0.04503216583273767,
+            "incoming_catch": 0.08600583090379009,
+            "hits": 63,
+            "false_alarms": 682,
+            "misses": 654,
+            "warnings": 745
+          },
+          {
+            "X": 6.0,
+            "k": 3,
+            "catch_rate": 0.03486750348675035,
+            "precision": 0.10548523206751055,
+            "csi": 0.02691065662002153,
+            "incoming_catch": 0.03644314868804665,
+            "hits": 25,
+            "false_alarms": 212,
+            "misses": 692,
+            "warnings": 237
+          },
+          {
+            "X": 6.0,
+            "k": 4,
+            "catch_rate": 0.015341701534170154,
+            "precision": 0.09166666666666666,
+            "csi": 0.013317191283292978,
+            "incoming_catch": 0.016034985422740525,
+            "hits": 11,
+            "false_alarms": 109,
+            "misses": 706,
+            "warnings": 120
+          },
+          {
+            "X": 7.0,
+            "k": 1,
+            "catch_rate": 0.28172942817294283,
+            "precision": 0.04941291585127201,
+            "csi": 0.043884423202259396,
+            "incoming_catch": 0.282798833819242,
+            "hits": 202,
+            "false_alarms": 3886,
+            "misses": 515,
+            "warnings": 4088
+          },
+          {
+            "X": 7.0,
+            "k": 2,
+            "catch_rate": 0.07531380753138076,
+            "precision": 0.08517350157728706,
+            "csi": 0.04163454124903624,
+            "incoming_catch": 0.07434402332361516,
+            "hits": 54,
+            "false_alarms": 580,
+            "misses": 663,
+            "warnings": 634
+          },
+          {
+            "X": 7.0,
+            "k": 3,
+            "catch_rate": 0.02510460251046025,
+            "precision": 0.08530805687203792,
+            "csi": 0.01978021978021978,
+            "incoming_catch": 0.026239067055393587,
+            "hits": 18,
+            "false_alarms": 193,
+            "misses": 699,
+            "warnings": 211
+          },
+          {
+            "X": 7.0,
+            "k": 4,
+            "catch_rate": 0.00697350069735007,
+            "precision": 0.053763440860215055,
+            "csi": 0.006211180124223602,
+            "incoming_catch": 0.007288629737609329,
+            "hits": 5,
+            "false_alarms": 88,
+            "misses": 712,
+            "warnings": 93
+          },
+          {
+            "X": 8.0,
+            "k": 1,
+            "catch_rate": 0.26778242677824265,
+            "precision": 0.050955414012738856,
+            "csi": 0.04472396925227114,
+            "incoming_catch": 0.2696793002915452,
+            "hits": 192,
+            "false_alarms": 3576,
+            "misses": 525,
+            "warnings": 3768
+          },
+          {
+            "X": 8.0,
+            "k": 2,
+            "catch_rate": 0.06555090655509066,
+            "precision": 0.08483754512635379,
+            "csi": 0.03839869281045752,
+            "incoming_catch": 0.0641399416909621,
+            "hits": 47,
+            "false_alarms": 507,
+            "misses": 670,
+            "warnings": 554
+          },
+          {
+            "X": 8.0,
+            "k": 3,
+            "catch_rate": 0.01813110181311018,
+            "precision": 0.06735751295336788,
+            "csi": 0.014492753623188406,
+            "incoming_catch": 0.018950437317784258,
+            "hits": 13,
+            "false_alarms": 180,
+            "misses": 704,
+            "warnings": 193
+          },
+          {
+            "X": 8.0,
+            "k": 4,
+            "catch_rate": 0.00697350069735007,
+            "precision": 0.06329113924050633,
+            "csi": 0.006321112515802781,
+            "incoming_catch": 0.007288629737609329,
+            "hits": 5,
+            "false_alarms": 74,
+            "misses": 712,
+            "warnings": 79
+          },
+          {
+            "X": 10.0,
+            "k": 1,
+            "catch_rate": 0.23570432357043236,
+            "precision": 0.0521443998765813,
+            "csi": 0.04460279757191871,
+            "incoming_catch": 0.239067055393586,
+            "hits": 169,
+            "false_alarms": 3072,
+            "misses": 548,
+            "warnings": 3241
+          },
+          {
+            "X": 10.0,
+            "k": 2,
+            "catch_rate": 0.04741980474198047,
+            "precision": 0.07727272727272727,
+            "csi": 0.030276046304541407,
+            "incoming_catch": 0.048104956268221574,
+            "hits": 34,
+            "false_alarms": 406,
+            "misses": 683,
+            "warnings": 440
+          },
+          {
+            "X": 10.0,
+            "k": 3,
+            "catch_rate": 0.015341701534170154,
+            "precision": 0.06790123456790123,
+            "csi": 0.012672811059907835,
+            "incoming_catch": 0.016034985422740525,
+            "hits": 11,
+            "false_alarms": 151,
+            "misses": 706,
+            "warnings": 162
+          },
+          {
+            "X": 10.0,
+            "k": 4,
+            "catch_rate": 0.005578800557880056,
+            "precision": 0.06349206349206349,
+            "csi": 0.005154639175257732,
+            "incoming_catch": 0.0058309037900874635,
+            "hits": 4,
+            "false_alarms": 59,
+            "misses": 713,
+            "warnings": 63
+          }
+        ]
+      },
+      "chosen": {
+        "X": 3.0,
+        "k": 2,
+        "validation_csi": 0.06420765027322405
+      },
+      "test": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-14T03:20",
+          "2026-09-25T22:55"
+        ],
+        "heavy_rain_boxes": 1172,
+        "calibrated": {
+          "catch_rate": 0.34982935153583616,
+          "precision": 0.1413305756635643,
+          "csi": 0.11193011193011193,
+          "incoming_catch": 0.3150684931506849,
+          "hits": 410,
+          "false_alarms": 2491,
+          "misses": 762,
+          "warnings": 2901
+        },
+        "uncalibrated": {
+          "catch_rate": 0.033276450511945395,
+          "precision": 0.06678082191780822,
+          "csi": 0.022714036109493303,
+          "incoming_catch": 0.036203522504892366,
+          "hits": 39,
+          "false_alarms": 545,
+          "misses": 1133,
+          "warnings": 584
+        },
+        "naive": {
+          "catch_rate": 0.12798634812286688,
+          "precision": 0.12853470437017994,
+          "csi": 0.06852444038373687,
+          "incoming_catch": 0.0,
+          "hits": 150,
+          "false_alarms": 1017,
+          "misses": 1022,
+          "warnings": 1167
+        }
+      },
+      "calibrated_minus_uncalibrated": {
+        "catch_rate": {
+          "diff": 0.3165529010238908,
+          "ci": [
+            0.10337887041639124,
+            0.5225101146116442
+          ]
+        },
+        "precision": {
+          "diff": 0.07454975374575608,
+          "ci": [
+            0.007033450530193131,
+            0.1564355140674174
+          ]
+        },
+        "csi": {
+          "diff": 0.08921607582061863,
+          "ci": [
+            0.023319721912127434,
+            0.17295292674349536
+          ]
+        },
+        "incoming_catch": {
+          "diff": 0.2788649706457925,
+          "ci": [
+            0.09200437101792859,
+            0.480673660710234
+          ]
+        }
+      },
+      "verdict": "ADOPT"
+    },
+    "90": {
+      "checkpoint": "checkpoints/nowcaster/lead90_warm/ckpt_step_100000.pt",
+      "test_cache": "ens_lead90_warm_ckpt_step_100000_s100000_n200_m8.npz",
+      "validation": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-02T06:50",
+          "2026-09-14T01:45"
+        ],
+        "heavy_rain_boxes": 712,
+        "grid": [
+          {
+            "X": 3.0,
+            "k": 1,
+            "catch_rate": 0.4353932584269663,
+            "precision": 0.024609033896959592,
+            "csi": 0.02384798830679283,
+            "incoming_catch": 0.4123867069486405,
+            "hits": 310,
+            "false_alarms": 12287,
+            "misses": 402,
+            "warnings": 12597
+          },
+          {
+            "X": 3.0,
+            "k": 2,
+            "catch_rate": 0.26825842696629215,
+            "precision": 0.08028583438419504,
+            "csi": 0.06586206896551725,
+            "incoming_catch": 0.24169184290030213,
+            "hits": 191,
+            "false_alarms": 2188,
+            "misses": 521,
+            "warnings": 2379
+          },
+          {
+            "X": 3.0,
+            "k": 3,
+            "catch_rate": 0.11376404494382023,
+            "precision": 0.12755905511811025,
+            "csi": 0.06398104265402843,
+            "incoming_catch": 0.09214501510574018,
+            "hits": 81,
+            "false_alarms": 554,
+            "misses": 631,
+            "warnings": 635
+          },
+          {
+            "X": 3.0,
+            "k": 4,
+            "catch_rate": 0.046348314606741575,
+            "precision": 0.1527777777777778,
+            "csi": 0.03687150837988827,
+            "incoming_catch": 0.03625377643504532,
+            "hits": 33,
+            "false_alarms": 183,
+            "misses": 679,
+            "warnings": 216
+          },
+          {
+            "X": 4.0,
+            "k": 1,
+            "catch_rate": 0.39185393258426965,
+            "precision": 0.026318271861145173,
+            "csi": 0.02528548123980424,
+            "incoming_catch": 0.37009063444108764,
+            "hits": 279,
+            "false_alarms": 10322,
+            "misses": 433,
+            "warnings": 10601
+          },
+          {
+            "X": 4.0,
+            "k": 2,
+            "catch_rate": 0.19101123595505617,
+            "precision": 0.08717948717948718,
+            "csi": 0.06367041198501873,
+            "incoming_catch": 0.17673716012084592,
+            "hits": 136,
+            "false_alarms": 1424,
+            "misses": 576,
+            "warnings": 1560
+          },
+          {
+            "X": 4.0,
+            "k": 3,
+            "catch_rate": 0.04353932584269663,
+            "precision": 0.11481481481481481,
+            "csi": 0.03259726603575184,
+            "incoming_catch": 0.0377643504531722,
+            "hits": 31,
+            "false_alarms": 239,
+            "misses": 681,
+            "warnings": 270
+          },
+          {
+            "X": 4.0,
+            "k": 4,
+            "catch_rate": 0.018258426966292134,
+            "precision": 0.17333333333333334,
+            "csi": 0.016795865633074936,
+            "incoming_catch": 0.01812688821752266,
+            "hits": 13,
+            "false_alarms": 62,
+            "misses": 699,
+            "warnings": 75
+          },
+          {
+            "X": 5.0,
+            "k": 1,
+            "catch_rate": 0.3441011235955056,
+            "precision": 0.02663622526636225,
+            "csi": 0.025349198137609934,
+            "incoming_catch": 0.3323262839879154,
+            "hits": 245,
+            "false_alarms": 8953,
+            "misses": 467,
+            "warnings": 9198
+          },
+          {
+            "X": 5.0,
+            "k": 2,
+            "catch_rate": 0.12219101123595505,
+            "precision": 0.08123249299719888,
+            "csi": 0.05129716981132076,
+            "incoming_catch": 0.12084592145015106,
+            "hits": 87,
+            "false_alarms": 984,
+            "misses": 625,
+            "warnings": 1071
+          },
+          {
+            "X": 5.0,
+            "k": 3,
+            "catch_rate": 0.019662921348314606,
+            "precision": 0.0915032679738562,
+            "csi": 0.01645123384253819,
+            "incoming_catch": 0.019637462235649546,
+            "hits": 14,
+            "false_alarms": 139,
+            "misses": 698,
+            "warnings": 153
+          },
+          {
+            "X": 5.0,
+            "k": 4,
+            "catch_rate": 0.007022471910112359,
+            "precision": 0.14705882352941177,
+            "csi": 0.006747638326585695,
+            "incoming_catch": 0.0075528700906344415,
+            "hits": 5,
+            "false_alarms": 29,
+            "misses": 707,
+            "warnings": 34
+          },
+          {
+            "X": 6.0,
+            "k": 1,
+            "catch_rate": 0.3047752808988764,
+            "precision": 0.026668305272213345,
+            "csi": 0.025139017608897127,
+            "incoming_catch": 0.30060422960725075,
+            "hits": 217,
+            "false_alarms": 7920,
+            "misses": 495,
+            "warnings": 8137
+          },
+          {
+            "X": 6.0,
+            "k": 2,
+            "catch_rate": 0.09269662921348315,
+            "precision": 0.0821917808219178,
+            "csi": 0.045548654244306416,
+            "incoming_catch": 0.09667673716012085,
+            "hits": 66,
+            "false_alarms": 737,
+            "misses": 646,
+            "warnings": 803
+          },
+          {
+            "X": 6.0,
+            "k": 3,
+            "catch_rate": 0.01544943820224719,
+            "precision": 0.12643678160919541,
+            "csi": 0.013959390862944163,
+            "incoming_catch": 0.01661631419939577,
+            "hits": 11,
+            "false_alarms": 76,
+            "misses": 701,
+            "warnings": 87
+          },
+          {
+            "X": 6.0,
+            "k": 4,
+            "catch_rate": 0.0056179775280898875,
+            "precision": 0.18181818181818182,
+            "csi": 0.005479452054794521,
+            "incoming_catch": 0.006042296072507553,
+            "hits": 4,
+            "false_alarms": 18,
+            "misses": 708,
+            "warnings": 22
+          },
+          {
+            "X": 7.0,
+            "k": 1,
+            "catch_rate": 0.273876404494382,
+            "precision": 0.0263477908390758,
+            "csi": 0.024627431169487245,
+            "incoming_catch": 0.270392749244713,
+            "hits": 195,
+            "false_alarms": 7206,
+            "misses": 517,
+            "warnings": 7401
+          },
+          {
+            "X": 7.0,
+            "k": 2,
+            "catch_rate": 0.07584269662921349,
+            "precision": 0.08463949843260188,
+            "csi": 0.041666666666666664,
+            "incoming_catch": 0.07854984894259819,
+            "hits": 54,
+            "false_alarms": 584,
+            "misses": 658,
+            "warnings": 638
+          },
+          {
+            "X": 7.0,
+            "k": 3,
+            "catch_rate": 0.014044943820224719,
+            "precision": 0.16393442622950818,
+            "csi": 0.01310615989515072,
+            "incoming_catch": 0.015105740181268883,
+            "hits": 10,
+            "false_alarms": 51,
+            "misses": 702,
+            "warnings": 61
+          },
+          {
+            "X": 7.0,
+            "k": 4,
+            "catch_rate": 0.0028089887640449437,
+            "precision": 0.14285714285714285,
+            "csi": 0.0027624309392265192,
+            "incoming_catch": 0.0030211480362537764,
+            "hits": 2,
+            "false_alarms": 12,
+            "misses": 710,
+            "warnings": 14
+          },
+          {
+            "X": 8.0,
+            "k": 1,
+            "catch_rate": 0.2345505617977528,
+            "precision": 0.0246058641520554,
+            "csi": 0.022776868521549372,
+            "incoming_catch": 0.2311178247734139,
+            "hits": 167,
+            "false_alarms": 6620,
+            "misses": 545,
+            "warnings": 6787
+          },
+          {
+            "X": 8.0,
+            "k": 2,
+            "catch_rate": 0.06601123595505617,
+            "precision": 0.09108527131782945,
+            "csi": 0.03979678238780694,
+            "incoming_catch": 0.06797583081570997,
+            "hits": 47,
+            "false_alarms": 469,
+            "misses": 665,
+            "warnings": 516
+          },
+          {
+            "X": 8.0,
+            "k": 3,
+            "catch_rate": 0.009831460674157303,
+            "precision": 0.14285714285714285,
+            "csi": 0.009283819628647215,
+            "incoming_catch": 0.010574018126888218,
+            "hits": 7,
+            "false_alarms": 42,
+            "misses": 705,
+            "warnings": 49
+          },
+          {
+            "X": 8.0,
+            "k": 4,
+            "catch_rate": 0.0028089887640449437,
+            "precision": 0.16666666666666666,
+            "csi": 0.002770083102493075,
+            "incoming_catch": 0.0030211480362537764,
+            "hits": 2,
+            "false_alarms": 10,
+            "misses": 710,
+            "warnings": 12
+          },
+          {
+            "X": 10.0,
+            "k": 1,
+            "catch_rate": 0.19382022471910113,
+            "precision": 0.023263654753877275,
+            "csi": 0.021211189671072855,
+            "incoming_catch": 0.19486404833836857,
+            "hits": 138,
+            "false_alarms": 5794,
+            "misses": 574,
+            "warnings": 5932
+          },
+          {
+            "X": 10.0,
+            "k": 2,
+            "catch_rate": 0.04353932584269663,
+            "precision": 0.08587257617728532,
+            "csi": 0.029750479846449136,
+            "incoming_catch": 0.04380664652567976,
+            "hits": 31,
+            "false_alarms": 330,
+            "misses": 681,
+            "warnings": 361
+          },
+          {
+            "X": 10.0,
+            "k": 3,
+            "catch_rate": 0.0056179775280898875,
+            "precision": 0.13333333333333333,
+            "csi": 0.005420054200542005,
+            "incoming_catch": 0.006042296072507553,
+            "hits": 4,
+            "false_alarms": 26,
+            "misses": 708,
+            "warnings": 30
+          },
+          {
+            "X": 10.0,
+            "k": 4,
+            "catch_rate": 0.0028089887640449437,
+            "precision": 0.2,
+            "csi": 0.002777777777777778,
+            "incoming_catch": 0.0030211480362537764,
+            "hits": 2,
+            "false_alarms": 8,
+            "misses": 710,
+            "warnings": 10
+          }
+        ]
+      },
+      "chosen": {
+        "X": 3.0,
+        "k": 2,
+        "validation_csi": 0.06586206896551725
+      },
+      "test": {
+        "forecasts": 200,
+        "period": [
+          "2026-09-14T03:20",
+          "2026-09-25T22:25"
+        ],
+        "heavy_rain_boxes": 1220,
+        "calibrated": {
+          "catch_rate": 0.3909836065573771,
+          "precision": 0.09923028916163927,
+          "csi": 0.08594594594594594,
+          "incoming_catch": 0.3650224215246637,
+          "hits": 477,
+          "false_alarms": 4330,
+          "misses": 743,
+          "warnings": 4807
+        },
+        "uncalibrated": {
+          "catch_rate": 0.0680327868852459,
+          "precision": 0.10024154589371981,
+          "csi": 0.042239185750636135,
+          "incoming_catch": 0.07354260089686099,
+          "hits": 83,
+          "false_alarms": 745,
+          "misses": 1137,
+          "warnings": 828
+        },
+        "naive": {
+          "catch_rate": 0.0860655737704918,
+          "precision": 0.08764607679465776,
+          "csi": 0.04539559014267185,
+          "incoming_catch": 0.0,
+          "hits": 105,
+          "false_alarms": 1093,
+          "misses": 1115,
+          "warnings": 1198
+        }
+      },
+      "calibrated_minus_uncalibrated": {
+        "catch_rate": {
+          "diff": 0.3229508196721312,
+          "ci": [
+            0.11002954267419766,
+            0.4871427993791584
+          ]
+        },
+        "precision": {
+          "diff": -0.0010112567320805371,
+          "ci": [
+            -0.05232295039646763,
+            0.062362008426516076
+          ]
+        },
+        "csi": {
+          "diff": 0.04370676019530981,
+          "ci": [
+            -0.0014341384786895261,
+            0.09666807803429954
+          ]
+        },
+        "incoming_catch": {
+          "diff": 0.2914798206278027,
+          "ci": [
+            0.10310308370044052,
+            0.44974025176252674
+          ]
+        }
+      },
+      "verdict": "DO NOT ADOPT"
+    }
+  }
+}

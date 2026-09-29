@@ -53,3 +53,25 @@ probability and rain-amount forecast.
 3. **Verdicts recorded here.** RESULTS, README and `warning_skill`-style dashboard text are updated **only if** a warning is adopted, and the LinkedIn draft only if a published number changes.
 
 Effort: about ½ day of code; about 1.5 h of GPU, detached and cached, so it resumes after a shutdown. No training.
+
+## Verdicts (2026-09-29, run 11:04–11:58; `results/warning_calibration.json`, `results/hybrid_warning.json`)
+
+**Item 2: calibration** (rule chosen on validation, scored on the cached test ensembles, seeds 1000+k)
+
+| lead | chosen rule | test CSI uncal → cal [CI of diff] | catch | precision | verdict |
+|---|---|---|---|---|---|
+| 30 | ≥4 of 8 ≥ 5 mm/hr | 0.182 → 0.214 [−0.025, +0.079] | 29% → 27% | 32% → 52% | do not adopt (CI spans 0) |
+| 60 | ≥2 of 8 ≥ 3 mm/hr | 0.023 → 0.112 [+0.023, +0.173] | 3% → 35% | 7% → 14% | **ADOPT** |
+| 90 | ≥2 of 8 ≥ 3 mm/hr | 0.042 → 0.086 [−0.001, +0.097] | 7% → 39% | 10% → 10% | do not adopt (CI touches 0) |
+
+- 60 and 90 min chose X = 3 mm/hr, **the lowest candidate**, so the best rule may lie below the grid. Not searched further: that would be choosing after seeing the result.
+- Seed check at 60 min (seeds 2000+k): CSI 0.053 → 0.098, CI [−0.011, +0.118]. The gain is in the same direction but **not significant on the second seed set**, so the adoption is fragile.
+- At 30 min the calibrated rule trades catch for precision (52% right); on validation it only ties the naive forecast (val CSI 0.160, naive test 0.160).
+
+**Item 1: hybrid at 60 min** (seeds 2000+k): **ADOPT EXTRAPOLATION ALONE**
+
+- H catches 38% vs extrapolation 17% (+21 pts [+6, +36]) and incoming 33% vs 13%, but precision falls to 13% vs 19% ([−10.5, −1.6] pts). CSI 0.107 vs 0.100, CI [−0.028, +0.050]: **not better**.
+- Calibrated model alone: CSI 0.098, catch 30%, precision 13%; the uncalibrated rule: CSI 0.053.
+- Drain alerts (23 out of sample, context only): H warned 23/23, median lead 87 min; extrapolation 23/23, 69 min; calibrated model 22/23 (missed 18 Sep), 85 min. Background warning rates are low for all (≤ 5.5% of test forecasts at a site).
+
+**Reading:** calibration fixes most of the 60-min model's heavy-rain under-warning (catch 3% → 35%), but only by warning much more widely, and it still does not beat plain extrapolation on CSI. The pre-set rule therefore keeps extrapolation as the 60-min heavy-rain warning. The hybrid's extra catch (and ~18 min earlier drain warnings) comes at the cost of a third more false alarms per hit. That trade-off is for the user (a flood service may prefer the catch), not a CSI win.

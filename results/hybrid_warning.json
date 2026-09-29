@@ -1,0 +1,612 @@
+{
+  "lead_min": 60,
+  "test_forecasts": 200,
+  "test_period": [
+    "2026-09-14T03:20",
+    "2026-09-25T22:55"
+  ],
+  "heavy_rain_boxes": 1172,
+  "base_rate": 0.01111954459203036,
+  "checkpoint": "checkpoints\\nowcaster\\lead60_warm\\ckpt_step_100000.pt",
+  "ensembles": "motioncmp_base_n200_m8.npz",
+  "calibrated_rule": {
+    "X": 3.0,
+    "k": 2
+  },
+  "definitions": "for the same 2 x 2 km box, on the SAME 200 test forecasts:\n    H       hybrid: extrapolation shows >= 10 mm/hr in the box OR the calibrated model warns\n    extrap  DIS optical-flow extrapolation of the last frame, 65 min (src/data/motion.py)\n    cal     the model with the rule chosen on validation (results/warning_calibration.json)\n    uncal   the model with the old rule (>= 2 of 8 futures >= 10 mm/hr)\n    naive   the last radar frame the model saw shows >= 10 mm/hr in the box\nModel ensembles: eval_cache/motioncmp_base_n200_m8.npz (seeds 2000+k, from eval_motion_input.py).\nThe calibrated rule is also scored on the warning_skill cache (seeds 1000+k) as a seed check.\nMetrics: catch rate, precision, CSI, incoming catch; paired bootstrap, 2,000 resamples, 95%.\n\nVerdict (fixed in the plan): ADOPT H as the 60-min heavy-rain warning if CSI(H) - CSI(extrap)\nhas a CI entirely above 0; otherwise ADOPT EXTRAPOLATION ALONE. Either way the diffusion\nmodel stays the probability and rain-amount forecast.\n\nDrain-alert context (reported, not part of the verdict): for each out-of-sample FLOOD_RISK\nalert (first per site per storm day), the earliest issue time in the 120 min before it at\nwhich H / extrap / cal warned in the 7 x 7 px site box -- forecasts issued every 5 min,\nvalid 65 min after issue. As in drain_alert_benchmark.py, \"background\" is the share of the\n200 test forecasts that warned at the same site.",
+  "scores": {
+    "H": {
+      "catch_rate": 0.3796928327645051,
+      "precision": 0.12962423536265658,
+      "csi": 0.10697115384615384,
+      "incoming_catch": 0.32778864970645794,
+      "hits": 445,
+      "false_alarms": 2988,
+      "misses": 727,
+      "warnings": 3433
+    },
+    "extrap": {
+      "catch_rate": 0.17320819112627986,
+      "precision": 0.1904315196998124,
+      "csi": 0.09975429975429975,
+      "incoming_catch": 0.13111545988258316,
+      "hits": 203,
+      "false_alarms": 863,
+      "misses": 969,
+      "warnings": 1066
+    },
+    "cal": {
+      "catch_rate": 0.3037542662116041,
+      "precision": 0.12718828152911754,
+      "csi": 0.09847856154910097,
+      "incoming_catch": 0.2847358121330724,
+      "hits": 356,
+      "false_alarms": 2443,
+      "misses": 816,
+      "warnings": 2799
+    },
+    "uncal": {
+      "catch_rate": 0.07337883959044368,
+      "precision": 0.16412213740458015,
+      "csi": 0.05341614906832298,
+      "incoming_catch": 0.08023483365949119,
+      "hits": 86,
+      "false_alarms": 438,
+      "misses": 1086,
+      "warnings": 524
+    },
+    "naive": {
+      "catch_rate": 0.12798634812286688,
+      "precision": 0.12853470437017994,
+      "csi": 0.06852444038373687,
+      "incoming_catch": 0.0,
+      "hits": 150,
+      "false_alarms": 1017,
+      "misses": 1022,
+      "warnings": 1167
+    }
+  },
+  "differences": {
+    "H_minus_extrap": {
+      "catch_rate": {
+        "diff": 0.20648464163822525,
+        "ci": [
+          0.061223038290707466,
+          0.35753760444128474
+        ]
+      },
+      "precision": {
+        "diff": -0.06080728433715582,
+        "ci": [
+          -0.10531987922382012,
+          -0.015556724007821031
+        ]
+      },
+      "csi": {
+        "diff": 0.0072168540918540885,
+        "ci": [
+          -0.027796105519509163,
+          0.05004963447432853
+        ]
+      },
+      "incoming_catch": {
+        "diff": 0.19667318982387477,
+        "ci": [
+          0.05919569444444444,
+          0.339109138710557
+        ]
+      }
+    },
+    "H_minus_cal": {
+      "catch_rate": {
+        "diff": 0.07593856655290099,
+        "ci": [
+          0.032853090684416,
+          0.12969433973735411
+        ]
+      },
+      "precision": {
+        "diff": 0.002435953833539034,
+        "ci": [
+          -0.015118278776680271,
+          0.028054313806221698
+        ]
+      },
+      "csi": {
+        "diff": 0.008492592297052876,
+        "ci": [
+          -0.004487314483783753,
+          0.027831723494794847
+        ]
+      },
+      "incoming_catch": {
+        "diff": 0.043052837573385516,
+        "ci": [
+          0.021109385437541775,
+          0.07128663777918691
+        ]
+      }
+    },
+    "cal_minus_uncal": {
+      "catch_rate": {
+        "diff": 0.23037542662116045,
+        "ci": [
+          0.05952199477351917,
+          0.4152928812874802
+        ]
+      },
+      "precision": {
+        "diff": -0.03693385587546261,
+        "ci": [
+          -0.1155115191704129,
+          0.02109736313430429
+        ]
+      },
+      "csi": {
+        "diff": 0.04506241248077798,
+        "ci": [
+          -0.011092832423079657,
+          0.11754044236623332
+        ]
+      },
+      "incoming_catch": {
+        "diff": 0.20450097847358123,
+        "ci": [
+          0.056242757409852975,
+          0.37512111607639936
+        ]
+      }
+    },
+    "extrap_minus_naive": {
+      "catch_rate": {
+        "diff": 0.045221843003412976,
+        "ci": [
+          -0.008475607241535725,
+          0.08862158260533087
+        ]
+      },
+      "precision": {
+        "diff": 0.061896815329632454,
+        "ci": [
+          -4.872446975709882e-05,
+          0.12602427832009888
+        ]
+      },
+      "csi": {
+        "diff": 0.031229859370562885,
+        "ci": [
+          -0.0021440509673587554,
+          0.06314949111440468
+        ]
+      },
+      "incoming_catch": {
+        "diff": 0.13111545988258316,
+        "ci": [
+          0.04335436637948469,
+          0.21401318165097982
+        ]
+      }
+    },
+    "H_minus_naive": {
+      "catch_rate": {
+        "diff": 0.25170648464163825,
+        "ci": [
+          0.07483944061928657,
+          0.4351997487774132
+        ]
+      },
+      "precision": {
+        "diff": 0.0010895309924766339,
+        "ci": [
+          -0.03584722373360865,
+          0.036724793204516694
+        ]
+      },
+      "csi": {
+        "diff": 0.03844671346241697,
+        "ci": [
+          -0.0028012448881562795,
+          0.1018309643877427
+        ]
+      },
+      "incoming_catch": {
+        "diff": 0.32778864970645794,
+        "ci": [
+          0.11098105946389178,
+          0.5447846061951399
+        ]
+      }
+    }
+  },
+  "seed_check": {
+    "ensembles": "ens_lead60_warm_ckpt_step_100000_s100000_n200_m8.npz",
+    "same_anchors": true,
+    "scores": {
+      "cal": {
+        "catch_rate": 0.34982935153583616,
+        "precision": 0.1413305756635643,
+        "csi": 0.11193011193011193,
+        "incoming_catch": 0.3150684931506849,
+        "hits": 410,
+        "false_alarms": 2491,
+        "misses": 762,
+        "warnings": 2901
+      },
+      "uncal": {
+        "catch_rate": 0.033276450511945395,
+        "precision": 0.06678082191780822,
+        "csi": 0.022714036109493303,
+        "incoming_catch": 0.036203522504892366,
+        "hits": 39,
+        "false_alarms": 545,
+        "misses": 1133,
+        "warnings": 584
+      },
+      "H": {
+        "catch_rate": 0.4061433447098976,
+        "precision": 0.13393359594822735,
+        "csi": 0.112,
+        "incoming_catch": 0.350293542074364,
+        "hits": 476,
+        "false_alarms": 3078,
+        "misses": 696,
+        "warnings": 3554
+      }
+    }
+  },
+  "verdict": "ADOPT EXTRAPOLATION ALONE",
+  "verdict_rule": "ADOPT H if CSI(H) - CSI(extrap) CI entirely above 0; otherwise extrapolation alone",
+  "drain_alerts_60min": {
+    "alerts": [
+      {
+        "day": "2026-09-18",
+        "site": "Punggol Way (slip road to TPE)",
+        "alert_sgt": "19:53",
+        "H_lead_min": 18,
+        "H_held": 0.75,
+        "H_background": 0.02,
+        "extrap_lead_min": 18,
+        "extrap_held": 0.75,
+        "extrap_background": 0.01,
+        "cal_lead_min": null,
+        "cal_held": null,
+        "cal_background": 0.01
+      },
+      {
+        "day": "2026-09-22",
+        "site": "Watten Drive",
+        "alert_sgt": "16:46",
+        "H_lead_min": 106,
+        "H_held": 0.6363636363636364,
+        "H_background": 0.025,
+        "extrap_lead_min": 61,
+        "extrap_held": 0.9230769230769231,
+        "extrap_background": 0.015,
+        "cal_lead_min": 106,
+        "cal_held": 0.5,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-22",
+        "site": "King's Road (from Prince Road to Lutheran Road)",
+        "alert_sgt": "16:47",
+        "H_lead_min": 72,
+        "H_held": 0.9333333333333333,
+        "H_background": 0.025,
+        "extrap_lead_min": 72,
+        "extrap_held": 0.9333333333333333,
+        "extrap_background": 0.015,
+        "cal_lead_min": 67,
+        "cal_held": 0.7142857142857143,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-22",
+        "site": "Hillcrest Rd (Watten Rise to Dunearn Rd)",
+        "alert_sgt": "16:52",
+        "H_lead_min": 112,
+        "H_held": 0.6956521739130435,
+        "H_background": 0.015,
+        "extrap_lead_min": 67,
+        "extrap_held": 0.9285714285714286,
+        "extrap_background": 0.01,
+        "cal_lead_min": 112,
+        "cal_held": 0.5217391304347826,
+        "cal_background": 0.015
+      },
+      {
+        "day": "2026-09-22",
+        "site": "Cluny Pk Rd (from Jln Kembang Melati to Bt Timah Rd)",
+        "alert_sgt": "16:54",
+        "H_lead_min": 74,
+        "H_held": 1.0,
+        "H_background": 0.025,
+        "extrap_lead_min": 69,
+        "extrap_held": 0.9285714285714286,
+        "extrap_background": 0.015,
+        "cal_lead_min": 74,
+        "cal_held": 0.8,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-22",
+        "site": "Coronation Road",
+        "alert_sgt": "17:03",
+        "H_lead_min": 88,
+        "H_held": 0.9444444444444444,
+        "H_background": 0.025,
+        "extrap_lead_min": 88,
+        "extrap_held": 0.9444444444444444,
+        "extrap_background": 0.015,
+        "cal_lead_min": 83,
+        "cal_held": 0.5882352941176471,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-22",
+        "site": "Punggol Way (slip road to TPE)",
+        "alert_sgt": "17:08",
+        "H_lead_min": 118,
+        "H_held": 0.6666666666666666,
+        "H_background": 0.02,
+        "extrap_lead_min": 23,
+        "extrap_held": 1.0,
+        "extrap_background": 0.01,
+        "cal_lead_min": 118,
+        "cal_held": 0.5416666666666666,
+        "cal_background": 0.01
+      },
+      {
+        "day": "2026-09-27",
+        "site": "East Coast Park Service Road",
+        "alert_sgt": "11:11",
+        "H_lead_min": 46,
+        "H_held": 0.9,
+        "H_background": 0.03,
+        "extrap_lead_min": 46,
+        "extrap_held": 0.6,
+        "extrap_background": 0.01,
+        "cal_lead_min": 46,
+        "cal_held": 0.9,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Bencoolen St",
+        "alert_sgt": "11:24",
+        "H_lead_min": 59,
+        "H_held": 0.8333333333333334,
+        "H_background": 0.04,
+        "extrap_lead_min": 59,
+        "extrap_held": 0.6666666666666666,
+        "extrap_background": 0.015,
+        "cal_lead_min": 59,
+        "cal_held": 0.75,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Alexandra Rd (Malan Rd to Pasir Panjang Rd)",
+        "alert_sgt": "11:26",
+        "H_lead_min": 61,
+        "H_held": 0.8461538461538461,
+        "H_background": 0.035,
+        "extrap_lead_min": 61,
+        "extrap_held": 0.46153846153846156,
+        "extrap_background": 0.01,
+        "cal_lead_min": 61,
+        "cal_held": 0.8461538461538461,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Mackenzie Rd (near Bt Timah Rd)",
+        "alert_sgt": "11:26",
+        "H_lead_min": 61,
+        "H_held": 0.9230769230769231,
+        "H_background": 0.04,
+        "extrap_lead_min": 61,
+        "extrap_held": 0.6153846153846154,
+        "extrap_background": 0.015,
+        "cal_lead_min": 61,
+        "cal_held": 0.7692307692307693,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Junction of Neo Pee Teck Lane and Pasir Panjang Rd",
+        "alert_sgt": "11:34",
+        "H_lead_min": 69,
+        "H_held": 0.7142857142857143,
+        "H_background": 0.04,
+        "extrap_lead_min": 69,
+        "extrap_held": 0.5,
+        "extrap_background": 0.015,
+        "cal_lead_min": 59,
+        "cal_held": 0.6666666666666666,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "AYE (Towards City) (near University Flyover)",
+        "alert_sgt": "11:43",
+        "H_lead_min": 73,
+        "H_held": 0.8,
+        "H_background": 0.035,
+        "extrap_lead_min": 48,
+        "extrap_held": 0.7,
+        "extrap_background": 0.015,
+        "cal_lead_min": 73,
+        "cal_held": 0.7333333333333333,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Jalan Boon Lay (from International Road to Enterprise Road)",
+        "alert_sgt": "11:49",
+        "H_lead_min": 79,
+        "H_held": 0.875,
+        "H_background": 0.035,
+        "extrap_lead_min": 29,
+        "extrap_held": 1.0,
+        "extrap_background": 0.01,
+        "cal_lead_min": 79,
+        "cal_held": 0.6875,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Service Road off Upper Paya Lebar Road (near Lim Teck Boo Road)",
+        "alert_sgt": "11:52",
+        "H_lead_min": 87,
+        "H_held": 0.8888888888888888,
+        "H_background": 0.055,
+        "extrap_lead_min": 82,
+        "extrap_held": 0.47058823529411764,
+        "extrap_background": 0.02,
+        "cal_lead_min": 87,
+        "cal_held": 0.8333333333333334,
+        "cal_background": 0.04
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Queen Astrid Park",
+        "alert_sgt": "11:52",
+        "H_lead_min": 82,
+        "H_held": 1.0,
+        "H_background": 0.025,
+        "extrap_lead_min": 82,
+        "extrap_held": 0.7058823529411765,
+        "extrap_background": 0.005,
+        "cal_lead_min": 77,
+        "cal_held": 0.75,
+        "cal_background": 0.025
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Service Road off Mountbatten Rd (near Jalan Seaview)",
+        "alert_sgt": "11:57",
+        "H_lead_min": 92,
+        "H_held": 0.8421052631578947,
+        "H_background": 0.045,
+        "extrap_lead_min": 72,
+        "extrap_held": 0.5333333333333333,
+        "extrap_background": 0.01,
+        "cal_lead_min": 92,
+        "cal_held": 0.6842105263157895,
+        "cal_background": 0.04
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Kg Java Rd (Newton Circus to CTE)",
+        "alert_sgt": "11:58",
+        "H_lead_min": 93,
+        "H_held": 0.8421052631578947,
+        "H_background": 0.04,
+        "extrap_lead_min": 93,
+        "extrap_held": 0.47368421052631576,
+        "extrap_background": 0.01,
+        "cal_lead_min": 93,
+        "cal_held": 0.6842105263157895,
+        "cal_background": 0.04
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Lor Gambir",
+        "alert_sgt": "12:00",
+        "H_lead_min": 95,
+        "H_held": 0.95,
+        "H_background": 0.055,
+        "extrap_lead_min": 90,
+        "extrap_held": 0.42105263157894735,
+        "extrap_background": 0.02,
+        "cal_lead_min": 95,
+        "cal_held": 0.9,
+        "cal_background": 0.04
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Bukit Timah Rd (near King Albert Park)",
+        "alert_sgt": "12:05",
+        "H_lead_min": 95,
+        "H_held": 0.95,
+        "H_background": 0.015,
+        "extrap_lead_min": 90,
+        "extrap_held": 0.8421052631578947,
+        "extrap_background": 0.0,
+        "cal_lead_min": 95,
+        "cal_held": 0.7,
+        "cal_background": 0.015
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Jln Pokok Serunai",
+        "alert_sgt": "12:06",
+        "H_lead_min": 101,
+        "H_held": 0.9047619047619048,
+        "H_background": 0.045,
+        "extrap_lead_min": 101,
+        "extrap_held": 0.42857142857142855,
+        "extrap_background": 0.03,
+        "cal_lead_min": 101,
+        "cal_held": 0.8095238095238095,
+        "cal_background": 0.03
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Sims Ave East",
+        "alert_sgt": "12:10",
+        "H_lead_min": 105,
+        "H_held": 0.8636363636363636,
+        "H_background": 0.045,
+        "extrap_lead_min": 105,
+        "extrap_held": 0.5909090909090909,
+        "extrap_background": 0.015,
+        "cal_lead_min": 105,
+        "cal_held": 0.8181818181818182,
+        "cal_background": 0.035
+      },
+      {
+        "day": "2026-09-27",
+        "site": "Punggol Way (slip road to TPE)",
+        "alert_sgt": "12:25",
+        "H_lead_min": 115,
+        "H_held": 0.9166666666666666,
+        "H_background": 0.02,
+        "extrap_lead_min": 75,
+        "extrap_held": 0.9375,
+        "extrap_background": 0.01,
+        "cal_lead_min": 115,
+        "cal_held": 0.6666666666666666,
+        "cal_background": 0.01
+      }
+    ],
+    "model_seed": 9000,
+    "summary": {
+      "H": {
+        "warned": 23,
+        "of": 23,
+        "median_lead_min": 87.0,
+        "storms_warned": 3
+      },
+      "extrap": {
+        "warned": 23,
+        "of": 23,
+        "median_lead_min": 69.0,
+        "storms_warned": 3
+      },
+      "cal": {
+        "warned": 22,
+        "of": 23,
+        "median_lead_min": 85.0,
+        "storms_warned": 2
+      }
+    },
+    "note": "context only: 3 storm days; alerts within a storm are not independent; background uses the grid box containing the site (the 7 x 7 px site box is centred on the site)"
+  },
+  "caveats": [
+    "About 12 test days and a few storms; per-box results are not independent.",
+    "The calibration grid is small and fixed in advance; validation is also only about 12 days.",
+    "Extrapolation uses the last 15 min of radar, the same inputs as the model, so it is available at forecast time with no extra delay."
+  ]
+}
