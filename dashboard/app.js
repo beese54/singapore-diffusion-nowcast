@@ -476,6 +476,14 @@ function evidence(D) {
     `yet: at 30 minutes it gave ${only.warnings.toLocaleString()} such warnings, ${only.came_true} came true — about ` +
     `${pc(only.share_of_all_heavy_rain)} of all downpours flagged before they arrived, which the naive forecast can never do — ` +
     `but ${pc(1 - only.precision)} of those early warnings were false alarms. At 60 and 90 minutes it is no better than the naive forecast.`;
+  const W60 = R.warning60;
+  if (W60) $('ev-warn-note').innerHTML +=
+    `<br><br><b>60 minutes ahead, use plain extrapolation for heavy-rain warnings.</b> Simply moving the latest radar map along ` +
+    `its recent motion catches ${pc(W60.extrap.catch_rate)} of downpours and is right ${pc(W60.extrap.precision)} of the time. ` +
+    `Re-tuning the AI model's warning rule (warn when ${W60.rule.k} of 8 futures show ${W60.rule.X} mm/hr) lifts its catch from ` +
+    `${pc(W60.uncal.catch_rate)} to ${pc(W60.cal.catch_rate)}, right ${pc(W60.cal.precision)} of the time — better, but still not ` +
+    `better than extrapolation, and the gain was not stable across random draws. Combining the two catches ${pc(W60.hybrid.catch_rate)} ` +
+    `but is right only ${pc(W60.hybrid.precision)} of the time.`;
 }
 
 function live() {

@@ -29,7 +29,7 @@ Screenshots from the [live dashboard](https://beese54.github.io/singapore-diffus
 | ![Overview: headline numbers and why flash-flood nowcasting matters](docs/img/dashboard/1_overview.jpg) | ![Flood explorer: at 10:35 on 27 Sep the AI model warns of heavy rain, the naive forecast does not, and heavy rain fell](docs/img/dashboard/2_flood_explorer_27sep.jpg) |
 | **Overview.** What the model does, the headline numbers, and why minutes matter. | **Would it have warned us?** The 10:35 forecast for the 27 Sep flood: the model warns (3 of 8 futures), the naive forecast doesn't, heavy rain came. |
 | ![Chart: the model's warning bars rise before the observed rain at the flood site](docs/img/dashboard/3_flood_site_chart_27sep.jpg) | ![Scorecard: catch rate and precision of heavy-rain warnings by lead time](docs/img/dashboard/4_when_it_warns_is_it_right.jpg) |
-| **Warnings before the rain.** Bars (model warnings) rise before the bold line (observed rain); red dashes mark the flood report. | **The honest scorecard.** 30 min ahead: catches 29% of downpours, right 1 time in 3 (27× chance); 60/90 min: no better than the naive forecast. |
+| **Warnings before the rain.** Bars (model warnings) rise before the bold line (observed rain); red dashes mark the flood report. | **The honest scorecard.** 30 min ahead: catches 29% of downpours, right 1 time in 3 (27× chance); 60/90 min: no better than the naive forecast (at 60 min, plain extrapolation is the better heavy-rain warning). |
 | ![Noise to rain: the diffusion model's 50-step denoising](docs/img/dashboard/5_noise_to_rain.jpg) | ![What comes next: NEA's 240 km radar and the Phase 2 plan](docs/img/dashboard/6_whats_next_240km_radar.jpg) |
 | **How it draws a forecast.** From random noise to a rain map in 50 steps, guided by the last 30 minutes of radar. | **What comes next.** The wider 240 km radar, satellite, NVIDIA CorrDiff, and PUB's drain-sensor alerts as flood ground truth. |
 
@@ -115,8 +115,12 @@ is written up with the evidence in [docs/LESSONS.md](docs/LESSONS.md).
   - the 240 km wide-range radar, extrapolated (collected, gap-watched and georeferenced from Sep 2026).
 - **Motion forecast as an extra input (done):** the 60-min model placed light rain better but still smoothed
   away heavy rain. For 60-min heavy-rain warnings, plain optical-flow extrapolation is better than any
-  diffusion model tried (catches 17% vs 7%). **Next:** a hybrid (extrapolation for heavy-rain warnings, the model
-  for probabilities) or calibrating the ensemble's heavy-rain probability.
+  diffusion model tried (catches 17% vs 7%).
+- **Warning calibration and a hybrid warning (done):** re-choosing the 60-min model's warning rule on validation
+  lifts its heavy-rain catch from 3% to 35% (CSI 0.02 → 0.11; fragile across random seeds), but it still does not
+  beat extrapolation. A hybrid of the two catches 38% but is right only 13% of the time, so it did not beat
+  extrapolation either. **Plain extrapolation is the recommended 60-min heavy-rain warning**; the diffusion model
+  stays the probability and rain-amount forecast ([Results §2b](docs/RESULTS.md)).
 - **Satellite (Himawari-9)**, to see clouds growing before they rain, following NVIDIA's Earth-2 Nowcasting design
   (StormScope: satellite + radar).
 - **Drain-alert benchmark:** done ([Results §3b](docs/RESULTS.md)); per-location flood model once alerts accumulate.

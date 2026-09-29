@@ -75,6 +75,26 @@ naive forecast overall; its distinctive contribution is warnings where the radar
 such warnings, 200 verified (24%) — 16% of all heavy-rain boxes flagged before arrival, at the cost of 76% false
 alarms among those. At 60/90 min it is no better than persistence for heavy rain.
 
+**Recalibrated warning rule and the recommended 60-min warning** (`scripts/warning_calibration.py`,
+`scripts/hybrid_warning.py` → `results/warning_calibration.json`, `results/hybrid_warning.json`). The model
+under-forecasts intensity, so its futures rarely reach 10 mm/hr. The rule "≥ k of 8 futures ≥ X mm/hr" was re-chosen
+by CSI (hits / (hits + false alarms + misses)) on validation (2–14 Sep) only, from X ∈ {3…10}, k ∈ {1…4}, then
+scored on the same test forecasts as the table above:
+
+| Lead | Rule chosen | CSI old → new [95% of diff] | Catches | Right | Adopted? |
+|---|---|---|---|---|---|
+| 30 | ≥4 of 8 ≥ 5 mm/hr | 0.18 → 0.21 [−0.03, +0.08] | 29% → 27% | 32% → 52% | no |
+| 60 | ≥2 of 8 ≥ 3 mm/hr | 0.02 → 0.11 [+0.02, +0.17] | 3% → **35%** | 7% → 14% | **yes** |
+| 90 | ≥2 of 8 ≥ 3 mm/hr | 0.04 → 0.09 [−0.00, +0.10] | 7% → 39% | 10% → 10% | no |
+
+The 60-min gain is **fragile**: on a second set of ensemble seeds it is in the same direction (CSI 0.05 → 0.10) but
+its CI includes 0, and 3 mm/hr is the lowest threshold tried. Even recalibrated, the model does not beat **plain
+optical-flow extrapolation**, which is the **recommended 60-min heavy-rain warning** (catches 17%, right 19%, CSI 0.10).
+A hybrid (warn if either extrapolation or the recalibrated model warns) catches 38% and flags 33% of incoming
+downpours vs 13%, but is right only 13% of the time; its CSI (0.107 vs 0.100, diff CI [−0.03, +0.05]) is not
+better, so under the rule fixed in advance it was not adopted. Before the 23 out-of-sample drain alerts (§3b) the
+hybrid warned for all 23 (median 87 min ahead) and extrapolation for all 23 (69 min); three storms, context only.
+
 ## 3. Recorded flash-flood events (out of sample only)
 
 Family D of `evaluate_probabilistic.py`. Ground truth: PUB flood alerts (Telegram), geocoded to the
@@ -170,3 +190,4 @@ Recorded in `results/ablations/` and `tasks/lessons.md`:
 | ERA5 weather vector fed to the 30-min model | Did not help: FSS ≥10 −0.076 [−0.095, −0.031] vs a same-budget control; the control itself was worse than the base (fine-tuning LR restart) | L032, L033, `results/era5_conditioning.json` |
 | Wide 240 km radar, extrapolated, as the missing heavy-rain information | NO-GO: catches no more incoming heavy rain than the same method on the 70 km footprint (60 min: −0.010 [−0.027, +0.008]). Incoming heavy rain mostly forms, not arrives. Side finding: that simple extrapolation beats the 60-min model on heavy rain | `tasks/plan_stage7_heavy_rain.md`, `results/spike_240km.json`, L034 |
 | Motion forecast as an extra input to the 60-min model | Better light-rain placement (FSS ≥2 +0.057 [+0.005, +0.090] vs control) but worse heavy rain (catch −0.014 [−0.026, −0.004]). Plain extrapolation catches 17% of heavy-rain boxes vs the model's 7% (catch difference −0.106 [−0.178, −0.029]): at 60 min the bottleneck is intensity, not information | `tasks/plan_motion_input.md`, `results/motion_input.json`, L035 |
+| Recalibrated heavy-rain warning rule; hybrid (extrapolation OR model) 60-min warning | 60-min rule adopted (catch 3% → 35%, CSI 0.02 → 0.11; fragile across seeds); 30/90 not adopted. The hybrid catches more (38% vs 17%) but is right less often (13% vs 19%): CSI not better than extrapolation, which stays the 60-min heavy-rain warning (§2b) | `tasks/plan_hybrid_calibration.md`, `results/warning_calibration.json`, `results/hybrid_warning.json` |

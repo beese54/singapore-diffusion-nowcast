@@ -14,6 +14,7 @@ per pixel:
 The radar is ~97% dry, so these compress to a few KB per frame.
 
 Inputs:  data/processed/radar.zarr, data/processed/eval_cache/case_<name>_lead*.npz, results/warning_skill.json,
+         results/warning_calibration.json, results/hybrid_warning.json,
          data/processed/flood_eval_dataset.parquet, data/processed/flood_prone_areas.geojson,
          results/*.json, checkpoints/nowcaster/ckpt_step_300000.pt (denoising demo, GPU optional)
 Output:  dashboard/data/*.png, dashboard/data/data.json, dashboard/data/radar240/*.png
@@ -221,6 +222,13 @@ def export_results() -> dict:
         res["flood_events"][str(L)]["excluded_in_sample"] = D["excluded_in_sample"]
     # plain-language warning skill (scripts/warning_skill.py)
     res["warning"] = json.loads((ROOT / "results" / "warning_skill.json").read_text())["by_lead"]
+    # recalibrated 60-min rule and the hybrid comparison (scripts/warning_calibration.py, hybrid_warning.py)
+    cal = json.loads((ROOT / "results" / "warning_calibration.json").read_text())["by_lead"]["60"]
+    hyb = json.loads((ROOT / "results" / "hybrid_warning.json").read_text())
+    res["warning60"] = {"rule": cal["chosen"], "verdict": cal["verdict"],
+                        "cal": cal["test"]["calibrated"], "uncal": cal["test"]["uncalibrated"],
+                        "extrap": hyb["scores"]["extrap"], "hybrid": hyb["scores"]["H"],
+                        "hybrid_verdict": hyb["verdict"]}
     return res
 
 
