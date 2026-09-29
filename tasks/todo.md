@@ -24,7 +24,7 @@
 - [ ] D2 Rain-gauge API history depth (data.gov.sg)
 - [x] D3 Stage 7 Step 1 spike (2026-09-28): **NO-GO** — wide-view extrapolation catches no more incoming heavy rain than the 70 km footprint (results/spike_240km.json). Side finding: DIS extrapolation beats the 60-min model on heavy rain -> next candidate: motion-aware input (needs a plan). Satellite next for initiation.
 - [x] Motion input for the 60-min model (2026-09-29): **DO NOT KEEP** — light rain better, heavy rain worse vs control; plain extrapolation beats every model on 60-min heavy-rain warnings (results/motion_input.json). Next candidates: hybrid warning (extrapolation + model) or heavy-rain probability calibration; satellite.
-- [ ] Heavy-rain warning calibration (item 2) + hybrid 60-min warning (item 1): plan `tasks/plan_hybrid_calibration.md` written 2026-09-29 — user asked to plan only; **awaiting go-ahead after the laptop restart**. No training involved.
+- [ ] Heavy-rain warning calibration (item 2) + hybrid 60-min warning (item 1): plan `tasks/plan_hybrid_calibration.md` approved 2026-09-29. Code: `scripts/warning_calibration.py`, `scripts/hybrid_warning.py`; running detached via `scripts/run_warning_calibration.bat` (log `logs/warning_calibration.log`; re-launch after a shutdown resumes).
 
 > **RESUME HERE (2026-09-29, before a shutdown):** nothing is running and every result is committed and pushed. Collection resumes on its own through the scheduled tasks. After a restart, run `python scripts/check_radar_gaps.py --status`: gaps younger than 120 h heal automatically, and older 240 km gaps show a fix command. Next: get approval for `tasks/plan_hybrid_calibration.md`, then implement it. Satellite (Himawari-9) comes after that.
 

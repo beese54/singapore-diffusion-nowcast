@@ -77,6 +77,8 @@ def forecasts_for_day(model, da, times, day, issue, seed):
     if cache.exists():
         z = np.load(cache)
         if np.array_equal(z["issue"], issue):
+            if int(z["lead_steps"]) != model.target_offset:            # same day+seed, other model
+                sys.exit(f"{cache.name} holds {int(z['lead_steps'])}-step forecasts; use another --seed")
             return z["ens"].astype(np.float32)
     off, cf = model.target_offset, model.data_cfg["context_frames"]
     tc = model.data_cfg["time_channels"]
