@@ -123,3 +123,83 @@ A learned 2A warning is cheap to run live: CPU only, milliseconds per issue time
 
 **Effort:** ~6 h of unattended download, ~½ day of code and tests, and minutes of CPU to train and score. No GPU, no cloud
 spend.
+
+## Step 2A verdict (2026-09-30): **DO NOT KEEP**. Extrapolation stays the 60-min heavy-rain warning
+
+`scripts/satellite_warning.py` → `results/satellite_warning.json` (the rule above was fixed before training).
+
+**Data used.**
+- Train: 27 May – 2 Sep, 12,236 issue times. Radar before 27 May did not form complete 60-min samples.
+- Validation: 1,664 issue times. Test: 1,671 issue times over 12 days.
+- The satellite image was usable at 100% of train and validation issue times, and 99.5% of test.
+- Heavy-rain base rate on test: 1.1% of boxes.
+- Both arms chose depth 3, learning rate 0.05, 200 iterations. Validation weighted log-loss: L_R 0.534, L_RS 0.485.
+
+**Test, matched volume** (the threshold is set so each classifier issues as many warnings as E did on validation, 4,767):
+
+| | catch | precision | CSI | incoming catch | warnings |
+|---|---|---|---|---|---|
+| L_R (radar only) | 0.9% | 2.4% | 0.007 | 0.8% | 3,602 |
+| L_RS (radar + satellite) | 2.7% | 8.3% | 0.021 | 2.7% | 3,179 |
+| E (extrapolation) | **16.1%** | **18.0%** | **0.093** | **12.1%** | 8,688 |
+| naive (persistence) | 12.5% | 12.5% | 0.067 | 0% | 9,735 |
+
+**KEEP criteria** (bootstrap over test days):
+
+| criterion | result | met? |
+|---|---|---|
+| CSI(L_RS) − CSI(L_R), CI above 0 | +0.014 [−0.000, +0.025] | no |
+| CSI(L_RS) − CSI(E), CI above 0 | −0.072 [−0.112, −0.005] | no |
+| precision(L_RS) ≥ precision(E) − 2 points | 8.3% vs 18.0% | no |
+
+**Twice the volume (context).** L_RS reaches CSI 0.044 and L_R 0.018; E is 0.093.
+- L_RS − L_R: CSI +0.026 [+0.012, +0.031].
+- L_RS − E: CSI −0.049 [−0.089, +0.013].
+
+**Feature importance** (permutation importance on validation, L_RS). The top four were:
+1. coldest cloud top within 30 km (0.152)
+2. hour (cos) (0.148)
+3. extrapolated rain within 10 km (0.057)
+4. water-vapour minus infrared, the overshooting-top signal (0.040)
+
+Cooling rates were near zero (≤ 0.006). The model used "is deep cold cloud nearby", not "is a storm growing".
+
+**Reliability.** The class-balanced probabilities are not calibrated: the top decile averages p 0.79 while its observed
+rate is 4–5%. They are useful for ranking only, which is all the matched-volume rule uses.
+
+**Why the classifiers failed: time of day.** Their top 3,000 test warnings all fall at 03–12 SGT, while test heavy
+rain fell mostly at 12–17 SGT. The hour-of-day features let the models learn the training months' timing
+(Southwest-Monsoon pre-dawn and morning squalls), which did not hold in mid-September. Class-balanced weights
+reward broad separation of the classes (validation AUC 0.81), not precision at the very top. Only 8–9% of the top
+warnings fell where E warns.
+
+**Post-hoc check (cannot change the verdict).** `scripts/satellite_warning_posthoc.py` →
+`results/satellite_warning_posthoc.json`. The same models were rerun with the hour features removed, with the same hyperparameters and no re-tuning:
+
+| no hour features, matched volume | catch | precision | CSI |
+|---|---|---|---|
+| L_R | 10.0% | 12.8% | 0.060 |
+| L_RS | 9.7% | 13.5% | 0.060 |
+| E | 16.1% | 18.0% | 0.093 |
+
+- L_RS − L_R: CSI **+0.000 [−0.023, +0.024]**.
+- L_RS − E: CSI −0.033 [−0.081, +0.028].
+- Without class weighting the result is the same (L_RS − L_R CSI +0.001 [−0.025, +0.032]).
+
+With the flaw removed, the satellite adds **nothing** a classifier can use at matched volume, and neither
+classifier beats plain extrapolation.
+
+**Reading.**
+- The spike's gain (incoming catch +28 points) came from warning over a wider area, as L036 warned. At equal
+  warning volume, the Himawari features that the spike and 2A tried do not add heavy-rain skill at 60 min over
+  radar.
+- They do carry information: L_RS beats L_R at 2× volume, and cold cloud is the top feature. But what they know
+  (deep convection nearby) overlaps with what extrapolation already knows, and it is too coarse to pick the box.
+- A 12-day test with a handful of storm days leaves wide CIs. Nothing here rules out a small effect.
+
+**Decision.**
+- Step 2B (the diffusion arm) is not run: its precondition (2A KEEP) failed.
+- Step 3 (real-time collection) is not built.
+- Satellite work pauses. It is worth revisiting only with a longer and more varied record, such as the Northeast
+  Monsoon, and with no clock features, or with the clock features validated across seasons.
+- The Himawari cache (~0.5 GB, 21 May – 27 Sep) is kept, so a retry needs no new download.

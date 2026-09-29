@@ -1,0 +1,555 @@
+{
+  "plan": "tasks/plan_satellite_step2.md",
+  "definitions": "labels, E, incoming and initiation are exactly those of scripts/satellite_spike.py:\n    heavy        observed >= 10 mm/hr in the box at issue + 65 min\n    E            DIS optical-flow extrapolation shows >= 10 mm/hr in the box\nFeatures use only data available at issue t: radar frames <= t, satellite scans that started\n<= t - 20 min (src/data/satellite.py usable_scan), parallax shift from results/satellite_spike.json.\n\nModels: HistGradientBoostingClassifier, class-balanced weights, trained on the TRAIN split with\nnegatives subsampled to 25% (seeded). Hyperparameters from a small grid, chosen on VALIDATION by\nweighted log-loss. TEST is scored once, after everything is frozen.\n\nMatched volume (L036): each classifier warns where p >= a threshold set on VALIDATION so that it\nissues exactly as many warnings as E does on validation; that threshold is frozen for test.\n\nKEEP (fixed in the plan, before training), on test, 95% CIs by bootstrap over days (L031):\n    1. CSI(L_RS) - CSI(L_R) CI above 0      (the gain is the satellite's)\n    2. CSI(L_RS) - CSI(E)   CI above 0      (it beats today's 60-min warning)\n    3. precision(L_RS) >= precision(E) - 0.02",
+  "features": {
+    "radar": [
+      "ex_box",
+      "ex_near10",
+      "now_box",
+      "now_near10",
+      "wet_frac10",
+      "hour_sin",
+      "hour_cos"
+    ],
+    "satellite": [
+      "bt_min10",
+      "bt_min30",
+      "cool20_min10",
+      "cool30_min10",
+      "wv_minus_ir_max10",
+      "cold_frac30",
+      "cold_frac30_change20"
+    ]
+  },
+  "parallax_shift_px": [
+    3,
+    -8
+  ],
+  "periods": {
+    "train": [
+      "2026-05-27T19:30",
+      "2026-09-02T05:40",
+      12236
+    ],
+    "val": [
+      "2026-09-02T06:50",
+      "2026-09-14T02:10",
+      1664
+    ],
+    "test": [
+      "2026-09-14T03:20",
+      "2026-09-25T22:50",
+      1671
+    ]
+  },
+  "base_rate_test": 0.011026359927187415,
+  "satellite_usable": {
+    "train": 1.0,
+    "val": 1.0,
+    "test": 0.995212447636146
+  },
+  "chosen": {
+    "L_R": {
+      "params": {
+        "max_depth": 3,
+        "learning_rate": 0.05,
+        "max_iter": 200
+      },
+      "val_weighted_log_loss": 0.5337851296118172
+    },
+    "L_RS": {
+      "params": {
+        "max_depth": 3,
+        "learning_rate": 0.05,
+        "max_iter": 200
+      },
+      "val_weighted_log_loss": 0.4850371417584248
+    }
+  },
+  "E_warnings_val": 4767,
+  "operating_points": {
+    "matched": {
+      "thresholds": {
+        "L_R": 0.9271863974211538,
+        "L_RS": 0.9174443830267393
+      },
+      "val_warnings": {
+        "L_R": 4767,
+        "L_RS": 4767
+      },
+      "scores": {
+        "L_R": {
+          "catch_rate": 0.008856848609680742,
+          "precision": 0.02387562465297057,
+          "csi": 0.006502343868138515,
+          "incoming_catch": 0.008475573866980576,
+          "initiation_catch": 0.0,
+          "hits": 86,
+          "false_alarms": 3516,
+          "misses": 9624,
+          "warnings": 3602,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_RS": {
+          "catch_rate": 0.027085478887744593,
+          "precision": 0.08273041837055678,
+          "csi": 0.020830033264691905,
+          "incoming_catch": 0.027192466156562685,
+          "initiation_catch": 0.0,
+          "hits": 263,
+          "false_alarms": 2916,
+          "misses": 9447,
+          "warnings": 3179,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "E": {
+          "catch_rate": 0.16065911431513905,
+          "precision": 0.17955801104972377,
+          "csi": 0.09264758284831928,
+          "incoming_catch": 0.12077692760447321,
+          "initiation_catch": 0.0,
+          "hits": 1560,
+          "false_alarms": 7128,
+          "misses": 8150,
+          "warnings": 8688,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "naive": {
+          "catch_rate": 0.12512873326467558,
+          "precision": 0.12480739599383667,
+          "csi": 0.0666483817882611,
+          "incoming_catch": 0.0,
+          "initiation_catch": 0.0,
+          "hits": 1215,
+          "false_alarms": 8520,
+          "misses": 8495,
+          "warnings": 9735,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        }
+      },
+      "differences": {
+        "L_RS_minus_L_R": {
+          "catch_rate": {
+            "diff": 0.018228630278063852,
+            "ci": [
+              -0.0005666631888469139,
+              0.03636550741086763
+            ]
+          },
+          "precision": {
+            "diff": 0.05885479371758621,
+            "ci": [
+              0.0008790581571843392,
+              0.08443792260492876
+            ]
+          },
+          "csi": {
+            "diff": 0.01432768939655339,
+            "ci": [
+              -0.00029321248217237505,
+              0.02514379928344911
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.018716892289582107,
+            "ci": [
+              -0.00062465708400894,
+              0.03633221388484638
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_RS_minus_E": {
+          "catch_rate": {
+            "diff": -0.13357363542739445,
+            "ci": [
+              -0.19346708006669433,
+              -0.019280666884900214
+            ]
+          },
+          "precision": {
+            "diff": -0.09682759267916699,
+            "ci": [
+              -0.1680176635668487,
+              0.011686173443334754
+            ]
+          },
+          "csi": {
+            "diff": -0.07181754958362738,
+            "ci": [
+              -0.11185318287605399,
+              -0.004617162715707081
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.09358446144791052,
+            "ci": [
+              -0.14060450993777,
+              -0.0007604449872150162
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_R_minus_E": {
+          "catch_rate": {
+            "diff": -0.1518022657054583,
+            "ci": [
+              -0.20790644026063893,
+              -0.05004641316871549
+            ]
+          },
+          "precision": {
+            "diff": -0.1556823863967532,
+            "ci": [
+              -0.22061132587542898,
+              -0.05436781987701314
+            ]
+          },
+          "csi": {
+            "diff": -0.08614523898018077,
+            "ci": [
+              -0.12314576075763686,
+              -0.027646882939384547
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.11230135373749264,
+            "ci": [
+              -0.15352520381802065,
+              -0.03174795415218675
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      }
+    },
+    "2x": {
+      "thresholds": {
+        "L_R": 0.8929029671637251,
+        "L_RS": 0.8738414502297144
+      },
+      "val_warnings": {
+        "L_R": 9534,
+        "L_RS": 9534
+      },
+      "scores": {
+        "L_R": {
+          "catch_rate": 0.03305870236869207,
+          "precision": 0.03849382419954431,
+          "csi": 0.018106949458483755,
+          "incoming_catch": 0.032254267216009415,
+          "initiation_catch": 0.0,
+          "hits": 321,
+          "false_alarms": 8018,
+          "misses": 9389,
+          "warnings": 8339,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_RS": {
+          "catch_rate": 0.08856848609680741,
+          "precision": 0.07974777448071217,
+          "csi": 0.043801568707344404,
+          "incoming_catch": 0.08875809299587993,
+          "initiation_catch": 0.0,
+          "hits": 860,
+          "false_alarms": 9924,
+          "misses": 8850,
+          "warnings": 10784,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "E": {
+          "catch_rate": 0.16065911431513905,
+          "precision": 0.17955801104972377,
+          "csi": 0.09264758284831928,
+          "incoming_catch": 0.12077692760447321,
+          "initiation_catch": 0.0,
+          "hits": 1560,
+          "false_alarms": 7128,
+          "misses": 8150,
+          "warnings": 8688,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "naive": {
+          "catch_rate": 0.12512873326467558,
+          "precision": 0.12480739599383667,
+          "csi": 0.0666483817882611,
+          "incoming_catch": 0.0,
+          "initiation_catch": 0.0,
+          "hits": 1215,
+          "false_alarms": 8520,
+          "misses": 8495,
+          "warnings": 9735,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        }
+      },
+      "differences": {
+        "L_RS_minus_L_R": {
+          "catch_rate": {
+            "diff": 0.05550978372811534,
+            "ci": [
+              0.02417129885150018,
+              0.08058251455051892
+            ]
+          },
+          "precision": {
+            "diff": 0.041253950281167864,
+            "ci": [
+              0.02182788608905034,
+              0.05572373120220788
+            ]
+          },
+          "csi": {
+            "diff": 0.02569461924886065,
+            "ci": [
+              0.011973722905984814,
+              0.031211546506957212
+            ]
+          },
+          "incoming_catch": {
+            "diff": 0.056503825779870516,
+            "ci": [
+              0.0223878309250803,
+              0.07721790465219606
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_RS_minus_E": {
+          "catch_rate": {
+            "diff": -0.07209062821833163,
+            "ci": [
+              -0.14746368606389315,
+              0.06963302428790695
+            ]
+          },
+          "precision": {
+            "diff": -0.0998102365690116,
+            "ci": [
+              -0.1581913455315878,
+              -0.0014803398577828823
+            ]
+          },
+          "csi": {
+            "diff": -0.04884601414097488,
+            "ci": [
+              -0.08916837154119397,
+              0.012817865276787138
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.03201883460859328,
+            "ci": [
+              -0.08758238030789657,
+              0.07239849296300906
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_R_minus_E": {
+          "catch_rate": {
+            "diff": -0.12760041194644697,
+            "ci": [
+              -0.1923352334068874,
+              -0.0007556081244528847
+            ]
+          },
+          "precision": {
+            "diff": -0.14106418685017946,
+            "ci": [
+              -0.2078370899815439,
+              -0.032347557811194215
+            ]
+          },
+          "csi": {
+            "diff": -0.07454063338983552,
+            "ci": [
+              -0.11477707314524632,
+              -0.011422886437630448
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.08852266038846379,
+            "ci": [
+              -0.14022527018814493,
+              0.013487699019063623
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      }
+    }
+  },
+  "keep_criteria": {
+    "csi_L_RS_minus_L_R_ci_above_0": false,
+    "csi_L_RS_minus_E_ci_above_0": false,
+    "precision_floor": false
+  },
+  "verdict": "DO NOT KEEP",
+  "verdict_rule": "KEEP at matched volume if CSI(L_RS)-CSI(L_R) CI > 0 AND CSI(L_RS)-CSI(E) CI > 0 AND precision(L_RS) >= precision(E) - 0.02 (bootstrap over test days)",
+  "reliability_test": {
+    "L_R": [
+      {
+        "p_mean": 0.13427292653144687,
+        "observed": 0.004145089488507314,
+        "n": 88056
+      },
+      {
+        "p_mean": 0.225753656147417,
+        "observed": 0.005054750329410696,
+        "n": 88036
+      },
+      {
+        "p_mean": 0.3002845397556531,
+        "observed": 0.003405685223867042,
+        "n": 88088
+      },
+      {
+        "p_mean": 0.3648826456602177,
+        "observed": 0.004530950136836965,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.4229992902152982,
+        "observed": 0.005257360872971715,
+        "n": 88067
+      },
+      {
+        "p_mean": 0.46853989962913334,
+        "observed": 0.00641637140001817,
+        "n": 88056
+      },
+      {
+        "p_mean": 0.5148070164659797,
+        "observed": 0.007971565810839966,
+        "n": 88063
+      },
+      {
+        "p_mean": 0.5773644441869769,
+        "observed": 0.012242209503043517,
+        "n": 88056
+      },
+      {
+        "p_mean": 0.6622826630924924,
+        "observed": 0.01819070682265198,
+        "n": 87957
+      },
+      {
+        "p_mean": 0.7854308681917884,
+        "observed": 0.04301575240709028,
+        "n": 88177
+      }
+    ],
+    "L_RS": [
+      {
+        "p_mean": 0.1465358973465592,
+        "observed": 0.0010106630631039847,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.23207957916222374,
+        "observed": 0.0025323355401369505,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.29335588606367863,
+        "observed": 0.003531562631298048,
+        "n": 88063
+      },
+      {
+        "p_mean": 0.3485775750116741,
+        "observed": 0.004576321228225568,
+        "n": 88062
+      },
+      {
+        "p_mean": 0.4031367068609237,
+        "observed": 0.006234314849933569,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.4576426433691268,
+        "observed": 0.007426670149101191,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.516057998731472,
+        "observed": 0.008755095783700305,
+        "n": 88063
+      },
+      {
+        "p_mean": 0.5803088078526933,
+        "observed": 0.010594928515460874,
+        "n": 88061
+      },
+      {
+        "p_mean": 0.656295745264644,
+        "observed": 0.017112943153687176,
+        "n": 88062
+      },
+      {
+        "p_mean": 0.7887610731313924,
+        "observed": 0.048488564874747335,
+        "n": 88062
+      }
+    ]
+  },
+  "permutation_importance_val": {
+    "bt_min30": 0.15156014417317928,
+    "hour_cos": 0.1479237039686688,
+    "ex_near10": 0.05676304369954677,
+    "wv_minus_ir_max10": 0.03968563837148187,
+    "now_near10": 0.019164964832837177,
+    "now_box": 0.009628077277994121,
+    "cold_frac30_change20": 0.006403072352166232,
+    "cool20_min10": 0.006344200400644391,
+    "wet_frac10": 0.0035341138545613346,
+    "cool30_min10": 0.0019599210367732267,
+    "ex_box": -0.00410500309227287,
+    "hour_sin": -0.00837470856387664,
+    "cold_frac30": -0.01807544829671563,
+    "bt_min10": -0.0231349642587169
+  }
+}

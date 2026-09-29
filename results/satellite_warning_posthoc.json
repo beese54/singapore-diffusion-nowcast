@@ -1,0 +1,248 @@
+{
+  "note": "POST-HOC diagnostic; the pre-registered Step 2A verdict is in results/satellite_warning.json",
+  "params": {
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "max_iter": 200
+  },
+  "variants": {
+    "no_hour": {
+      "scores": {
+        "E": {
+          "catch_rate": 0.16065911431513905,
+          "precision": 0.17955801104972377,
+          "csi": 0.09264758284831928,
+          "incoming_catch": 0.12077692760447321,
+          "initiation_catch": 0.0,
+          "hits": 1560,
+          "false_alarms": 7128,
+          "misses": 8150,
+          "warnings": 8688,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_R": {
+          "catch_rate": 0.10030895983522142,
+          "precision": 0.12790544977019042,
+          "csi": 0.059568222127087025,
+          "incoming_catch": 0.1098293113596233,
+          "initiation_catch": 0.0,
+          "hits": 974,
+          "false_alarms": 6641,
+          "misses": 8736,
+          "warnings": 7615,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_RS": {
+          "catch_rate": 0.09680741503604531,
+          "precision": 0.13474770642201836,
+          "csi": 0.05969770100342944,
+          "incoming_catch": 0.09711595055915244,
+          "initiation_catch": 0.0,
+          "hits": 940,
+          "false_alarms": 6036,
+          "misses": 8770,
+          "warnings": 6976,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        }
+      },
+      "differences": {
+        "L_RS_minus_L_R": {
+          "catch_rate": {
+            "diff": -0.0035015447991761095,
+            "ci": [
+              -0.045132825837130824,
+              0.045398731932053224
+            ]
+          },
+          "precision": {
+            "diff": 0.006842256651827944,
+            "ci": [
+              -0.03873299916275677,
+              0.046287076767471486
+            ]
+          },
+          "csi": {
+            "diff": 0.00012947887634241761,
+            "ci": [
+              -0.023191585413415258,
+              0.024356293709382623
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.012713360800470863,
+            "ci": [
+              -0.05049046478875668,
+              0.03180145024438957
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_RS_minus_E": {
+          "catch_rate": {
+            "diff": -0.06385169927909373,
+            "ci": [
+              -0.1458260561856798,
+              0.06057380571412598
+            ]
+          },
+          "precision": {
+            "diff": -0.04481030462770541,
+            "ci": [
+              -0.11702564190051669,
+              0.042190647368905446
+            ]
+          },
+          "csi": {
+            "diff": -0.03294988184488984,
+            "ci": [
+              -0.08110381675430617,
+              0.028166878695293333
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.023660977045320775,
+            "ci": [
+              -0.08441102569047013,
+              0.06298333400386223
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      }
+    },
+    "no_hour_unweighted": {
+      "scores": {
+        "E": {
+          "catch_rate": 0.16065911431513905,
+          "precision": 0.17955801104972377,
+          "csi": 0.09264758284831928,
+          "incoming_catch": 0.12077692760447321,
+          "initiation_catch": 0.0,
+          "hits": 1560,
+          "false_alarms": 7128,
+          "misses": 8150,
+          "warnings": 8688,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_R": {
+          "catch_rate": 0.1015447991761071,
+          "precision": 0.11526771101239186,
+          "csi": 0.057066790137747424,
+          "incoming_catch": 0.11171277221895233,
+          "initiation_catch": 0.0,
+          "hits": 986,
+          "false_alarms": 7568,
+          "misses": 8724,
+          "warnings": 8554,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        },
+        "L_RS": {
+          "catch_rate": 0.09340885684860968,
+          "precision": 0.1327576112412178,
+          "csi": 0.058010873041253595,
+          "incoming_catch": 0.09429075927015891,
+          "initiation_catch": 0.0,
+          "hits": 907,
+          "false_alarms": 5925,
+          "misses": 8803,
+          "warnings": 6832,
+          "incoming_boxes": 8495,
+          "initiation_boxes": 132
+        }
+      },
+      "differences": {
+        "L_RS_minus_L_R": {
+          "catch_rate": {
+            "diff": -0.008135942327497425,
+            "ci": [
+              -0.04672908998823616,
+              0.05136967605058184
+            ]
+          },
+          "precision": {
+            "diff": 0.017489900228825933,
+            "ci": [
+              -0.03660991177489349,
+              0.0686698881128085
+            ]
+          },
+          "csi": {
+            "diff": 0.0009440829035061715,
+            "ci": [
+              -0.025012377821357845,
+              0.03217343757825104
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.01742201294879342,
+            "ci": [
+              -0.055987525332220074,
+              0.0391012266610734
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "L_RS_minus_E": {
+          "catch_rate": {
+            "diff": -0.06725025746652936,
+            "ci": [
+              -0.15214430822565092,
+              0.059437562944116944
+            ]
+          },
+          "precision": {
+            "diff": -0.04680039980850598,
+            "ci": [
+              -0.12508855581127715,
+              0.04301755954430998
+            ]
+          },
+          "csi": {
+            "diff": -0.03463670980706569,
+            "ci": [
+              -0.08458116890070358,
+              0.028089968353337963
+            ]
+          },
+          "incoming_catch": {
+            "diff": -0.026486168334314303,
+            "ci": [
+              -0.09123953737443313,
+              0.06347324247909952
+            ]
+          },
+          "initiation_catch": {
+            "diff": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      }
+    }
+  }
+}
