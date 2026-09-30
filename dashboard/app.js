@@ -359,10 +359,13 @@ async function explorer(D) {
     `<span>Rain (mm/hr): 0.5<span class="bar">${rainBar}</span>100</span>` +
     `<span>Chance of ≥10 mm/hr: 0%<span class="bar">${probBar}</span>100%</span>` +
     `<span>□ flood site (2 × 2 km) · <span style="color:#ff3b30">○</span> flash flood reported · <span style="color:#3aa9c8">○</span> PUB flood-prone location</span>`;
+  chartLegend();
 }
 
 function chart(c, L, k) {
-  const W = 720, H = 240, m = { l: 40, r: 44, t: 26, b: 26 };
+  // Narrow screens shrink the 720-unit chart about 2x, so callouts are drawn larger there.
+  const narrow = ($('ex-chart').clientWidth || 720) < 560, fs = narrow ? 20 : 12;
+  const W = 720, H = narrow ? 290 : 270, m = { l: 40, r: 44, t: narrow ? 70 : 52, b: 26 };  // top margin holds the moving callouts
   const t0 = toMin(c.obs_times[0]), t1 = toMin(c.obs_times[c.obs_times.length - 1]);
   const X = (t) => m.l + (toMin(t) - t0) / (t1 - t0) * (W - m.l - m.r);
   const ymax = Math.max(40, ...c.obs_site, ...L.site_max) * 1.08;
@@ -379,8 +382,8 @@ function chart(c, L, k) {
     const hh = String(Math.floor(t / 60)).padStart(2, '0') + ':00';
     s.appendChild(svgEl('text', { x: X(hh), y: H - 8, 'text-anchor': 'middle' }, hh));
   }
-  s.appendChild(svgEl('text', { x: m.l - 6, y: 12, 'text-anchor': 'end' }, 'mm/hr'));
-  s.appendChild(svgEl('text', { x: W - m.r + 6, y: 12 }, 'P(≥10)'));
+  s.appendChild(svgEl('text', { x: m.l - 6, y: m.t - 10, 'text-anchor': 'end' }, 'mm/hr'));
+  s.appendChild(svgEl('text', { x: W - m.r + 6, y: m.t - 10 }, 'P(≥10)'));
   // probability bars
   L.targets.forEach((t, i) => {
     const h = YP(0) - YP(L.site_p10[i]);
@@ -401,14 +404,76 @@ function chart(c, L, k) {
   for (const r of c.reports.filter((r) => r.type === 'FLASH_FLOOD')) {
     s.appendChild(svgEl('line', { x1: X(r.time), x2: X(r.time), y1: m.t, y2: H - m.b, stroke: '#ff3b30', 'stroke-dasharray': '3 3' }));
   }
-  s.appendChild(svgEl('line', { x1: X(L.targets[k]), x2: X(L.targets[k]), y1: m.t, y2: H - m.b, stroke: 'var(--accent)', 'stroke-width': 1.5 }));
-  s.appendChild(svgEl('line', { x1: X(L.issued[k]), x2: X(L.issued[k]), y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '2 4' }));
+  const xt = X(L.targets[k]), xi = X(L.issued[k]);
+  s.appendChild(svgEl('line', { x1: xt, x2: xt, y1: m.t, y2: H - m.b, stroke: 'var(--accent)', 'stroke-width': 1.5 }));
+  s.appendChild(svgEl('line', { x1: xi, x2: xi, y1: m.t, y2: H - m.b, stroke: 'var(--muted)', 'stroke-dasharray': '2 4' }));
+  annotate(s, { W, m, fs, narrow, xt, xi, target: L.targets[k], issued: L.issued[k],
+    fell: c.obs_site[L.target_obs_index[k]], expected: L.site_median[k], p: L.site_p10[k],
+    yFell: Y(c.obs_site[L.target_obs_index[k]]), yExp: Y(L.site_median[k]), yBar: YP(L.site_p10[k]) });
   $('ex-chart').replaceChildren(s);
-  $('ex-chart-cap').innerHTML = `<b>How to read this chart:</b> the bold line is the rain that actually fell at ${c.site.name}. ` +
-    `The coloured bars are the model's warning for each time: how many of its 8 futures showed heavy rain there (taller = more sure). ` +
-    `The blue line and band are the rain amounts it expected. The solid blue marker is the forecast you selected; the dotted grey one is ` +
-    `when that forecast was made; the red dashed line is the flash-flood report. <b>Look for bars that rise before the bold line does:</b> ` +
-    `that is a warning given in advance.`;
+  $('ex-chart').setAttribute('aria-label', `Rain at ${c.site.name}: forecast for ${L.targets[k]} made at ${L.issued[k]}; ` +
+    `${Math.round(L.site_p10[k] * 8)} of 8 futures warn; expected ${Math.round(L.site_median[k])} mm/hr, ` +
+    `fell ${Math.round(c.obs_site[L.target_obs_index[k]])} mm/hr`);
+}
+
+// Callouts that follow the selected forecast while the chart plays: labels with
+// arrows on the two vertical markers (top margin), and pointers to the three
+// values that change (observed rain, the model's expected rain, the warning bar).
+function annotate(s, a) {
+  const { W, m, xt, xi, fs } = a, gap = fs + 3;
+  const fits = (x, w) => (x + w / 2 > W - m.r ? 'end' : x - w / 2 < m.l ? 'start' : 'middle');
+  const drop = (x, y, text, color, bold) => {           // label above, arrow down to the plot top
+    s.appendChild(svgEl('text', { x, y, 'text-anchor': fits(x, text.length * fs * 0.55), class: 'callout',
+      style: `fill:${color};font-size:${fs}px${bold ? ';font-weight:600' : ''}` }, text));
+    s.appendChild(svgEl('line', { x1: x, x2: x, y1: y + 4, y2: m.t - 5, stroke: color, 'stroke-width': 1.2 }));
+    s.appendChild(svgEl('polygon', { points: `${x - 4},${m.t - 7} ${x + 4},${m.t - 7} ${x},${m.t - 1}`, fill: color }));
+  };
+  drop(xt, fs + 4, `Forecast for ${a.target}`, 'var(--accent)', true);
+  drop(xi, 2 * fs + 10, `made at ${a.issued}`, 'var(--muted)', false);
+
+  // dots on the two lines at the forecast time
+  s.appendChild(svgEl('circle', { cx: xt, cy: a.yFell, r: 4, fill: 'var(--ink)', stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+  s.appendChild(svgEl('circle', { cx: xt, cy: a.yExp, r: 4, fill: 'var(--accent)', stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+
+  // side pointers: values go right of the cursor unless it is near the right edge;
+  // the warning bar goes left unless the cursor is near the left edge; labels on
+  // one side are pushed apart
+  const room = a.narrow ? 190 : 150, unit = a.narrow ? '' : ' mm/hr';
+  const right = xt < W - m.r - room;
+  const n = Math.round(a.p * 8);
+  const items = [
+    { y: a.yFell, side: right ? 1 : -1, text: `fell ${Math.round(a.fell)}${unit}`, color: 'var(--ink)' },
+    { y: a.yExp, side: right ? 1 : -1, text: `expected ${Math.round(a.expected)}${unit}`, color: 'var(--accent)' },
+    { y: a.yBar, side: right && xt < m.l + room - 20 ? 1 : -1, text: `${n} of 8 ${a.narrow ? 'warn' : 'futures warn'}`, color: 'var(--muted)' },
+  ];
+  // stack upward from the lowest label: values crowd near 0 mm/hr, and there is room above
+  for (const side of [1, -1]) {
+    const g = items.filter((it) => it.side === side).sort((p, q) => q.y - p.y);
+    g.forEach((it, i) => { it.ly = i ? Math.min(it.y, g[i - 1].ly - gap) : it.y; });
+  }
+  for (const it of items) {
+    const x0 = xt + it.side * 6, x1 = xt + it.side * 20;
+    s.appendChild(svgEl('polyline', { points: `${x1},${it.ly} ${x0 + it.side * 4},${it.y}`, fill: 'none', stroke: it.color, 'stroke-width': 1.2 }));
+    s.appendChild(svgEl('polygon', { points: `${x0},${it.y} ${x0 + it.side * 6},${it.y - 3.5} ${x0 + it.side * 6},${it.y + 3.5}`, fill: it.color }));
+    s.appendChild(svgEl('text', { x: x1 + it.side * 3, y: it.ly + fs * 0.35, 'text-anchor': it.side > 0 ? 'start' : 'end',
+      class: 'callout', style: `fill:${it.color};font-size:${fs}px` }, it.text));
+  }
+}
+
+// Legend for the flood-site chart: one swatch per mark, drawn like the chart draws it.
+function chartLegend() {
+  const sw = (inner) => `<svg viewBox="0 0 28 14" width="28" height="14" aria-hidden="true">${inner}</svg>`;
+  const items = [
+    [sw('<path d="M0 10 H9 V4 H19 V9 H28" fill="none" style="stroke:var(--ink)" stroke-width="2"/>'), 'Rain that actually fell at the site'],
+    [sw('<polygon points="0,3 28,1 28,12 0,11" style="fill:var(--accent)" opacity="0.2"/><path d="M0 8 L28 6" style="stroke:var(--accent)" stroke-width="2"/>'),
+      'Rain the model expected (line) and the range of its 8 futures (band)'],
+    [sw(`<rect x="4" y="6" width="6" height="8" fill="rgb(${probColor(0.3)})"/><rect x="14" y="1" width="6" height="13" fill="rgb(${probColor(0.8)})"/>`),
+      'Warning: how many of 8 futures show heavy rain (right axis)'],
+    [sw('<path d="M14 0 V14" stroke="#ff3b30" stroke-dasharray="3 3" stroke-width="1.5"/>'), 'Flash flood reported'],
+    [sw('<path d="M14 0 V14" style="stroke:var(--accent)" stroke-width="1.5"/>'), 'The forecast you are viewing'],
+    [sw('<path d="M14 0 V14" style="stroke:var(--muted)" stroke-dasharray="2 4" stroke-width="1.5"/>'), 'When that forecast was made'],
+  ];
+  $('ex-chart-legend').innerHTML = items.map(([s, t]) => `<span>${s}${t}</span>`).join('');
 }
 
 function evidence(D) {
