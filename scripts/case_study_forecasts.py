@@ -63,36 +63,42 @@ def main():
     da = xr.open_zarr(ZARR_PATH, consolidated=True)["rain_rate"]
     times = da.time.values.astype("datetime64[m]")
     targets = np.arange(start, end + np.timedelta64(1, "m"), np.timedelta64(10, "m"))
-    idx = [int(np.searchsorted(times, t)) for t in targets]
-    if not all(times[i] == t for i, t in zip(idx, targets)):
-        sys.exit("a target frame is missing from the archive")
-    anchors = [i - off for i in idx]
-    step_ok = np.diff(times) == np.timedelta64(5, "m")
-    okc = np.concatenate(([0], np.cumsum(step_ok)))
-    for a, i in zip(anchors, idx):
-        if okc[i] - okc[a - cf] != i - (a - cf):
-            sys.exit(f"archive gap inside the span for target {times[i]}")
-    lo = min(anchors) - cf
-    block = da.isel(time=slice(lo, max(anchors))).values.astype(np.float32)
+    # Context = the cf frames ending (off + 1) steps before the target, looked up
+    # by time, so a frame NEA never published elsewhere in the storm does not
+    # shift the window. A target whose own frames have a gap is skipped.
+    pos = {t: i for i, t in enumerate(times)}
+    step = np.timedelta64(5, "m")
+    keep, ctx_idx = [], []
+    for k, t in enumerate(targets):
+        need = [t - (off + cf - j) * step for j in range(cf)]
+        if t in pos and all(n in pos for n in need):
+            keep.append(k)
+            ctx_idx.append([pos[n] for n in need])
+        else:
+            print(f"skip target {t}: its context or target frame is missing from the archive")
+    if not keep:
+        sys.exit("no target has a complete context")
+    lo, hi = min(c[0] for c in ctx_idx), max(c[-1] for c in ctx_idx) + 1
+    block = da.isel(time=slice(lo, hi)).values.astype(np.float32)
     if np.isnan(block).any():
         sys.exit("a context frame is blank (failed scrape)")
 
-    ens = np.empty((len(anchors), args.members, *block.shape[1:]), np.float16)
+    ens = np.empty((len(keep), args.members, *block.shape[1:]), np.float16)
     dev = next(model.parameters()).device
-    for k, t in enumerate(anchors):
-        ctx = build_context(block[t - cf - lo: t - lo], times[t - 1], log_max, tc,
+    for n, (k, c) in enumerate(zip(keep, ctx_idx)):
+        ctx = build_context(block[c[0] - lo: c[-1] + 1 - lo], times[c[-1]], log_max, tc,
                             model.data_cfg.get("motion_minutes", 0))
-        torch.manual_seed(9000 + k)
+        torch.manual_seed(9000 + k)                 # k: position in the full target list
         with torch.no_grad():
             e = model.ensemble_sample(torch.from_numpy(ctx).unsqueeze(0).to(dev),
                                       n_members=args.members, eta=1.0)
-        ens[k] = denormalise_rain(e.cpu().float()[0, :, 0], log_max).numpy()
+        ens[n] = denormalise_rain(e.cpu().float()[0, :, 0], log_max).numpy()
 
     out = ROOT / "data" / "processed" / "eval_cache" / f"case_{args.name}_lead{off * 5}.npz"
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, ens=ens, target_times=targets.astype("datetime64[m]"),
-                        anchor_idx=np.array(anchors), lead_steps=off)
-    print(f"{out.name}: {len(anchors)} forecasts x {args.members} members, "
+    np.savez_compressed(out, ens=ens, target_times=targets[keep].astype("datetime64[m]"),
+                        anchor_idx=np.array([c[-1] + 1 for c in ctx_idx]), lead_steps=off)
+    print(f"{out.name}: {len(keep)} forecasts x {args.members} members, "
           f"lead {off * 5} min nominal ({(off + 1) * 5} min from last frame)")
 
 
