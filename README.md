@@ -33,8 +33,8 @@ Screenshots from the [live dashboard](https://beese54.github.io/singapore-diffus
 | **Overview.** What the model does, the headline numbers, and why minutes matter. | **Would it have warned us?** The 10:35 forecast for the 27 Sep flood: the model warns (3 of 8 futures), the naive forecast doesn't, heavy rain came. |
 | ![Chart: the model's warning bars rise before the observed rain at the flood site](docs/img/dashboard/3_flood_site_chart_27sep.jpg) | ![Scorecard: catch rate and precision of heavy-rain warnings by lead time](docs/img/dashboard/4_when_it_warns_is_it_right.jpg) |
 | **Warnings before the rain.** Bars (model warnings) rise before the bold line (observed rain); red dashes mark the flood report. | **The honest scorecard.** 30 min ahead: catches 29% of downpours, right 1 time in 3 (27× chance); 60/90 min: no better than the naive forecast (at 60 min, plain extrapolation is the better heavy-rain warning). |
-| ![Noise to rain: the diffusion model's 50-step denoising](docs/img/dashboard/5_noise_to_rain.jpg) | ![What comes next: NEA's 240 km radar and the Phase 2 plan](docs/img/dashboard/6_whats_next_240km_radar.jpg) |
-| **How it draws a forecast.** From random noise to a rain map in 50 steps, guided by the last 30 minutes of radar. | **What comes next.** The wider 240 km radar, satellite, NVIDIA CorrDiff, and PUB's drain-sensor alerts as flood ground truth. |
+| ![Noise to rain: the diffusion model's 50-step denoising](docs/img/dashboard/5_noise_to_rain.jpg) | ![What radar alone cannot see: NEA's 240 km radar and what Phase 2 found](docs/img/dashboard/6_whats_next_240km_radar.jpg) |
+| **How it draws a forecast.** From random noise to a rain map in 50 steps, guided by the last 30 minutes of radar. | **What Phase 2 found.** Wider radar, satellite, CorrDiff and ERA5 did not beat simple extrapolation yet; next is more data through the Northeast Monsoon. |
 
 ## Results in one table
 

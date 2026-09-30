@@ -34,15 +34,20 @@
 - [x] Satellite Step 1 spike (2026-09-29): **GO (weak)**. Himawari cold-cloud rule + extrapolation at 60 min: incoming catch +28 pts [+7, +45], CSI -0.013 [-0.031, +0.018], but 5x warnings and precision 18% -> 9%; initiation barely caught (L036). Parallax ~16 km W, 6 km S. results/satellite_spike.json.
 - [x] Satellite Step 2A (2026-09-30): **DO NOT KEEP**. At matched warning volume, the radar+satellite classifier's CSI is 0.021 vs extrapolation's 0.093 (L_RS-E CSI -0.072 [-0.112,-0.005]). Hour-of-day features made both classifiers warn in the morning while the test storms came in the afternoon (L037). Post-hoc, without the hour features: satellite adds +0.000 [-0.023,+0.024] over radar, and neither beats extrapolation. Extrapolation stays the 60-min warning. Step 2B/3 not run. Satellite paused until a longer record (NE Monsoon). Verdict in `tasks/plan_satellite_step2.md`; results/satellite_warning{,_posthoc}.json.
 
-> **RESUME HERE (2026-09-30 morning):** nothing is running; everything is committed and pushed. Satellite Step 2A finished: DO NOT KEEP (see above). Himawari cache (21 May-27 Sep, ~0.5 GB) kept for a later retry.
-> **Direction (recommended 2026-09-30, user deciding):** stop new experiments. Every 60-90 min idea has failed on ~100 days of one monsoon season. Plan: (1) a half-day wrap-up, then (2) collect-only mode with a monthly `check_radar_gaps.py --status`, then (3) around Apr 2027, after the NE Monsoon: retrain, rerun the scripted comparisons incl. satellite, start F2.
-> **When the user says "start the half-day wrap-up":**
-> (a) README + docs/RESULTS "what we tried" + LIMITATIONS: add the satellite spike and Step 2A (the verdict tables are in plan_satellite.md / plan_satellite_step2.md) plus the summary "negative results at 60-90 min are data-limited";
-> (b) 27 Sep second case study (the unchecked item above: notebook 02 section, dashboard, docs/RESULTS);
-> (c) rebuild and verify the dashboard (`scripts/build_dashboard.py`, check in Chrome);
-> (d) remind the user of the pending LinkedIn post (content/linkedin_post_phase1.md);
-> (e) one commit per part, push.
-> Not decided yet: whether to wrap up at all. Do not start without the user. After restart run `python scripts/check_radar_gaps.py --status`. Checkpoint prune DONE 2026-09-29 (359 files deleted, list in tasks/repro/checkpoint_prune_list.txt; 11 referenced checkpoints kept, 3.2 GB; C: 164 GB free).
+> **RESUME HERE — COLLECTION MODE (since 2026-09-30).** Wrap-up done and pushed: 30 Sep case study, satellite
+> results + "negative results are data-limited" in README/RESULTS/LIMITATIONS/LESSONS, dashboard rebuilt and checked.
+> Nothing is running; the scheduled tasks collect by themselves.
+> **While collecting (Oct 2026 – Mar 2027):**
+> - Laptop on (and online) at least every ~6 days: NEA keeps only ~7 days of the 70 km radar (240 km: ~30 days).
+> - Monthly: `python scripts/check_radar_gaps.py --status`; `python scripts/collect_flood_labels.py --status`.
+> - After a notable flash flood (optional): sync labels, geocode, preprocess, rebuild eval dataset, then
+>   `case_study_forecasts.py --name <ddmon>` x3 leads + notebook 02 §7 / RESULTS §4 / dashboard `CASES`.
+> - Himawari needs no collection (NOAA public archive; download when needed).
+> **Mid-Jan 2027 (optional check-in):** data health, flood-label count, any case studies.
+> **~Apr 2027 (resume):** retrain on both seasons (new split pinned by date), re-run the scripted comparisons
+> (motion input, calibration/hybrid, 240 km, satellite without clock features — L037), add the 30 Sep and later events
+> to RESULTS §3/§3b, start F2 (per-location drain-alert model) if enough alerts. Still pending for the user: the
+> LinkedIn post (content/linkedin_post_phase1.md).
 
 ### A. Repo hygiene & docs
 - [x] A1 cleanup: portable launchers, results/ablations/ (+README), docs/history/, spec wording, per-lead eval output (5c1a431). ERA5 tmp files KEPT: they are download_era5.py's cache (17 MB, gitignored)
