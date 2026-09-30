@@ -13,7 +13,13 @@
 - [x] Collected: Neo Pee Teck Lane / Pasir Panjang Rd junction, FLASH_FLOOD 11:57 SGT (subsided 12:08), amid 29 flood-risk warnings from 11:05. Site is PUB flood-prone #26. Geocode hand-fixed to the layer's point, cell (63,78)
 - [x] Observed (7x7 box): dry to 11:05, 61 mm/hr 11:20, 100 mm/hr 11:30-11:40
 - [x] Forecasts `data/processed/eval_cache/case_27sep_lead{30,60,90}.npz`. **30 min: first flag issued 10:35 SGT (P>=10 0.38, persistence dry) = 35 min before rain reached the site, 30 min before PUB's first warning anywhere (11:05), 82 min before the flood report.** Median intensity ~10x low (8-10 vs 61-100). 60 min: one flag (P 0.50) issued 10:35 for 11:40. 90 min: none
-- [ ] Add as second case study (notebook 02 section, dashboard, docs/RESULTS.md). No retraining: one event does not change the training data materially; retrain when months more radar exist (e.g. NE monsoon)
+- [x] Added as case study (2026-09-30): notebook 02 §7, docs/RESULTS §4 (dashboard explorer already had it). No retraining: one event does not change the training data materially; retrain when months more radar exist (e.g. NE monsoon)
+
+### New event — 30 Sep 2026 flash floods (Riverside Rd 15:13, Neo Tiew Rd 15:38 SGT)
+- [x] Labels synced by hand (the 09:00 task ran before the storm), geocoded (cells (5,82), (11,59)), radar preprocessed, flood_eval_dataset rebuilt
+- [x] Forecasts `case_30sep_lead{30,60,90}.npz`: **late warning** — first storm flag issued 14:25 (P 0.38), 10-15 min before heavy rain, 48/73 min before the reports; 12:35 flag a false alarm; 13:55-14:15 issues impossible (NEA never published 13:50; case script now skips only affected targets, bff5276). 60/90: none
+- [x] Notebook 02 §7, RESULTS §4, dashboard explorer (third case, with a note)
+- [ ] Add the 30 Sep events to the §3 / §3b scored tables at the next scripted re-run (Apr 2027)
 
 ### D. Heavy-rain data
 - [x] D1a Probe NEA 240 km product: 5-min, 480x480 RGBA PNG ~45 KB, **served ~30 days back** (70 km: ~7 d). ~13 MB/day.

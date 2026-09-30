@@ -164,7 +164,23 @@ sample).** Dry until 11:05 SGT, 100 mm/hr (top of NEA's scale) 11:30–11:40, fl
 35 min before rain reached the site, 30 min before PUB's first alert anywhere, **59 min before the
 drain-sensor flood-risk alert at that junction (11:34)**, 82 min before the flash-flood report (an
 independent re-draw in §3b first warns at 10:45, 49 min before the alert: the exact minute depends on the
-random draw). Intensity ~10× too low. 60 min: one flag (P = 0.50) issued 10:35; 90 min: none.
+random draw). Intensity ~10× too low. 60 min: flags issued 10:35 (P = 0.50) and 10:45; 90 min: no
+advance warning (its one flag, issued 10:55 at exactly P = 0.25, is for 12:30, after the flood).
+
+**30 Sep 2026, Riverside Road and Neo Tiew Road (after the test period — a late warning).** Flash
+floods reported 15:13 and 15:38 SGT. Both sites went from ~1 to 100 mm/hr within 15 min (≥10 mm/hr from
+14:40 and 14:35). The storm grew in place: the nearest ≥10 mm/hr pixel stayed 5–30 km away until 14:20,
+then reached the sites within 15 min. Riverside Road is ~1.5 km from the domain's northern edge.
+30-min model: first storm-related flags issued **14:25** (P≥10 = 0.38 at both sites), 10–15 min before
+the heavy rain arrived and 48 / 73 min before the flash-flood reports, while persistence showed no
+heavy rain. A 2-of-8 flag issued 12:35 at both sites was a false alarm. NEA never published the 13:50
+radar frame, so forecasts issued 13:55–14:15 could not be made; an earlier warning cannot be ruled out
+or in. 60/90 min: no flag (max P = 0.12). These events are **not yet in the §3/§3b tables**; they will
+be added in the next scripted re-run.
+
+On all three days the first 30-min flag came 10–35 min before heavy rain reached the site, and 48–86 min
+before the flash-flood report; the warning is short when a storm grows within a few km of the site.
+Notebook 02 §7 has the 27 and 30 Sep charts.
 
 ## 5. Inference speed
 

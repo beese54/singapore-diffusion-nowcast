@@ -56,6 +56,16 @@ CASES = {
     "27sep": dict(title="27 Sep 2026 — Neo Pee Teck Lane / Pasir Panjang Road",
                   obs=("2026-09-27T00:30", "2026-09-27T05:30"),
                   site=(63, 78), site_name="Neo Pee Teck Lane / Pasir Panjang Rd"),
+    "30sep": dict(title="30 Sep 2026 — Riverside Road and Neo Tiew Road",
+                  obs=("2026-09-30T03:20", "2026-09-30T07:45"),
+                  site=(5, 82), site_name="Riverside Road",
+                  note="A late warning. The storm grew within about 6 km of both flood sites and went from "
+                       "dry to 100 mm/hr there in 15 minutes (14:35-14:50). The first storm warning was made at "
+                       "14:25, 15 min before heavy rain reached Riverside Road and 48 min before the flood "
+                       "report, while the naive forecast was still dry. The 2-of-8 flag made at 12:35 was a "
+                       "false alarm. Forecasts made 13:55-14:15 could not be run because NEA never published "
+                       "the 13:50 radar map. Riverside Road is 1.5 km from the northern edge of the radar map, "
+                       "so rain coming from Johor is seen late. At 60 and 90 min: no warning."),
 }
 
 
@@ -119,7 +129,7 @@ def to_px(lat_v, lon_v, lat, lon):
 def export_case(name: str, cfg: dict, da: xr.DataArray, ev: pd.DataFrame, lat, lon) -> dict:
     obs = da.sel(time=slice(*cfg["obs"])).load()
     otimes = obs.time.values
-    out = {"title": cfg["title"], "site": {"name": cfg["site_name"],
+    out = {"title": cfg["title"], "note": cfg.get("note", ""), "site": {"name": cfg["site_name"],
                                            "i": cfg["site"][0], "j": cfg["site"][1], "r": BOX_R},
            "obs_times": [hhmm(t) for t in otimes],
            "obs": save_sprite(rain_bytes(obs.values), f"{name}_obs.png"),

@@ -70,6 +70,9 @@ in `data/processed/eval_cache/` with the exact times they cover; a stale cache i
 python scripts/case_study_forecasts.py --checkpoint checkpoints/nowcaster/ckpt_step_300000.pt   # 22 Sep
 python scripts/case_study_forecasts.py --checkpoint checkpoints/nowcaster/ckpt_step_300000.pt \
     --start 2026-09-27T02:30 --end 2026-09-27T04:30 --name 27sep                               # 27 Sep
+python scripts/case_study_forecasts.py --checkpoint checkpoints/nowcaster/ckpt_step_300000.pt     --start 2026-09-30T05:00 --end 2026-09-30T07:40 --name 30sep                               # 30 Sep
+# repeat each case with lead60_warm/ and lead90_warm/ ckpt_step_100000.pt for the 60/90-min caches;
+# targets whose radar history has a gap are skipped and listed
 python scripts/build_flood_prone_layer.py        # PUB flood-prone list -> GeoJSON points
 jupyter nbconvert --to notebook --execute --inplace notebooks/02_nowcast_evaluation.ipynb
 jupyter nbconvert --to notebook --execute --inplace notebooks/03_flood_risk_overlay.ipynb

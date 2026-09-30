@@ -264,7 +264,7 @@ async function explorer(D) {
     mean: new Panel($('ex-mean'), D.grid, D.coast), p10: new Panel($('ex-p10'), D.grid, D.coast),
   };
   const slider = $('ex-t');
-  segmented($('case-seg'), [['27sep', '27 Sep · Pasir Panjang'], ['22sep', '22 Sep · King\'s Road']], state.c,
+  segmented($('case-seg'), [['27sep', '27 Sep · Pasir Panjang'], ['22sep', '22 Sep · King\'s Road'], ['30sep', '30 Sep · Riverside Rd']], state.c,
     (v) => { state.c = v; state.k = firstFlagOr0(); render(true); });
   segmented($('lead-seg'), [['30', '30 min'], ['60', '60 min'], ['90', '90 min']], state.lead,
     (v) => { state.lead = v; render(true); });
@@ -304,6 +304,7 @@ async function explorer(D) {
     Object.values(P).forEach((p) => p.setMarks(marks));
     const target = L.targets[k], issued = L.issued[k];
     $('ex-t-out').textContent = `${target} SGT (made at ${issued})`;
+    $('ex-note').textContent = c.note;
     const obsNow = c.obs_site[L.target_obs_index[k]];
     const naiveNow = c.obs_site[L.persistence_obs_index[k]];
     const flood = c.reports.find((r) => r.type === 'FLASH_FLOOD');

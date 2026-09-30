@@ -611,5 +611,41 @@
     "simplified": "traffic junction of pesawat drive and jurong port road",
     "matched_name": null,
     "note": "OneMap returned no in-SG match; edit this entry by hand"
+  },
+  "Neo Tiew Rd (near Neo Tiew Harvest Link) [15:30hours]": {
+    "lat": 1.426894,
+    "lon": 103.720801,
+    "lat_idx": 11,
+    "lon_idx": 59,
+    "method": "onemap",
+    "simplified": "neo tiew road",
+    "matched_name": "NEO TIEW ROAD"
+  },
+  "Neo Tiew Road (near Neo Tiew Harvest Link)": {
+    "lat": 1.426894,
+    "lon": 103.720801,
+    "lat_idx": 11,
+    "lon_idx": 59,
+    "method": "onemap",
+    "simplified": "neo tiew road",
+    "matched_name": "NEO TIEW ROAD"
+  },
+  "Riverside Road": {
+    "lat": 1.443579,
+    "lon": 103.781003,
+    "lat_idx": 5,
+    "lon_idx": 82,
+    "method": "onemap",
+    "simplified": "riverside road",
+    "matched_name": "RIVERSIDE ROAD"
+  },
+  "Riverside Road [15:03 hours]": {
+    "lat": 1.443579,
+    "lon": 103.781003,
+    "lat_idx": 5,
+    "lon_idx": 82,
+    "method": "onemap",
+    "simplified": "riverside road",
+    "matched_name": "RIVERSIDE ROAD"
   }
 }

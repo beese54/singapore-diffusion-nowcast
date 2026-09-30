@@ -4,7 +4,7 @@
 ensemble of possible rain maps for the next 35–95 minutes — built to give neighbourhood-level
 warning of the sudden downpours that cause flash floods.**
 
-**Interactive dashboard: [https://beese54.github.io/singapore-diffusion-nowcast/](https://beese54.github.io/singapore-diffusion-nowcast/)** — two real flash floods, forecast by forecast, and the evidence.
+**Interactive dashboard: [https://beese54.github.io/singapore-diffusion-nowcast/](https://beese54.github.io/singapore-diffusion-nowcast/)** — three flash-flood days, forecast by forecast, and the evidence.
 
 An independent research project, run end-to-end on one laptop GPU (RTX 4060, 8 GB): radar and
 flood-report collection since May 2026, a 25.8M-parameter diffusion nowcaster, and an evaluation
@@ -82,7 +82,7 @@ Full method: [docs/METHODS.md](docs/METHODS.md).
 | `train.py` | training, resumable, `--init-from` warm start |
 | `src/inference/nowcast.py` | live forecast from the latest radar frames |
 | `scripts/` | data collection, preprocessing, geocoding, evaluation, case studies |
-| `notebooks/02_nowcast_evaluation.ipynb` | 22 Sep flash-flood case study |
+| `notebooks/02_nowcast_evaluation.ipynb` | flash-flood case studies: 22 Sep (§1–6), 27 and 30 Sep (§7) |
 | `notebooks/03_flood_risk_overlay.ipynb` | forecast probability over PUB flood-prone areas |
 | `results/` | evaluation results of record; `results/ablations/` for superseded runs |
 | `docs/` | methods, results, limitations, data, reproduction, lessons; `docs/history/` for past plans |
