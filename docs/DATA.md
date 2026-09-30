@@ -18,7 +18,8 @@
 | Flash-flood alerts (@pubfloodalerts, Telegram) | PUB | evaluation ground truth | **No** raw messages; event times and geocoded locations appear in results and figures |
 | List of Flood Prone Areas (Nov 2025, PDF) | PUB | flood-risk map | **No** PDF; the derived point layer `data/processed/flood_prone_areas.geojson` is generated locally |
 | Address search | OneMap (Singapore Land Authority) | geocoding | `data/processed/geocode_cache.json` (place names → coordinates) |
-| ERA5 reanalysis | ECMWF / Copernicus Climate Change Service | baseline (Stage 2) and CorrDiff (planned) | **No** |
+| ERA5 reanalysis | ECMWF / Copernicus Climate Change Service | baseline (Stage 2), CorrDiff spike, ERA5-input experiment | **No** |
+| Himawari-9 AHI full-disk imagery | JMA, via NOAA Open Data Dissemination (`noaa-himawari9` on AWS) | satellite experiments (`src/data/satellite.py`, `scripts/download_himawari.py`) | **No** — public archive, downloadable at any time |
 
 ## What is published
 

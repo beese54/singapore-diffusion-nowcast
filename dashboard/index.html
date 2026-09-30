@@ -162,28 +162,29 @@
   <div class="two">
     <div>
       <p>Heavy rain is where this model falls short: storms that form in place, or arrive from beyond
-        the 35 × 63 km radar window, are invisible until they appear. Phase 2 adds what the model is missing:</p>
+        the 35 × 63 km radar window, are invisible until they appear. Phase 2 tried to add what the model is missing.
+        None of these beat simple extrapolation (moving the latest radar map along its motion) for 60-minute heavy-rain warnings:</p>
       <ul>
-        <li><b>Wide-range radar (240 km)</b>, collected since September, to see storms 100+ km out.</li>
-        <li><b>Himawari-9 satellite</b>, following NVIDIA's Earth-2 Nowcasting model (StormScope), which
-          combines satellite and radar.</li>
-        <li><b>NVIDIA CorrDiff</b> (PhysicsNeMo) to downscale the ERA5 weather environment to ~2.5 km.</li>
-        <li><b>Learning which spots flood</b> at what rainfall, using PUB's drain-sensor flood-risk alerts as ground truth.</li>
-        <li>Retraining once the archive covers the Northeast Monsoon (Dec–Mar).</li>
+        <li><b>Wide-range radar (240 km)</b>: collected since September; it caught no more incoming downpours, which mostly form nearby rather than arrive.</li>
+        <li><b>Himawari-9 satellite</b>: cold cloud tops caught more downpours only by warning over a much wider area; a learned radar + satellite warning added nothing.</li>
+        <li><b>NVIDIA CorrDiff</b> and <b>ERA5 weather input</b>: CorrDiff tracked when island rain fell but never reached realistic amounts, and the weather input did not help.</li>
       </ul>
+      <p>All of this was learned from about three months of one monsoon season, so "did not help" means "not yet
+        measurable". <b>Next:</b> keep collecting radar and flood alerts through the Northeast Monsoon (Dec–Mar), then
+        retrain, re-run every comparison, and start learning which spots flood at what rainfall from PUB's drain-sensor alerts.</p>
     </div>
     <figure id="r240-fig">
       <div class="panel square" id="r240"></div>
       <figcaption><button class="play" id="r240-play" aria-label="Play 240 km loop">▶</button>
-        <span id="r240-time"></span> NEA 240 km rain radar, 22 Sep — the wider view the next stage will use
-        (NEA's image as published; not yet georeferenced by this project)</figcaption>
+        <span id="r240-time"></span> NEA 240 km rain radar, 22 Sep — the wider view tried in Phase 2
+        (NEA's image as published)</figcaption>
     </figure>
   </div>
   <h3 id="limits">Limits, stated plainly</h3>
   <ul class="limits">
     <li>Heavy rain (10 mm/hr and more) is not forecast better than the naive forecast at any lead, and the model expects it 5–10× too weak.</li>
     <li>60 and 90 minute forecasts only help with light rain.</li>
-    <li>128 days of data, one monsoon season, one 12-day test period and about three flood storms.</li>
+    <li>Trained on 103 days from one monsoon season; one 12-day test period; four storms with flood alerts after training (18, 22, 27, 30 Sep).</li>
     <li>It predicts rain, not floods. PUB's flood-risk alerts only tell us when a drain passes 90% full; locations are geocoded points.</li>
     <li>A research prototype — not a warning service. Follow official PUB and MSS advisories.</li>
   </ul>

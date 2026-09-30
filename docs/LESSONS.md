@@ -1,7 +1,7 @@
 # Lessons for other researchers
 
 The full log, with the evidence behind each entry, is [`tasks/lessons.md`](../tasks/lessons.md)
-(L001–L031; there is no L019, a numbering gap). This page groups the ones most likely to save
+(L001–L037; there is no L019, a numbering gap). This page groups the ones most likely to save
 someone else time.
 
 ## Evaluating probabilistic nowcasts
@@ -13,6 +13,12 @@ someone else time.
   training-period events until a cache check exposed it. Count storms, not reports.
 - **Pin splits by date, and make caches record what they cover** (L028). A "last 10%" split of a
   growing archive changed daily and once turned CRPS skill +0.44 into +0.13 with no error.
+- **A "catches more" go/no-go needs a precision floor or matched warning volume** (L036). A satellite rule
+  that warned wherever cold cloud was nearby caught 28 points more incoming heavy rain while halving precision,
+  and still passed a CSI-based rule because heavy rain is rare.
+- **Leave clock features out of a warning classifier trained on one season** (L037). Hour-of-day inputs learned
+  the training months' morning squalls; every top test warning fell at 03–12 SGT while the storms came at 12–17.
+  Check where the top warnings fall in time before scoring.
 
 ## Diffusion models on sparse rain fields
 - **v-prediction, not ε-prediction, for a near-binary field** (L021). With 97% of pixels at the dry

@@ -8,9 +8,12 @@ warning of the sudden downpours that cause flash floods.**
 
 An independent research project, run end-to-end on one laptop GPU (RTX 4060, 8 GB): radar and
 flood-report collection since May 2026, a 25.8M-parameter diffusion nowcaster, and an evaluation
-that reports what works *and what does not*. Phase 1 is complete. Phase 2 has so far tested three ways of
-seeing heavy rain earlier: NVIDIA CorrDiff downscaling, ERA5 weather input, and the wide-range radar. None helped
-as tried (see [Results §6](docs/RESULTS.md)); the next candidates are motion-aware inputs and satellite.
+that reports what works *and what does not*. Phase 1 is complete. Phase 2 tested six ways of warning of heavy
+rain further ahead: NVIDIA CorrDiff downscaling, ERA5 weather input, the 240 km wide-range radar, a motion input,
+recalibrated and hybrid warnings, and Himawari-9 satellite. None beat plain extrapolation at 60 minutes (see
+[Results §6](docs/RESULTS.md)). With 103 days of training data from one monsoon season, that means "no measurable
+gain yet", not "cannot work". **Status (Sep 2026): collection mode** until the Northeast Monsoon has been recorded
+(see Roadmap).
 
 ![Rain at the King's Road flood site on 22 Sep 2026: observed (black), forecasts at 30/60/90 min, and the ensemble's probability of heavy rain](docs/img/case22sep_flood_cell_all_leads.png)
 
@@ -121,11 +124,15 @@ is written up with the evidence in [docs/LESSONS.md](docs/LESSONS.md).
   beat extrapolation. A hybrid of the two catches 38% but is right only 13% of the time, so it did not beat
   extrapolation either. **Plain extrapolation is the recommended 60-min heavy-rain warning**; the diffusion model
   stays the probability and rain-amount forecast ([Results §2b](docs/RESULTS.md)).
-- **Satellite (Himawari-9)**, to see clouds growing before they rain, following NVIDIA's Earth-2 Nowcasting design
-  (StormScope: satellite + radar).
-- **Drain-alert benchmark:** done ([Results §3b](docs/RESULTS.md)); per-location flood model once alerts accumulate.
-- **More out-of-sample flood events**, and retraining once the archive covers the Northeast Monsoon
-  (Dec–Mar).
+- **Satellite (Himawari-9) (done, did not help as tried):** a cold-cloud rule caught more incoming heavy rain only by
+  warning over a wider area (precision halved). A learned radar + satellite warning, compared at the same number of
+  warnings, added nothing over radar alone and did not beat extrapolation.
+- **Drain-alert benchmark:** done ([Results §3b](docs/RESULTS.md)).
+- **Next (collection mode, Oct 2026 – Mar 2027):** radar (70 and 240 km) and PUB flood alerts keep collecting
+  through the Northeast Monsoon (Dec–Mar), with new flash floods added as case studies. Satellite needs no collection:
+  Himawari-9 is a public archive and can be downloaded when needed. Around Apr 2027:
+  retrain on both seasons, re-run the scripted comparisons above (including satellite), and start the per-location
+  flood model once enough drain alerts have accumulated.
 
 Plan: [tasks/plan_phase2.md](tasks/plan_phase2.md).
 

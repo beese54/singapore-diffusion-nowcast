@@ -10,9 +10,10 @@ Read these before using any result from this repository.
    drives flash floods, so **this is not an operational flood-warning system.**
 2. **It cannot see storms that are not on the radar yet.** Input is 30 min of a 35 × 63 km radar
    domain. Cells that form in place, or arrive from outside the domain, are invisible until they
-   appear. On 22 Sep the first minutes of a rapidly growing cell were missed. Every radar-only fix
-   tried did not help (see [RESULTS.md §6](RESULTS.md)); the next stage adds wide-range radar and
-   satellite.
+   appear. On 22 Sep the first minutes of a rapidly growing cell were missed; on 30 Sep a storm that
+   grew within a few km of two flood sites was flagged only 10–15 min before the rain. Radar-only fixes,
+   the 240 km wide-range radar and Himawari satellite were all tried and did not help as tried (see
+   [RESULTS.md §6](RESULTS.md)).
 3. **Longer leads are weak.** The 60/90-min models only tie or slightly beat persistence for light
    rain, and give no useful heavy-rain signal.
 4. **Probabilities are under-confident.** In the 22 Sep case, points given 25–50% were wet 88% of the
@@ -20,8 +21,10 @@ Read these before using any result from this repository.
 
 ## What the evidence can and cannot support
 
-5. **Short archive.** 128 days (22 May – 27 Sep 2026): the Southwest Monsoon and inter-monsoon
-   only. The Northeast Monsoon (Dec–Mar), with its long-lived monsoon surges, has never been seen.
+5. **Short archive.** Models were trained on 103 days (22 May – 2 Sep 2026): the Southwest Monsoon and
+   inter-monsoon only. The Northeast Monsoon (Dec–Mar), with its long-lived monsoon surges, has never been
+   seen. **Every negative result at 60–90 min rests on this one season** and is data-limited; collection
+   continues and the comparisons will be re-run after the Northeast Monsoon.
 6. **One 12-day test period.** CIs are bootstrapped over its 200 forecast times, which are
    autocorrelated (one storm spans several samples), so the intervals are likely too narrow.
 7. **Few independent flood events.** The out-of-sample flood evidence is 26 reports from about
